@@ -1,0 +1,8 @@
+target/*
+project/target/*
+project/project/target/*
+project/project/project/target/*
+.bsp
+.bloop
+.vscode
+.metals

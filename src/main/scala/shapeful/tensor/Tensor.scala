@@ -36,7 +36,6 @@ class Tensor[D <: Tuple](val stensor : torch.Tensor[Float32], val shape: List[In
     new Tensor[Remove[D, A]](newTensor, newTensor.shape.toList)
 
 
-
   inline def sum[A]: Tensor[Remove[D, A]] =
     val i = inlineIndexOf[D, A]
     val newShape = shape.zipWithIndex.filter(_._2 != i).map(_._1)
@@ -61,68 +60,9 @@ class Tensor[D <: Tuple](val stensor : torch.Tensor[Float32], val shape: List[In
     case head *: rest => head *: Remove[rest, A]
     case EmptyTuple => EmptyTuple
 
-extension (t : Tensor[EmptyTuple.type ]) 
-  def item : Float = t.stensor.item
 
 
-extension [A, B](tensor: Tensor[(A, B)])
-  def mult[C](other: Tensor[(B, C)]): Tensor[(A, C)] = {
-    val newt = tensor.stensor.matmul(other.stensor)
-    val t = new Tensor[(A, C)](newt, newt.shape.toList)
-    t
-  }
 
-  def dot(other : Tensor[Tuple1[B]]) : Tensor[Tuple1[A]] =
-    val newt = tensor.stensor `@` other.stensor
-    new Tensor[(Tuple1[A])](newt, List(newt.shape.head))
-
-  def cov : Tensor[(A, A)] =
-    val n = tensor.shape.head
-    val newt = tensor.stensor.matmul(tensor.stensor.t) * (1.0f / n)
-    new Tensor[(A, A)](newt, List(newt.shape.head))
-
-extension[A <: Tuple] (tensor: Tensor[A] )
-
-  
-
-  def multScalar(s : Tensor0) : Tensor[A] =
-    val newt = tensor.stensor.mul(s.stensor)
-    new Tensor[A](newt, newt.shape.toList)
-
-  @targetName("add tensor")
-  def add(other : Tensor[A]) : Tensor[A] = {
-    val newt = tensor.stensor.add(other.stensor)
-    new Tensor[A](newt, newt.shape.toList)
-  }
-
-
-  def div(other : Tensor[A]) : Tensor[A] =
-    val newt = tensor.stensor.div(other.stensor)
-    new Tensor[A](newt, newt.shape.toList)
-
-
-  def divScalar(scalar : Tensor[Tuple1[1]]) : Tensor[A] =
-    val newt = tensor.stensor.div(scalar.stensor)
-    new Tensor[A](newt, newt.shape.toList)
-
-  @targetName("add scalar")
-  def addScalar(other: Tensor0): Tensor[A] = {
-    val newt = tensor.stensor.add(other.stensor)
-    new Tensor[A](newt, newt.shape.toList)
-  }
-  @targetName("subtract tensor")
-  def sub(other: Tensor[A]): Tensor[A] = {
-    val newt = tensor.stensor.sub(other.stensor)
-    new Tensor[A](newt, newt.shape.toList)
-  }
-
-  def pow(exp : Int) : Tensor[A] =
-    val newt = tensor.stensor.pow(exp)
-    new Tensor[A] (newt, newt.shape.toList)
-
-  def log: Tensor[A] =
-    val newt = tensor.stensor.log
-    new Tensor[A](newt, newt.shape.toList)
 
 
 

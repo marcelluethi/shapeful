@@ -7,7 +7,6 @@ trait Dimension[D] {
 }
 
 
-
 object Dimension {
   // Define a simple case class implementation
   case class IntDimension[N <: Int & Singleton](value: Int) extends Dimension[N]

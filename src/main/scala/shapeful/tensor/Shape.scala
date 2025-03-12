@@ -4,7 +4,7 @@ import shapeful.tensor.Dimension
 import scala.annotation.targetName
 
 
-// type class  to access shape of a type
+// type class  to access shape (the value) from a tuple
 trait Shape[Dims <: Tuple] {
   def toList: List[Int]
 }

@@ -3,14 +3,9 @@ package shapeful.autodiff
 import munit.FunSuite
 import shapeful.tensor.Tensor.Tensor0
 import shapeful.tensor.Tensor
-import shapeful.tensor.pow
-import shapeful.tensor.item
-import shapeful.tensor.mult
-import shapeful.tensor.multScalar
+import shapeful.tensor.TensorOps.* 
+import shapeful.tensor.Tensor0Ops.*
 import shapeful.tensor.Tensor.Tensor1
-import shapeful.tensor.dot
-import shapeful.tensor.Tensor.Tensor2
-import shapeful.tensor.add
 
 class AutodiffTests extends FunSuite {
 
@@ -30,7 +25,7 @@ class AutodiffTests extends FunSuite {
   
   test("diff of function2 of two scalars") {
 
-    val f = (x : Tensor0, y : Tensor0) => x.multScalar(y)
+    val f = (x : Tensor0, y : Tensor0) => x.mul(y)
 
     val df = Autodiff.deriv(f)
 
@@ -53,7 +48,7 @@ class AutodiffTests extends FunSuite {
         given shapeful.tensor.Dimension[Data] = shapeful.tensor.Dimension.Symbolic[Data](2)
         
         val f = (x : Tensor1[Data], y : Tensor1[Data]) => 
-            val m = x.add(y.multScalar(Tensor(2f, requiresGrad = false)))
+            val m = x.add(y.mul(Tensor(2f, requiresGrad = false)))
             m.sum[Data]
 
         val df = Autodiff.deriv(f)

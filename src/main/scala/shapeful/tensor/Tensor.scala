@@ -61,6 +61,9 @@ class Tensor[D <: Tuple](val stensor : torch.Tensor[Float32], val shape: List[In
     case head *: rest => head *: Remove[rest, A]
     case EmptyTuple => EmptyTuple
 
+extension (t : Tensor[EmptyTuple.type ]) 
+  def item : Float = t.stensor.item
+
 
 extension [A, B](tensor: Tensor[(A, B)])
   def mult[C](other: Tensor[(B, C)]): Tensor[(A, C)] = {

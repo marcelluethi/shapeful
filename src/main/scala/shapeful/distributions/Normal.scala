@@ -8,7 +8,7 @@ import shapeful.tensor.TensorOps
 import scala.math.{Pi, exp, log, sqrt}
 import shapeful.tensor.TensorOps.*
 
-class NormalDistribution[Shape <: Tuple](mu: Tensor[Shape], sigma: Tensor[Shape]) {
+class Normal[Dims <: Tuple](mu: Tensor[Dims], sigma: Tensor[Dims]) {
 
   // Precompute constants for efficiency
   private val variance = sigma.pow(2)
@@ -23,7 +23,7 @@ class NormalDistribution[Shape <: Tuple](mu: Tensor[Shape], sigma: Tensor[Shape]
    * @param x Input tensor
    * @return log(PDF) values for each input
    */
-  def logpdf(x: Tensor[Shape]): Tensor[Shape] = {
+  def logpdf(x: Tensor[Dims]): Tensor[Dims] = {
     // Log PDF formula: -0.5 * log(2π) - log(σ) - 0.5 * ((x - μ)/σ)^2
     val term1 = log2Pi.mul(Tensor(-0.5f, requiresGrad = false))
     val term2 = logSigma.mul(Tensor(-1f, requiresGrad = false))
@@ -38,7 +38,7 @@ class NormalDistribution[Shape <: Tuple](mu: Tensor[Shape], sigma: Tensor[Shape]
    * @param sampleShape Shape of samples to generate
    * @return Samples from the normal distribution
    */
-  def sample(): Tensor[Shape] = {
+  def sample(): Tensor[Dims] = {
     val z = torch.randn(mu.stensor.shape)
     val newtensor = mu.stensor.add(sigma.stensor.mul(z))
     new Tensor(newtensor, newtensor.shape.toList)
@@ -46,9 +46,9 @@ class NormalDistribution[Shape <: Tuple](mu: Tensor[Shape], sigma: Tensor[Shape]
 }
 
 // Companion object for convenient creation
-object NormalDistribution {
+object Normal {
 
-  def apply[Shape <: Tuple](mu: Tensor[Shape], sigma: Tensor[Shape]): NormalDistribution[Shape] = {
-    new NormalDistribution[Shape](mu, sigma)
+  def apply[Dims <: Tuple](mu: Tensor[Dims], sigma: Tensor[Dims]): Normal[Dims] = {
+    new Normal[Dims](mu, sigma)
   }
 }

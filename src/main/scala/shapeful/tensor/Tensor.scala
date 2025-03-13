@@ -15,38 +15,47 @@ import scala.compiletime.ops.any.*
 import Tensor.Tensor0
 
 // Main tensor class - dimensions are encoded as type parameters
-class Tensor[D <: Tuple](val stensor : torch.Tensor[Float32], val shape: List[Int]):
+class Tensor[Dims <: Tuple](val stensor : torch.Tensor[Float32], val shape: List[Int]):
   override def toString(): String =
     stensor.toString()
 
-  def grad(): Tensor[D] =
+  def grad(): Tensor[Dims] =
     val g = stensor.grad.get.detach()
     new Tensor(g, g.shape.toList)
 
-  def copy(requiresGrad : Boolean): Tensor[D] =
+  def copy(requiresGrad : Boolean): Tensor[Dims] =
     val cp = stensor.detach()
     cp.requiresGrad = requiresGrad
     new Tensor(cp, cp.shape.toList)
 
 
-  inline def apply[A](index: Int) : Tensor[Remove[D, A]] =
-    val dim = inlineIndexOf[D, A]
+  def update(indices: Tuple.Map[Dims, [X] =>> Int], value: Float): Unit =
+    val idx = indices.productIterator.toList.map(_.asInstanceOf[Int]).toArray
+    stensor.update(idx.toSeq, value)
+
+  def get(indices: Tuple.Map[Dims, [X] =>> Int]): Float = {
+    val idx = indices.productIterator.toList.map(_.asInstanceOf[Int].toLong).toArray
+    stensor(idx: _*).item
+  }
+
+  inline def apply[A](index: Int) : Tensor[Remove[Dims, A]] =
+    val dim = inlineIndexOf[Dims, A]
     val newTensor = torch.select(stensor, dim, index)
 
-    new Tensor[Remove[D, A]](newTensor, newTensor.shape.toList)
+    new Tensor[Remove[Dims, A]](newTensor, newTensor.shape.toList)
 
 
-  inline def sum[A]: Tensor[Remove[D, A]] =
-    val i = inlineIndexOf[D, A]
+  inline def sum[A]: Tensor[Remove[Dims, A]] =
+    val i = inlineIndexOf[Dims, A]
     val newShape = shape.zipWithIndex.filter(_._2 != i).map(_._1)
     val newTensor = torch.sum(stensor, dim = i) //.sum(dim )
-    new Tensor[Remove[D, A]](newTensor, newShape)
+    new Tensor[Remove[Dims, A]](newTensor, newShape)
 
-  inline def mean[A]: Tensor[Remove[D, A]] =
-    val i = inlineIndexOf[D, A]
+  inline def mean[A]: Tensor[Remove[Dims, A]] =
+    val i = inlineIndexOf[Dims, A]
     val newShape = shape.zipWithIndex.filter(_._2 != i).map(_._1)
     val newt = torch.mean(stensor, dim = i)
-    new Tensor[Remove[D, A]](newt, newt.shape.toList)
+    new Tensor[Remove[Dims, A]](newt, newt.shape.toList)
 
 
   inline def inlineIndexOf[T <: Tuple, A]: Int = inline erasedValue[T] match
@@ -66,10 +75,9 @@ class Tensor[D <: Tuple](val stensor : torch.Tensor[Float32], val shape: List[In
 
 
 
-
 object Tensor {
   // Constructor with compile-time dimension checking
-  inline def apply[D <: Tuple](initializer: => Float, requiresGrad : Boolean)(using shape: Shape[D]): Tensor[D] = {
+  inline def apply[Dims <: Tuple](initializer: => Float, requiresGrad : Boolean=false)(using shape: Shape[Dims]): Tensor[Dims] = {
 
 
     val size = shape.toList.product
@@ -77,10 +85,10 @@ object Tensor {
     val data = Array.fill(size)(initializer)
     val sTensor =torch.Tensor(data).reshape(shape.toList *)
     sTensor.requiresGrad = requiresGrad
-    new Tensor[D](sTensor, shape.toList)
+    new Tensor[Dims](sTensor, shape.toList)
   }
 
-  inline def fromSeq[D <: Tuple](data : Seq[Float], requiresGrad: Boolean)(using shape: Shape[D]): Tensor[D] = {
+  inline def fromSeq[D <: Tuple](data : Seq[Float], requiresGrad: Boolean=false)(using shape: Shape[D]): Tensor[D] = {
     val size = shape.toList.product
     require(data.size == size)
 

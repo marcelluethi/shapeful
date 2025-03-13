@@ -3,7 +3,7 @@ package shapeful.examples
 
 // Example usage:
 
-import shapeful.distributions.NormalDistribution
+import shapeful.distributions.Normal
 import shapeful.tensor.Dimension.Symbolic
 import shapeful.tensor.Tensor.{Tensor0, Tensor1, Tensor2}
 
@@ -30,14 +30,14 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
   val X = Tensor.fromSeq[(Data, Space)](xs, requiresGrad = false)
   val yt = Tensor.fromSeq[Tuple1[Data]](y, requiresGrad = false)
 
-  val pw = NormalDistribution[Tuple1[Space]](Tensor(0f, requiresGrad = false), Tensor(10f, requiresGrad = false))
-  val pb = NormalDistribution[EmptyTuple](Tensor(0f, requiresGrad = false), Tensor(100f, requiresGrad = false))
+  val pw = Normal[Tuple1[Space]](Tensor(0f, requiresGrad = false), Tensor(10f, requiresGrad = false))
+  val pb = Normal[EmptyTuple](Tensor(0f, requiresGrad = false), Tensor(100f, requiresGrad = false))
 
   def likelihood(w : Tensor1[Space], b : Tensor0) : Tensor0 =
     val mu : Tensor1[Data] = X.matmul(w).add(b)
     val sigma : Tensor1[Data] = Tensor(1, requiresGrad = false)
 
-    NormalDistribution[Tuple1[Data]](mu, sigma).logpdf(yt).mean[Data]
+    Normal[Tuple1[Data]](mu, sigma).logpdf(yt).mean[Data]
 
   def f(w : Tensor1[Space], b: Tensor0) : Tensor0 =
     val logpw = pw.logpdf(w).sum[Space]
@@ -69,8 +69,8 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
   def proposal(wb : (Tensor1[Space], Tensor0)) : (Tensor1[Space], Tensor0) =
     val (w, b) = wb
 
-    val nw = NormalDistribution(w, Tensor(0.1f, requiresGrad = false))
-    val nb = NormalDistribution(b, Tensor(0.1f, requiresGrad = false))
+    val nw = Normal(w, Tensor(0.1f, requiresGrad = false))
+    val nb = Normal(b, Tensor(0.1f, requiresGrad = false))
 
     val neww = nw.sample()
     val newb = nb.sample()

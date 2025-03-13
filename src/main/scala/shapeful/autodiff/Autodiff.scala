@@ -10,9 +10,9 @@ import shapeful.tensor.Dimension.Symbolic
 
 object Autodiff:
 
-  def deriv[Shape <: Tuple](f : Function1[Tensor[Shape], Tensor[EmptyTuple.type]]) : Derivative[Tuple1[Tensor[Shape]]] =
+  def deriv[Dims <: Tuple](f : Function1[Tensor[Dims], Tensor[EmptyTuple.type]]) : Derivative[Tuple1[Tensor[Dims]]] =
     new Derivative1(f)
 
-  def deriv[ShapeA <: Tuple, ShapeB <: Tuple](f : Function2[Tensor[ShapeA], Tensor[ShapeB], Tensor0]) : Derivative[(Tensor[ShapeA], Tensor[ShapeB])] =
+  def deriv[DimsA <: Tuple, DimsB <: Tuple](f : Function2[Tensor[DimsA], Tensor[DimsB], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB])] =
     new Derivative2(f)
 

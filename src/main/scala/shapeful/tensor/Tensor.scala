@@ -2,6 +2,7 @@ package shapeful.tensor
 
 import shapeful.tensor.Dimension.SymbolicTuple
 import torch.Float32
+import torch.indexing.---
 
 import scala.annotation.targetName
 
@@ -12,132 +13,103 @@ import scala.reflect.ClassTag
 import scala.compiletime.ops.boolean.*
 import scala.compiletime.ops.any.*
 
+
 import Tensor.Tensor0
+import TupleHelpers.*
 import torch.DType.float32
 import torch.indexing.Slice
 
 // Main tensor class - dimensions are encoded as type parameters
-class Tensor[Dims <: Tuple](val stensor : torch.Tensor[Float32], shape: List[Int]):
+class Tensor[Dims <: Tuple](val shape : Shape[Dims], val stensor : torch.Tensor[Float32]):
   override def toString(): String =
     stensor.toString()
 
 
   def grad(): Tensor[Dims] =
     val g = stensor.grad.get.detach()
-    new Tensor(g, g.shape.toList)
+    new Tensor(shape, g)
 
   def copy(requiresGrad : Boolean): Tensor[Dims] =
     val cp = stensor.detach()
     cp.requiresGrad = requiresGrad
-    new Tensor(cp, cp.shape.toList)
+    new Tensor(shape, cp)
 
 
-  def update(indices: Tuple.Map[Dims, [X] =>> Int], value: Float): Unit =
+  def update(indices: ToIntTuple[Dims], value: Float): Unit =
     val idx = indices.productIterator.toList.map(_.asInstanceOf[Int]).toArray
     stensor.update(idx.toSeq, value)
 
-  def get(indices: Tuple.Map[Dims, [X] =>> Int]): Float = {
+  def get(indices: ToIntTuple[Dims]): Float = {
     val idx = indices.productIterator.toList.map(_.asInstanceOf[Int].toLong).toArray
     stensor(idx*).item
   }
 
-  // inline def split[SplitDim, NewDim1, NewDim2]
-  //   (using sd : Shape[Dims], 
-  //     sd1 : Dimension[NewDim1]
-  //   ): (Tensor[UpdateDim[Dims, SplitDim, NewDim1]], Tensor[UpdateDim[Dims, SplitDim, NewDim2]]) =
-  //   val i = inlineIndexOf[Dims, SplitDim]
-  //   val n = sd1.value
-  //   val all = sd.toList(i)
-  //   val stensors = stensor.split(Seq(n, all-n), i)
-  //   val tensor0 = new Tensor[UpdateDim[Dims, SplitDim, NewDim1]](stensors(0), stensors(0).shape.toList)
-  //   val tensor1 = new Tensor[UpdateDim[Dims, SplitDim, NewDim2]](stensors(1), stensors(1).shape.toList)
-  //   (tensor0, tensor1)
-
-    import torch.indexing.---
-    inline def split[SplitDim, NewDim1, NewDim2]
-    (using sd : Shape[Dims], 
-      sd1 : Dimension[NewDim1]
-    ): (Tensor[UpdateDim[Dims, SplitDim, NewDim1]], Tensor[UpdateDim[Dims, SplitDim, NewDim2]]) =
+  inline def split[SplitDim](n : Int): (Tensor[Dims], Tensor[Dims]) =
     val i = inlineIndexOf[Dims, SplitDim]
-    val n = sd1.value
-    val all = sd.toList(i)
-    val dims0 = sd.toList.map(_ => ---).updated(i, Slice(0, n))
+    val dims0 = (0 until shape.length).map(_ => ---).toList.updated(i, Slice(0, n))
     val stensor0 = stensor(dims0*)
-    val dims1 = sd.toList.map(_ => ---).updated(i, Slice(n, all))
+    val dims1 = (0 until shape.length).map(_ => ---).toList.updated(i, Slice(n, shape.dim[SplitDim]))
     val stensor1 = stensor(dims1*)
-    val tensor0 = new Tensor[UpdateDim[Dims, SplitDim, NewDim1]](stensor0, stensor0.shape.toList)
-    val tensor1 = new Tensor[UpdateDim[Dims, SplitDim, NewDim2]](stensor1, stensor1.shape.toList)
+    val newDims0 = shape.updateValue[SplitDim](n)
+    val newDims1 = shape.updateValue[SplitDim](shape.dim[SplitDim] - n)
+
+    val tensor0 = new Tensor(newDims0, stensor0)
+    val tensor1 = new Tensor(newDims1, stensor1)
     (tensor0, tensor1)
 
-  inline def shape[A] : Int = shape(inlineIndexOf[Dims, A])
+  inline def dim[A] : Int = shape.dim[A]
 
   inline def apply[A](index: Int) : Tensor[Remove[Dims, A]] =
     val dim = inlineIndexOf[Dims, A]
+    val newshape = shape.removeKey[A]
     val newTensor = torch.select(stensor, dim, index)
 
-    new Tensor[Remove[Dims, A]](newTensor, newTensor.shape.toList)
+    new Tensor[Remove[Dims, A]](newshape, newTensor)
 
 
   inline def sum[A]: Tensor[Remove[Dims, A]] =
     val i = inlineIndexOf[Dims, A]
-    val newShape = shape.zipWithIndex.filter(_._2 != i).map(_._1)
+    val newShape = shape.removeKey[A]
     val newTensor = torch.sum(stensor, dim = i) //.sum(dim )
-    new Tensor[Remove[Dims, A]](newTensor, newShape)
+    new Tensor[Remove[Dims, A]](newShape, newTensor)
 
   inline def mean[A]: Tensor[Remove[Dims, A]] =
     val i = inlineIndexOf[Dims, A]
-    val newShape = shape.zipWithIndex.filter(_._2 != i).map(_._1)
+    val newShape = shape.removeKey[A]
     val newt = torch.mean(stensor, dim = i)
-    new Tensor[Remove[Dims, A]](newt, newt.shape.toList)
+    new Tensor[Remove[Dims, A]](newShape, newt)
 
   inline def argmax[A] : Tensor[Remove[Dims, A]] =
     val i = inlineIndexOf[Dims, A]
-    val newShape = shape.zipWithIndex.filter(_._2 != i).map(_._1)
+    val newShape = shape.removeKey[A]
     val newt : torch.Tensor[Float32]= torch.argmax(stensor, dim = i).to(float32)
-    new Tensor[Remove[Dims, A]](newt, newt.shape.toList)
+    new Tensor[Remove[Dims, A]](newShape, newt)
     
 
-  inline def inlineIndexOf[T <: Tuple, A]: Int = inline erasedValue[T] match
-    case _: (A *: _) => 0
-    case _: (_ *: rest) => 1 + inlineIndexOf[rest, A]
-    case _: EmptyTuple => -1
 
-  // Helper type to remove an element from a tuple
-  type Remove[T <: Tuple, A] <: Tuple = T match
-    case A *: rest => rest
-    case head *: rest => head *: Remove[rest, A]
-    case EmptyTuple => EmptyTuple
-
-  import scala.reflect.ClassTag
-
-  type UpdateDim[Dims <: Tuple, Dim, NewDim] <: Tuple = Dims match {
-    case Dim *: tail => NewDim *: tail
-    case head *: tail => head *: UpdateDim[tail, Dim, NewDim]
-    case EmptyTuple => EmptyTuple
-}
 
 
 object Tensor {
   // Constructor with compile-time dimension checking
-  inline def apply[Dims <: Tuple](initializer: => Float, requiresGrad : Boolean=false)(using shape: Shape[Dims]): Tensor[Dims] = {
+  inline def apply[Dims <: Tuple](shape : Shape[Dims], initializer: => Float, requiresGrad : Boolean=false): Tensor[Dims] = {
 
 
-    val size = shape.toList.product
+    val size = shape.dims.product
 
     val data = Array.fill(size)(initializer)
-    val sTensor =torch.Tensor(data).reshape(shape.toList *)
+    val sTensor =torch.Tensor(data).reshape(shape.dims *)
     sTensor.requiresGrad = requiresGrad
-    new Tensor[Dims](sTensor, shape.toList)
+    new Tensor[Dims](shape, sTensor)
   }
 
-  inline def fromSeq[D <: Tuple](data : Seq[Float], requiresGrad: Boolean=false)(using shape: Shape[D]): Tensor[D] = {
-    val size = shape.toList.product
+  inline def fromSeq[D <: Tuple](shape : Shape[D], data : Seq[Float], requiresGrad: Boolean=false): Tensor[D] = {
+    val size = shape.dims.product
     require(data.size == size)
 
 
-    val sTensor = torch.Tensor(data).reshape(shape.toList *)
+    val sTensor = torch.Tensor(data).reshape(shape.dims *)
     sTensor.requiresGrad = requiresGrad
-    new Tensor[D](sTensor, shape.toList)
+    new Tensor[D](shape, sTensor)
   }
 
 

@@ -9,14 +9,10 @@ import shapeful.tensor.Tensor.Tensor1
 
 class TensorIndexingTests extends FunSuite {
 
-    type Dim1 = "dim1"
-    given shapeful.tensor.Dimension[Dim1] = shapeful.tensor.Dimension.Symbolic[Dim1](2)
-    type Dim2 = "dim2"
-    given shapeful.tensor.Dimension[Dim2] = shapeful.tensor.Dimension.Symbolic[Dim2](3)
-   
 
-  test("correclty retrieves a value from a tensor") {
-    val t : Tensor[(Dim1, Dim2)] = Tensor.fromSeq(Seq(1f, 2f, 3f, 4f, 5f, 6f))
+  test("correctly retrieves a value from a tensor") {
+    val shape = Shape["Dim1", "Dim2"](2, 3)
+    val t  = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f))
     assertEquals(t.get((0, 0)), 1f)
     assertEquals(t.get((0, 1)), 2f)
     assertEquals(t.get((0, 2)), 3f)
@@ -26,7 +22,8 @@ class TensorIndexingTests extends FunSuite {
   }
 
    test("correclty update a value from a tensor") {
-    val t : Tensor[(Dim1, Dim2)] = Tensor.fromSeq(Seq(1f, 2f, 3f, 4f, 5f, 6f))
+    val shape = Shape["Dim1", "Dim2"](2, 3)
+    val t  = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f))
     t.update((1, 2), 99)
     assertEquals(t.get((0, 0)), 1f)
     assertEquals(t.get((0, 1)), 2f)
@@ -39,14 +36,11 @@ class TensorIndexingTests extends FunSuite {
 }
 
 class TensorShapeTests extends FunSuite {
-    type Dim1 = "dim1"
-    given shapeful.tensor.Dimension[Dim1] = shapeful.tensor.Dimension.Symbolic[Dim1](2)
-    type Dim2 = "dim2"
-    given shapeful.tensor.Dimension[Dim2] = shapeful.tensor.Dimension.Symbolic[Dim2](3)
+  val shape = Shape["Dim1", "Dim2"](2, 3)
 
     test("correctly retrieves the shape of a tensor") {
-        val t : Tensor[(Dim1, Dim2)] = Tensor.fromSeq(Seq(1f, 2f, 3f, 4f, 5f, 6f))
-        assertEquals(t.shape[Dim1], 2)
-        assertEquals(t.shape[Dim2], 3)
+        val t = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f))
+        assertEquals(t.dim["Dim1"], 2)
+        assertEquals(t.dim["Dim2"], 3)
     }
 }

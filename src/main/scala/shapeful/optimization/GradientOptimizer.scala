@@ -8,10 +8,11 @@ import shapeful.autodiff.Derivative
 import shapeful.tensor.TensorTupleOps
 import shapeful.tensor.IsTensorTuple
 import scala.collection.AbstractIterator
+import shapeful.tensor.Shape
 
 
 class GradientOptimizer(lr_ : Float):
-  val lr = Tensor[EmptyTuple.type](lr_, requiresGrad = false)
+  val lr = Tensor(Shape.empty, lr_, requiresGrad = false)
   
   def optimize[Tensors <: Tuple : IsTensorTuple](
     df: Derivative[Tensors], 

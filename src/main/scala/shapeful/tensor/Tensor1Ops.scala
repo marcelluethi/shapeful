@@ -7,11 +7,13 @@ object Tensor1Ops {
 
         def dot[B](other : Tensor[Tuple1[B]]) : Tensor[Tuple1[A]] =
             val newt = tensor.stensor `@` other.stensor
-            new Tensor[(Tuple1[A])](newt, List(newt.shape.head))
+            val newShape = Shape[A](newt.shape.head)
+            new Tensor[Tuple1[A]](newShape, newt)
 
         def cov : Tensor[(A, A)] =
-            val n = tensor.shape[A]
+            val n = tensor.dim[A]
             val newt = tensor.stensor.matmul(tensor.stensor.t) * (1.0f / n)
-            new Tensor[(A, A)](newt, List(newt.shape.head))
+            val newShape = Shape[A, A](n, n)
+            new Tensor(newShape, newt)
 
 }

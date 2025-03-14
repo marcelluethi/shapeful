@@ -1,31 +1,41 @@
 package shapeful.tensor
 
-import shapeful.tensor.Dimension
+import scala.compiletime.{constValue, erasedValue, summonFrom}
 import scala.annotation.targetName
 
+import shapeful.tensor.TupleHelpers.*
 
-// type class  to access shape (the value) from a tuple
-trait Shape[Dims <: Tuple] {
-  def toList: List[Int]
-}
-object Shape {
-  // Base case: empty tuple
-  @targetName("emptytuple")
-  given Shape[EmptyTuple] with {
-    def toList: List[Int] = Nil
-  }
+class Shape[Dims <: Tuple](dimTuple: ToIntTuple[Dims]):
+    inline def dim[A] : Int =
+        val i : Int = inlineIndexOf[Dims, A]
+        dimTuple(i).asInstanceOf[Int] 
+
+    def dims : List[Int] = dimTuple.toList.asInstanceOf[List[Int]]
+    def length : Int = dims.size
+
+    // def add[A](dim : Int): Shape[Dims *: A] = 
+    //     val newDimsList : List[Int]= dims :+ dim
+    //     val newDims = Tuple.fromArray(newDimsList.toArray).asInstanceOf[Int *: Tuple.Map[A, [X] =>> Int]]
+    //     new Shape(newDims)
+
+    inline def updateValue[A](dim : Int): Shape[Dims] = 
+        val i = inlineIndexOf[Dims, A]
+        val newDimList = dims.updated(i, dim)
+        val newdims = Tuple.fromArray(newDimList.toArray).asInstanceOf[ToIntTuple[Dims]]
+        new Shape[Dims](newdims)
+
+    inline def removeKey[A]: Shape[Remove[Dims, A]] = 
+        val i = inlineIndexOf[Dims, A]
+        val dimlist : List[Int] = dimTuple.toList.asInstanceOf[List[Int]]
+        val (front, rest) = dimlist.splitAt(i)
+        val newDimList = front ++ rest.drop(1)
+        val newdims = Tuple.fromArray(newDimList.toArray).asInstanceOf[ToIntTuple[Remove[Dims, A]]]
+        new Shape(newdims)
 
 
-  // Inductive case: head and tail
-  given [H, T <: Tuple](using headDim: Dimension[H], tailShape: Shape[T]): Shape[H *: T] with {
-    def toList: List[Int] = headDim.value :: tailShape.toList
-  }
+object Shape:
+    def empty = new Shape[EmptyTuple.type](EmptyTuple) 
+    def apply[A](n : Int) = new Shape[Tuple1[A]](Tuple1(n)) 
+    def apply[A, B](m : Int, n : Int) = new Shape[(A, B)]((m, n))
+    
 
-
-
-  // Helper method
-  def apply[Dims <: Tuple](using shape: Shape[Dims]): Shape[Dims] = shape
-
-  // Helper to create a shape from a list of integers (for runtime dimensions)
-  def fromList(dims: List[Int]): List[Int] = dims
-}

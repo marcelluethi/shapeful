@@ -19,6 +19,8 @@ import shapeful.distributions.Normal
 import torch.Float32
 import torch.DType.float32
 import torch.indexing.Slice
+import shapeful.tensor.Shape
+
 
 object MNistExample:
 
@@ -27,13 +29,13 @@ object MNistExample:
     trait TestData extends Data
 
     type Image = "image"
-    given Dimension[Image] = Symbolic[Image](28 * 28)
+    val imageShape = Shape[Image](28 * 28)
 
     type Hidden = "hidden"
-    given Dimension[Hidden] = Symbolic[Hidden](100)
+    val hiddenShape = Shape[Hidden](100)
 
     type Output = "output"
-    given Dimension[Output] = Symbolic[Output](10)
+    val outputShape = Shape[Output](10)
 
 
     def model[A <: Data] (
@@ -50,15 +52,16 @@ object MNistExample:
 
 
     def loss[D <: Data](y: Tensor2[D, Output], yHat: Tensor2[D, Output]): Tensor1[D] = {
-        val yhatlog = (yHat.add(Tensor(0.00001f))).log
+        val yhatlog = (yHat.add(Tensor(Shape.empty, 0.00001f))).log
         val l = y.mul(yhatlog)
-        val m1 : Tensor0 = Tensor(-1f, requiresGrad = false)
+        val m1 : Tensor0 = Tensor(Shape.empty, -1f, requiresGrad = false)
         l.sum[Output].mul(m1)
     }
 
-    def toOneHot[A <: Data](labels: Tensor1[A])(using Dimension[A]): Tensor2[A, Output] = {
-        val oneHot = Tensor[(A, Output)](0)
-        for i <- 0 until labels.shape[A] do {
+    def toOneHot[A <: Data](labels: Tensor1[A]): Tensor2[A, Output] = {
+        val oneHotShape = Shape[A, Output](labels.dim[A], outputShape.dim[Output])
+        val oneHot = Tensor(oneHotShape, 0)
+        for i <- 0 until labels.dim[A] do {
             val label = labels.get(Tuple1(i)).toInt
             oneHot.update(Tuple2(i, label), 1) 
         }
@@ -69,12 +72,12 @@ object MNistExample:
         val predicted = yHat.argmax[Output]
         val label = y.argmax[Output]
         var correct : Int = 0
-        for i <- 0 until y.shape[D] do {
+        for i <- 0 until y.dim[D] do {
             
             if predicted.get(Tuple1(i)) == label.get(Tuple1(i))  then
                 correct += 1
         }
-        correct / y.shape[D].toFloat
+        correct / y.dim[D].toFloat
     }
 
     def train() : Unit = 
@@ -83,25 +86,28 @@ object MNistExample:
         val imageTensors = mnist.features.reshape(60000, 28 * 28)
         val labelsTensor : torch.Tensor[Float32]=       mnist.targets.to(float32)
 
-        given Dimension[Data] = Symbolic[Data](imageTensors.shape(0)) // TODO replace with number of images
-        val allimages : Tensor2[Data, Image] = new Tensor(imageTensors, imageTensors.shape.toList)
-        val alllabels : Tensor1[Data] = new Tensor(labelsTensor, labelsTensor.shape.toList)
+        val dataShape = Shape[Data](60000)
+        val dataImageShape = Shape[Data, Image](dataShape.dim[Data], imageShape.dim[Image])
 
-        given Dimension[TrainData] = Symbolic[TrainData](1000)
-        given Dimension[TestData] = Symbolic[TestData](59000)
-        val (trainImages, testImags) = allimages.split[Data, TrainData, TestData]
-        val (trainLabels, testLabels) = alllabels.split[Data, TrainData, TestData]
+        val allimages : Tensor2[Data, Image] = new Tensor(dataImageShape, imageTensors)
+        val alllabels : Tensor1[Data] = new Tensor(dataShape, labelsTensor)
 
+        val (trainImages, testImags) = allimages.split(30000)
+        val (trainLabels, testLabels) = alllabels.split(30000)
         val yTrain = toOneHot(trainLabels)
         val yTest = toOneHot(testLabels)
 
-        val w1 : Tensor2[Image, Hidden] = Normal[(Image, Hidden)](Tensor(0f), Tensor(0.01f)).sample().copy(requiresGrad = true)
-        val b1 : Tensor1[Hidden] = Normal[Tuple1[Hidden]](Tensor(0f), Tensor(0.01f)).sample().copy(requiresGrad = true)
-        val w2 : Tensor2[Hidden, Output] = Normal[(Hidden, Output)](Tensor(0f), Tensor(0.01f)).sample().copy(requiresGrad = true)
-        val b2 : Tensor1[Output] = Normal[Tuple1[Output]](Tensor(0f), Tensor(0.01f)).sample().copy(requiresGrad = true)
+        val imageHiddenShape = Shape[Image, Hidden](imageShape.dim[Image], hiddenShape.dim[Hidden])
+        val hiddenOutputShape = Shape[Hidden, Output](hiddenShape.dim[Hidden], outputShape.dim[Output])
+
+        val w1 = Normal(imageHiddenShape, Tensor(imageHiddenShape, 0f), Tensor(imageHiddenShape, 0.01f)).sample().copy(requiresGrad = true)
+        val b1 = Normal(hiddenShape, Tensor(hiddenShape, 0f), Tensor(hiddenShape, 0.01f)).sample().copy(requiresGrad = true)
+        val w2 = Normal(hiddenOutputShape, Tensor(hiddenOutputShape, 0f), Tensor(hiddenOutputShape, 0.01f)).sample().copy(requiresGrad = true)
+        val b2 = Normal(outputShape, Tensor(outputShape, 0f), Tensor(outputShape, 0.01f)).sample().copy(requiresGrad = true)
      
         val outputs = model(w1, b1, w2, b2)(trainImages)
-        
+      
+
         def f[D <: Data](images : Tensor2[D, Image], y : Tensor2[D, Output])(
             w1: Tensor2[Image, Hidden], 
             b1: Tensor1[Hidden], 

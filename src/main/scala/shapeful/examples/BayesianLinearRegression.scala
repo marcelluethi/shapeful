@@ -17,27 +17,27 @@ import shapeful.optimization.GradientOptimizer
 import shapeful.inference.MetropolisHastings
 import shapeful.tensor.Dimension
 import shapeful.tensor.Tensor
+import shapeful.tensor.Shape
 
 
 def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
 
   type Data = "data"
-  given Dimension[Data] = Symbolic[Data](xs.size)
-
   type Space = "space"
-  given Dimension[Space] = Symbolic[Space](1)
+  val shapeSpace = Shape[Space](1)
+  val dataSpace = Shape[Data](xs.size)
 
-  val X = Tensor.fromSeq[(Data, Space)](xs, requiresGrad = false)
-  val yt = Tensor.fromSeq[Tuple1[Data]](y, requiresGrad = false)
+  val X = Tensor.fromSeq[(Data, Space)](Shape[Data, Space](xs.size, 1), xs, requiresGrad = false)
+  val yt = Tensor.fromSeq[Tuple1[Data]](Shape[Data](xs.size), y, requiresGrad = false)
 
-  val pw = Normal[Tuple1[Space]](Tensor(0f, requiresGrad = false), Tensor(10f, requiresGrad = false))
-  val pb = Normal[EmptyTuple](Tensor(0f, requiresGrad = false), Tensor(100f, requiresGrad = false))
+  val pw = Normal[Tuple1[Space]](shapeSpace, Tensor(Shape[Space](1), 0f, requiresGrad = false), Tensor(shapeSpace, 10f, requiresGrad = false))
+  val pb = Normal[EmptyTuple](Shape.empty, Tensor(Shape.empty, 1, requiresGrad = false), Tensor(Shape.empty, 100f, requiresGrad = false))
 
   def likelihood(w : Tensor1[Space], b : Tensor0) : Tensor0 =
     val mu : Tensor1[Data] = X.matmul(w).add(b)
-    val sigma : Tensor1[Data] = Tensor(1, requiresGrad = false)
+    val sigma : Tensor1[Data] = Tensor(dataSpace, 1, requiresGrad = false)
 
-    Normal[Tuple1[Data]](mu, sigma).logpdf(yt).mean[Data]
+    Normal[Tuple1[Data]](dataSpace, mu, sigma).logpdf(yt).mean[Data]
 
   def f(w : Tensor1[Space], b: Tensor0) : Tensor0 =
     val logpw = pw.logpdf(w).sum[Space]
@@ -48,8 +48,8 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
 
 
 
-  val w0 : Tensor1[Space] = Tensor(0.0, requiresGrad = true)
-  val b0 : Tensor0 = Tensor(0.0, requiresGrad = true)
+  val w0 : Tensor1[Space] = Tensor(shapeSpace, 0.0, requiresGrad = true)
+  val b0 : Tensor0 = Tensor(Shape.empty, 0.0, requiresGrad = true)
 
   // Finding map solution
   
@@ -69,8 +69,8 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
   def proposal(wb : (Tensor1[Space], Tensor0)) : (Tensor1[Space], Tensor0) =
     val (w, b) = wb
 
-    val nw = Normal(w, Tensor(0.1f, requiresGrad = false))
-    val nb = Normal(b, Tensor(0.1f, requiresGrad = false))
+    val nw = Normal(w.shape, w, Tensor(w.shape, 0.1f, requiresGrad = false))
+    val nb = Normal(b.shape, b, Tensor(b.shape, 0.1f, requiresGrad = false))
 
     val neww = nw.sample()
     val newb = nb.sample()
@@ -91,7 +91,7 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
     .take(1000)
     .toSeq
   
-  val mean = samples.map(_._1).reduce(_.add(_)).mul(Tensor(1.0f / samples.size, requiresGrad = false))
+  val mean = samples.map(_._1).reduce(_.add(_)).mul(Tensor(Shape.empty, 1.0f / samples.size, requiresGrad = false))
   println("mean: " + mean)
 
 @main def runBayesianLinearRegression() : Unit = 

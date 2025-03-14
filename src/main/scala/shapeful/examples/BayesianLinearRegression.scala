@@ -13,7 +13,7 @@ import shapeful.tensor.Tensor2Ops.*
 
 import shapeful.autodiff.Autodiff
 import shapeful.tensor.TensorTupleOps
-import shapeful.optimization.GradientDescent
+import shapeful.optimization.GradientOptimizer
 import shapeful.inference.MetropolisHastings
 import shapeful.tensor.Dimension
 import shapeful.tensor.Tensor

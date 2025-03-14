@@ -10,7 +10,7 @@ object Tensor1Ops {
             new Tensor[(Tuple1[A])](newt, List(newt.shape.head))
 
         def cov : Tensor[(A, A)] =
-            val n = tensor.shape.head
+            val n = tensor.shape[A]
             val newt = tensor.stensor.matmul(tensor.stensor.t) * (1.0f / n)
             new Tensor[(A, A)](newt, List(newt.shape.head))
 

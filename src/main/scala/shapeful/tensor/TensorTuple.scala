@@ -25,11 +25,12 @@ object TensorTupleOps:
   // Inductive case
   given [H <: Tensor[?], Rest <: Tuple](using IsTensorTuple[Rest], TensorTupleOps[Rest]): TensorTupleOps[H *: Rest] with
     def update(params: H *: Rest, gradients: H *: Rest, lr: Tensor[EmptyTuple.type]): H *: Rest =
-      val param = params.head
-      val grad = gradients.head
-      val newHead = param.add(grad.mul(lr).asInstanceOf[param.type]).copy(requiresGrad = true).asInstanceOf[H]
-      //val newHead = params.head.copy(requiresGrad = true).asInstanceOf[H] 
-      val newTail = summon[TensorTupleOps[Rest]].update(params.tail, gradients.tail, lr)
-      newHead *: newTail
+      torch.noGrad{
+        val param = params.head
+        val grad = gradients.head
+        val newHead = param.add(grad.mul(lr).asInstanceOf[param.type]).copy(requiresGrad = params.head.stensor.requiresGrad).asInstanceOf[H]
+        val newTail = summon[TensorTupleOps[Rest]].update(params.tail, gradients.tail, lr)        
+        newHead *: newTail
+      }
 
 

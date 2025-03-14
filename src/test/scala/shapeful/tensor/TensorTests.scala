@@ -37,3 +37,16 @@ class TensorIndexingTests extends FunSuite {
   }
 
 }
+
+class TensorShapeTests extends FunSuite {
+    type Dim1 = "dim1"
+    given shapeful.tensor.Dimension[Dim1] = shapeful.tensor.Dimension.Symbolic[Dim1](2)
+    type Dim2 = "dim2"
+    given shapeful.tensor.Dimension[Dim2] = shapeful.tensor.Dimension.Symbolic[Dim2](3)
+
+    test("correctly retrieves the shape of a tensor") {
+        val t : Tensor[(Dim1, Dim2)] = Tensor.fromSeq(Seq(1f, 2f, 3f, 4f, 5f, 6f))
+        assertEquals(t.shape[Dim1], 2)
+        assertEquals(t.shape[Dim2], 3)
+    }
+}

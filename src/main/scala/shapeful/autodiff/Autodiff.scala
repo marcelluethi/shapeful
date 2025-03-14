@@ -16,3 +16,9 @@ object Autodiff:
   def deriv[DimsA <: Tuple, DimsB <: Tuple](f : Function2[Tensor[DimsA], Tensor[DimsB], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB])] =
     new Derivative2(f)
 
+
+  def deriv[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple](f : Function3[Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB], Tensor[DimsC])] =
+    new Derivative3(f)
+
+  def deriv[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple, DimsD <: Tuple](f : Function4[Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD])] =
+    new Derivative4(f)

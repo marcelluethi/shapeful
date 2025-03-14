@@ -14,12 +14,12 @@ object Activation {
     inline def softmax[Dims <: Tuple, Dim](x: Tensor[Dims]): Tensor[Dims] =
         val i = inlineIndexOf[Dims, Dim]
         val newtensor = torch.softmax(x.stensor, dim = i, dtype = torch.float32)
-        new Tensor[Dims](newtensor, x.shape.toList)
+        new Tensor[Dims](newtensor, x.stensor.shape.toList)
 
     inline def relu[Dims <: Tuple, Dim](x: Tensor[Dims]): Tensor[Dims] =
         val i = inlineIndexOf[Dims, Dim]
         val relu = torch.nn.ReLU(false)
         val newtensor = relu(x.stensor)
-        new Tensor[Dims](newtensor, x.shape.toList)
+        new Tensor[Dims](newtensor, x.stensor.shape.toList)
 
 }

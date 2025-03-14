@@ -7,3 +7,5 @@ project/project/project/target/*
 .vscode
 .metals
 data
+playground
+*.log

@@ -7,17 +7,23 @@ import shapeful.tensor.Tensor
 import shapeful.autodiff.Derivative
 import shapeful.tensor.TensorTupleOps
 import shapeful.tensor.IsTensorTuple
+import scala.collection.AbstractIterator
 
 
-class GradientDescent(lr_ : Float):
+class GradientOptimizer(lr_ : Float):
   val lr = Tensor[EmptyTuple.type](lr_, requiresGrad = false)
   
   def optimize[Tensors <: Tuple : IsTensorTuple](
     df: Derivative[Tensors], 
     init: Tensors
   )(using ops: TensorTupleOps[Tensors]): Iterator[Tensors] =
-    Iterator.iterate(init) { params =>
-      val gradients = df(params)
-      ops.update(params, gradients, lr)
-    }
+    Iterator.iterate(init) { currentState =>
+        val gradients = df(currentState)
+        torch.noGrad {
+          val result = currentState
+          ops.update(currentState, gradients, lr)
+        }
+      }
+    
 
+  

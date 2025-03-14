@@ -56,4 +56,6 @@ object TensorOps {
 
         val newt = torch.clamp(tensor.stensor, min, max)
         new Tensor[Dims](newt, newt.shape.toList)
+
+
 }

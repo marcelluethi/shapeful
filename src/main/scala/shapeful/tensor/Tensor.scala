@@ -14,6 +14,7 @@ import scala.compiletime.ops.any.*
 
 import Tensor.Tensor0
 import torch.DType.float32
+import torch.indexing.Slice
 
 // Main tensor class - dimensions are encoded as type parameters
 class Tensor[Dims <: Tuple](val stensor : torch.Tensor[Float32], shape: List[Int]):
@@ -42,13 +43,31 @@ class Tensor[Dims <: Tuple](val stensor : torch.Tensor[Float32], shape: List[Int
 
   // inline def split[SplitDim, NewDim1, NewDim2]
   //   (using sd : Shape[Dims], 
-  //     sd1 : Shape[NewDim1], 
-  //     sd2 : Shape[NewDim2]
-  //   ): (Tensor[UpdateDim[Dims, SplitDim, NewDim1]], Tensor[UpdateDim[Dims, SplitDim, NewDim1]]) =
+  //     sd1 : Dimension[NewDim1]
+  //   ): (Tensor[UpdateDim[Dims, SplitDim, NewDim1]], Tensor[UpdateDim[Dims, SplitDim, NewDim2]]) =
   //   val i = inlineIndexOf[Dims, SplitDim]
-  //   val newtensor1 = 
-  //   val tensors = stensor.split(n, i).map(t => new Tensor[Split[SplitDim, n]](t, newShape))
-  //   tensors.toList
+  //   val n = sd1.value
+  //   val all = sd.toList(i)
+  //   val stensors = stensor.split(Seq(n, all-n), i)
+  //   val tensor0 = new Tensor[UpdateDim[Dims, SplitDim, NewDim1]](stensors(0), stensors(0).shape.toList)
+  //   val tensor1 = new Tensor[UpdateDim[Dims, SplitDim, NewDim2]](stensors(1), stensors(1).shape.toList)
+  //   (tensor0, tensor1)
+
+    import torch.indexing.---
+    inline def split[SplitDim, NewDim1, NewDim2]
+    (using sd : Shape[Dims], 
+      sd1 : Dimension[NewDim1]
+    ): (Tensor[UpdateDim[Dims, SplitDim, NewDim1]], Tensor[UpdateDim[Dims, SplitDim, NewDim2]]) =
+    val i = inlineIndexOf[Dims, SplitDim]
+    val n = sd1.value
+    val all = sd.toList(i)
+    val dims0 = sd.toList.map(_ => ---).updated(i, Slice(0, n))
+    val stensor0 = stensor(dims0*)
+    val dims1 = sd.toList.map(_ => ---).updated(i, Slice(n, all))
+    val stensor1 = stensor(dims1*)
+    val tensor0 = new Tensor[UpdateDim[Dims, SplitDim, NewDim1]](stensor0, stensor0.shape.toList)
+    val tensor1 = new Tensor[UpdateDim[Dims, SplitDim, NewDim2]](stensor1, stensor1.shape.toList)
+    (tensor0, tensor1)
 
   inline def shape[A] : Int = shape(inlineIndexOf[Dims, A])
 
@@ -89,11 +108,13 @@ class Tensor[Dims <: Tuple](val stensor : torch.Tensor[Float32], shape: List[Int
     case head *: rest => head *: Remove[rest, A]
     case EmptyTuple => EmptyTuple
 
-  type UpdateDim[Dims <: Tuple, Dim, NewDim <: Tuple] = Dims match
-    case (Dim, rest) => (NewDim, rest)
-    case (head, rest) => (head, UpdateDim[rest, Dim, NewDim])
+  import scala.reflect.ClassTag
 
-
+  type UpdateDim[Dims <: Tuple, Dim, NewDim] <: Tuple = Dims match {
+    case Dim *: tail => NewDim *: tail
+    case head *: tail => head *: UpdateDim[tail, Dim, NewDim]
+    case EmptyTuple => EmptyTuple
+}
 
 
 object Tensor {

@@ -30,75 +30,72 @@ object MNistExample:
 
     type Image = "image"
     val imageShape = Shape[Image](28 * 28)
-
     type Hidden = "hidden"
     val hiddenShape = Shape[Hidden](100)
-
     type Output = "output"
     val outputShape = Shape[Output](10)
 
 
-    def model[A <: Data] (
+    def model (
         w1: Tensor2[Image, Hidden], 
         b1: Tensor1[Hidden], 
         w2: Tensor2[Hidden, Output], 
         b2 : Tensor1[Output]
-        )(x: Tensor2[A, Image]) 
-        : Tensor2[A, Output] = {
+        )(x: Tensor2[Data, Image]) 
+        : Tensor2[Data, Output] = {
             val h1 = relu(x.matmul(w1)).addAlongDim(b1)
             val out = h1.matmul(w2).addAlongDim(b2)
             softmax(out)
     }
 
 
-    def loss[D <: Data](y: Tensor2[D, Output], yHat: Tensor2[D, Output]): Tensor1[D] = {
+    def loss(y: Tensor2[Data, Output], yHat: Tensor2[Data, Output]): Tensor1[Data] = {
         val yhatlog = (yHat.add(Tensor(Shape.empty, 0.00001f))).log
         val l = y.mul(yhatlog)
-        val m1 : Tensor0 = Tensor(Shape.empty, -1f, requiresGrad = false)
+        val m1 : Tensor0 = Tensor(Shape.empty, -1f)
         l.sum[Output].mul(m1)
     }
 
-    def toOneHot[A <: Data](labels: Tensor1[A]): Tensor2[A, Output] = {
-        val oneHotShape = Shape[A, Output](labels.dim[A], outputShape.dim[Output])
+    def toOneHot(labels: Tensor1[Data]): Tensor2[Data, Output] = {
+        val oneHotShape = Shape[Data, Output](labels.dim[Data], outputShape.dim[Output])
         val oneHot = Tensor(oneHotShape, 0)
-        for i <- 0 until labels.dim[A] do {
+        for i <- 0 until labels.dim[Data] do {
             val label = labels.get(Tuple1(i)).toInt
             oneHot.update(Tuple2(i, label), 1) 
         }
         oneHot
     }
     
-    def accuracy[D <: Data](y: Tensor2[D, Output], yHat: Tensor2[D, Output]): Float = {
+    def accuracy(y: Tensor2[Data, Output], yHat: Tensor2[Data, Output]): Float = {
         val predicted = yHat.argmax[Output]
         val label = y.argmax[Output]
         var correct : Int = 0
-        for i <- 0 until y.dim[D] do {
+        for i <- 0 until y.dim[Data] do {
             
             if predicted.get(Tuple1(i)) == label.get(Tuple1(i))  then
                 correct += 1
         }
-        correct / y.dim[D].toFloat
+        correct / y.dim[Data].toFloat
     }
 
     def train() : Unit = 
 
         val mnist = MNIST(new java.io.File("./data").toPath(), train = true, download = true)
         val imageTensors = mnist.features.reshape(60000, 28 * 28)
-        val labelsTensor : torch.Tensor[Float32]=       mnist.targets.to(float32)
+        val labelsTensor : torch.Tensor[Float32] = mnist.targets.to(float32)
 
         val dataShape = Shape[Data](60000)
-        val dataImageShape = Shape[Data, Image](dataShape.dim[Data], imageShape.dim[Image])
-
-        val allimages : Tensor2[Data, Image] = new Tensor(dataImageShape, imageTensors)
+ 
+        val allimages : Tensor2[Data, Image] = new Tensor(dataShape ++ imageShape, imageTensors)
         val alllabels : Tensor1[Data] = new Tensor(dataShape, labelsTensor)
 
-        val (trainImages, testImags) = allimages.split(30000)
-        val (trainLabels, testLabels) = alllabels.split(30000)
+        val (trainImages, valImages) = allimages.split(50000)
+        val (trainLabels, valLabels) = alllabels.split(50000)
         val yTrain = toOneHot(trainLabels)
-        val yTest = toOneHot(testLabels)
+        val yVal = toOneHot(valLabels)
 
-        val imageHiddenShape = Shape[Image, Hidden](imageShape.dim[Image], hiddenShape.dim[Hidden])
-        val hiddenOutputShape = Shape[Hidden, Output](hiddenShape.dim[Hidden], outputShape.dim[Output])
+        val imageHiddenShape = imageShape ++ hiddenShape
+        val hiddenOutputShape = hiddenShape ++ outputShape
 
         val w1 = Normal(imageHiddenShape, Tensor(imageHiddenShape, 0f), Tensor(imageHiddenShape, 0.01f)).sample().copy(requiresGrad = true)
         val b1 = Normal(hiddenShape, Tensor(hiddenShape, 0f), Tensor(hiddenShape, 0.01f)).sample().copy(requiresGrad = true)
@@ -108,19 +105,17 @@ object MNistExample:
         val outputs = model(w1, b1, w2, b2)(trainImages)
       
 
-        def f[D <: Data](images : Tensor2[D, Image], y : Tensor2[D, Output])(
+        def f(images : Tensor2[Data, Image], y : Tensor2[Data, Output])(
             w1: Tensor2[Image, Hidden], 
             b1: Tensor1[Hidden], 
             w2: Tensor2[Hidden, Output], 
             b2 : Tensor1[Output]
             ) : Tensor0 = {
-                val yHat = model[D](w1, b1, w2, b2)(images)
-                loss[D](y, yHat).sum[D]
+                val yHat = model(w1, b1, w2, b2)(images)
+                loss(y, yHat).sum[Data]
             }
 
         val df = Autodiff.deriv(f(trainImages, yTrain))
-
-        // an optimization loop (manually)
 
         
         GradientOptimizer(-0.00005).optimize(df, (w1, b1, w2, b2)).zipWithIndex.take(1000).foreach{
@@ -129,9 +124,9 @@ object MNistExample:
                     sys.runtime.gc()
                     println("Loss: " + f(trainImages, yTrain)(w1, b1, w2, b2).item)
                     val pred = model(w1, b1, w2, b2)(trainImages)
-                    println("TrainAccuracy: " + accuracy(yTrain, pred))
-                    val predTest = model(w1, b1, w2, b2)(testImags)
-                    println("TrainAccuracy: " + accuracy(yTest, predTest))
+                    println("Training accuracy: " + accuracy(yTrain, pred))
+                    val predTest = model(w1, b1, w2, b2)(valImages)
+                    println("Validation accuracy: " + accuracy(yVal, predTest))
             }
         }
 

@@ -24,20 +24,21 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
 
   type Data = "data"
   type Space = "space"
-  val shapeSpace = Shape[Space](1)
-  val dataSpace = Shape[Data](xs.size)
+  val spaceShape = Shape[Space](1)
+  val dataShape = Shape[Data](xs.size)
+  
 
-  val X = Tensor.fromSeq[(Data, Space)](Shape[Data, Space](xs.size, 1), xs, requiresGrad = false)
-  val yt = Tensor.fromSeq[Tuple1[Data]](Shape[Data](xs.size), y, requiresGrad = false)
+  val X = Tensor.fromSeq(dataShape ++ spaceShape, xs)
+  val yt = Tensor.fromSeq(dataShape, y)
 
-  val pw = Normal[Tuple1[Space]](shapeSpace, Tensor(Shape[Space](1), 0f, requiresGrad = false), Tensor(shapeSpace, 10f, requiresGrad = false))
-  val pb = Normal[EmptyTuple](Shape.empty, Tensor(Shape.empty, 1, requiresGrad = false), Tensor(Shape.empty, 100f, requiresGrad = false))
+  val pw = Normal(spaceShape, Tensor(spaceShape, 0f), Tensor(spaceShape, 10f))
+  val pb = Normal(Shape.empty, Tensor(Shape.empty, 1), Tensor(Shape.empty, 100f))
 
   def likelihood(w : Tensor1[Space], b : Tensor0) : Tensor0 =
     val mu : Tensor1[Data] = X.matmul(w).add(b)
-    val sigma : Tensor1[Data] = Tensor(dataSpace, 1, requiresGrad = false)
+    val sigma : Tensor1[Data] = Tensor(dataShape, 1)
 
-    Normal[Tuple1[Data]](dataSpace, mu, sigma).logpdf(yt).mean[Data]
+    Normal[Tuple1[Data]](dataShape, mu, sigma).logpdf(yt).mean[Data]
 
   def f(w : Tensor1[Space], b: Tensor0) : Tensor0 =
     val logpw = pw.logpdf(w).sum[Space]
@@ -48,22 +49,9 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
 
 
 
-  val w0 : Tensor1[Space] = Tensor(shapeSpace, 0.0, requiresGrad = true)
+  val w0 : Tensor1[Space] = Tensor(spaceShape, 0.0, requiresGrad = true)
   val b0 : Tensor0 = Tensor(Shape.empty, 0.0, requiresGrad = true)
 
-  // Finding map solution
-  
-  // val lr : Tensor0 = Tensor(0.01f, requiresGrad = false)
-  // val diffFun = Autodiff.deriv(f)
-  // val gd = GradientDescent(0.0005)
-
-  // val (w, b) = gd.optimize(diffFun, (w0, b0)).zipWithIndex.map { case (z, i) =>
-  //   if i % 100 == 0 then
-  //       println(s"Iteration $i: $z")
-  //   z
-  // }.drop(100000).take(1).toSeq.last
-
-  // println(s"w: $w b: $b")
 
   // sampling from posterior
   def proposal(wb : (Tensor1[Space], Tensor0)) : (Tensor1[Space], Tensor0) =
@@ -91,7 +79,7 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
     .take(1000)
     .toSeq
   
-  val mean = samples.map(_._1).reduce(_.add(_)).mul(Tensor(Shape.empty, 1.0f / samples.size, requiresGrad = false))
+  val mean = samples.map(_._1).reduce(_.add(_)).mul(Tensor(Shape.empty, 1.0f / samples.size))
   println("mean: " + mean)
 
 @main def runBayesianLinearRegression() : Unit = 

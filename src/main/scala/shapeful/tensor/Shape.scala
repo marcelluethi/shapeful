@@ -1,7 +1,8 @@
 package shapeful.tensor
 
 import scala.compiletime.{constValue, erasedValue, summonFrom}
-import scala.annotation.targetName
+import scala.Tuple.Concat
+
 
 import shapeful.tensor.TupleHelpers.*
 
@@ -17,6 +18,11 @@ class Shape[Dims <: Tuple](dimTuple: ToIntTuple[Dims]):
     //     val newDimsList : List[Int]= dims :+ dim
     //     val newDims = Tuple.fromArray(newDimsList.toArray).asInstanceOf[Int *: Tuple.Map[A, [X] =>> Int]]
     //     new Shape(newDims)
+
+    def ++ [OtherDimes <: Tuple](other : Shape[OtherDimes]): Shape[Concat[Dims, OtherDimes]] = 
+        val newDimsList = dims ++ other.dims
+        val newDims = Tuple.fromArray(newDimsList.toArray).asInstanceOf[ToIntTuple[Concat[Dims, OtherDimes]]]
+        new Shape(newDims)
 
     inline def updateValue[A](dim : Int): Shape[Dims] = 
         val i = inlineIndexOf[Dims, A]

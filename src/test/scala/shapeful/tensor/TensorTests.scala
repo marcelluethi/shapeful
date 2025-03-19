@@ -36,11 +36,27 @@ class TensorIndexingTests extends FunSuite {
 }
 
 class TensorShapeTests extends FunSuite {
-  val shape = Shape["Dim1", "Dim2"](2, 3)
+  val shape = Shape["Dim1", "Dim2"](2, 4)
+  val t = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f))
 
     test("correctly retrieves the shape of a tensor") {
-        val t = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f))
+
         assertEquals(t.dim["Dim1"], 2)
-        assertEquals(t.dim["Dim2"], 3)
+        assertEquals(t.dim["Dim2"], 4)
+    }
+
+    test("correctly reshapes a tensor") {
+        val newShape = Shape["Dim1", "Dim2", "Dim3"](2, 2, 2)
+        val reshaped = t.reshape(newShape)
+        assertEquals(reshaped.dim["Dim1"], 2)
+        assertEquals(reshaped.dim["Dim2"], 2)
+        assertEquals(reshaped.dim["Dim3"], 2)
+        for {
+          i <- 0 until 2
+          j <- 0 until 2
+          k <- 0 until 2
+        } {
+          assertEquals(reshaped.get((i, j, k)).toInt, i * 4 + j * 2 + k + 1)
+        }
     }
 }

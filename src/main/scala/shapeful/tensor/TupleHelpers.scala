@@ -10,6 +10,10 @@ object TupleHelpers {
         case head *: rest => head *: Remove[rest, A]
         case EmptyTuple => EmptyTuple
 
+    type RemoveAll[T <: Tuple, ToRemove <: Tuple] <: Tuple = ToRemove match
+        case EmptyTuple => T
+        case head *: rest => RemoveAll[Remove[T, head], rest]
+
     type ToIntTuple[T <: Tuple] = Tuple.Map[T, [X] =>> Int]
 
     inline def inlineIndexOf[T <: Tuple, A]: Int = inline erasedValue[T] match

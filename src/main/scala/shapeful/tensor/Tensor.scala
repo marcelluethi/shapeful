@@ -18,6 +18,7 @@ import Tensor.Tensor0
 import TupleHelpers.*
 import torch.DType.float32
 import torch.indexing.Slice
+import torch.indexing.Ellipsis
 
 // Main tensor class - dimensions are encoded as type parameters
 class Tensor[Dims <: Tuple](val shape : Shape[Dims], val stensor : torch.Tensor[Float32]):
@@ -33,16 +34,35 @@ class Tensor[Dims <: Tuple](val shape : Shape[Dims], val stensor : torch.Tensor[
     val cp = stensor.detach()
     cp.requiresGrad = requiresGrad
     new Tensor(shape, cp)
+    
+  def reshape[NewDims <: Tuple](newShape : Shape[NewDims]): Tensor[NewDims] =
+    val newTensor = stensor.reshape(newShape.dims *)
+    new Tensor[NewDims](newShape, newTensor)
 
 
   def update(indices: ToIntTuple[Dims], value: Float): Unit =
     val idx = indices.productIterator.toList.map(_.asInstanceOf[Int]).toArray
     stensor.update(idx.toSeq, value)
 
-  def get(indices: ToIntTuple[Dims]): Float = {
-    val idx = indices.productIterator.toList.map(_.asInstanceOf[Int].toLong).toArray
-    stensor(idx*).item
-  }
+  // def get(indices: ToIntTuple[Dims]): Float = {
+  //   val idx = indices.productIterator.toList.map(_.asInstanceOf[Int].toLong).toArray
+  //   stensor(idx*).item
+  // }
+
+  /**
+   * selects the elements of the tensor at the given indices. The other dimensions are sliced
+   */
+  inline def select[IndDims <: Tuple](idxShape : Shape[IndDims]) : Tensor[RemoveAll[Dims, IndDims]] = 
+    val shapeDimsWithIndex = shape.dimsWithIndex[IndDims] // the index of each IndDims in the shape of this tensor
+    val sliceDims = (0 until shape.length).map(_ => --- ).toArray[Ellipsis | Slice] // the slice for each dimension
+    for ((_, idx), i) <- shapeDimsWithIndex.zipWithIndex do // i is the index in the idxShape Tuple, idx, the corresponding index in shape
+      sliceDims(idx) = Slice(Some(idxShape.dims(i)), Some(idxShape.dims(i)+1))
+    val newTensor = stensor(sliceDims *)
+    
+    val (_, idx) = shapeDimsWithIndex.unzip
+    val newShape = shape.removeKeys[IndDims]
+    new Tensor[RemoveAll[Dims, IndDims]](newShape, newTensor)
+
 
   inline def split[SplitDim](n : Int): (Tensor[Dims], Tensor[Dims]) =
     val i = inlineIndexOf[Dims, SplitDim]
@@ -58,7 +78,8 @@ class Tensor[Dims <: Tuple](val shape : Shape[Dims], val stensor : torch.Tensor[
     (tensor0, tensor1)
 
   inline def dim[A] : Int = shape.dim[A]
-
+  //inline def apply[IndDims <: Tuple](indices : ToIntTuple[IndDims]) : Tensor[RemoveAll[Dims, IndDims]] =
+ 
   inline def apply[A](index: Int) : Tensor[Remove[Dims, A]] =
     val dim = inlineIndexOf[Dims, A]
     val newshape = shape.removeKey[A]
@@ -84,9 +105,6 @@ class Tensor[Dims <: Tuple](val shape : Shape[Dims], val stensor : torch.Tensor[
     val newShape = shape.removeKey[A]
     val newt : torch.Tensor[Float32]= torch.argmax(stensor, dim = i).to(float32)
     new Tensor[Remove[Dims, A]](newShape, newt)
-    
-
-
 
 
 object Tensor {

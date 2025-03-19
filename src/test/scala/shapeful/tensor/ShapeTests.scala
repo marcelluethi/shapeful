@@ -43,4 +43,10 @@ class ShapeTests extends FunSuite {
     assertEquals(newShape.dim["Dim8"], 4)
   }
     
+
+  test("Correctly gives int index of multiple dimensions") {
+    val shape = Shape["Dim1", "Dim2", "Dim3", "Dim4"](1, 2, 3, 4)
+    assertEquals(shape.dimsWithIndex[("Dim3", "Dim1", "Dim4")], Seq((3, 2), (1, 0), (4, 3)))    
+  }
+
 }

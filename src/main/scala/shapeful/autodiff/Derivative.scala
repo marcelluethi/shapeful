@@ -36,3 +36,10 @@ class Derivative4[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple, DimsD <: Tuple
     val v = f(p1, p2, p3, p4)
     v.stensor.backward()
     (p1.grad(), p2.grad(), p3.grad(), p4.grad())
+
+class Derivative5[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple, DimsD <: Tuple, DimsE <: Tuple](f: Function5[Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor[DimsE], Tensor0]) extends Derivative[(Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor[DimsE])]:
+  def apply(params: (Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor[DimsE])): (Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor[DimsE]) = 
+    val (p1, p2, p3, p4, p5) = params
+    val v = f(p1, p2, p3, p4, p5)
+    v.stensor.backward()
+    (p1.grad(), p2.grad(), p3.grad(), p4.grad(), p5.grad())

@@ -13,24 +13,24 @@ class TensorIndexingTests extends FunSuite {
   test("correctly retrieves a value from a tensor") {
     val shape = Shape["Dim1", "Dim2"](2, 3)
     val t  = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f))
-    assertEquals(t.get((0, 0)), 1f)
-    assertEquals(t.get((0, 1)), 2f)
-    assertEquals(t.get((0, 2)), 3f)
-    assertEquals(t.get((1, 0)), 4f)
-    assertEquals(t.get((1, 1)), 5f)
-    assertEquals(t.get((1, 2)), 6f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](0, 0)).item, 1f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](0, 1)).item, 2f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](0, 2)).item, 3f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](1, 0)).item, 4f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](1, 1)).item, 5f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](1, 2)).item, 6f)
   }
 
    test("correclty update a value from a tensor") {
     val shape = Shape["Dim1", "Dim2"](2, 3)
     val t  = Tensor.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f))
     t.update((1, 2), 99)
-    assertEquals(t.get((0, 0)), 1f)
-    assertEquals(t.get((0, 1)), 2f)
-    assertEquals(t.get((0, 2)), 3f)
-    assertEquals(t.get((1, 0)), 4f)
-    assertEquals(t.get((1, 1)), 5f)
-    assertEquals(t.get((1, 2)), 99f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](0, 0)).item, 1f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](0, 1)).item, 2f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](0, 2)).item, 3f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](1, 0)).item, 4f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](1, 1)).item, 5f)
+    assertEquals(t.select(Shape["Dim1", "Dim2"](1, 2)).item, 99f)
   }
 
 }
@@ -56,7 +56,7 @@ class TensorShapeTests extends FunSuite {
           j <- 0 until 2
           k <- 0 until 2
         } {
-          assertEquals(reshaped.get((i, j, k)).toInt, i * 4 + j * 2 + k + 1)
+          assertEquals(reshaped.select(Shape["Dim1", "Dim2", "Dim3"](i, j, k)).item.toInt, i * 4 + j * 2 + k + 1)
         }
     }
 }

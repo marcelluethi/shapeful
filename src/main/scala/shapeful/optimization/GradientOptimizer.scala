@@ -1,30 +1,24 @@
 package shapeful.optimization
 
-import shapeful.tensor.Tensor.Tensor0
+import shapeful.autodiff.Params
+import shapeful.tensor.TensorOps
+import shapeful.tensor.Tensor0
+import shapeful.tensor.{Tensor, Variable}
+import shapeful.tensor.TensorOps.sub
+import shapeful.tensor.TensorOps.mul
 
-import shapeful.tensor.Tensor.Tensor1
-import shapeful.tensor.Tensor
-import shapeful.autodiff.Derivative
-import shapeful.tensor.TensorTupleOps
-import shapeful.tensor.IsTensorTuple
-import scala.collection.AbstractIterator
-import shapeful.tensor.Shape
+class GradientOptimizer(lr : Float):
 
-
-class GradientOptimizer(lr_ : Float):
-  val lr = Tensor(Shape.empty, lr_, requiresGrad = false)
-  
-  def optimize[Tensors <: Tuple : IsTensorTuple](
-    df: Derivative[Tensors], 
-    init: Tensors
-  )(using ops: TensorTupleOps[Tensors]): Iterator[Tensors] =
-    Iterator.iterate(init) { currentState =>
-        val gradients = df(currentState)
-        torch.noGrad {
-          val result = currentState
-          ops.update(currentState, gradients, lr)
-        }
-      }
-    
-
-  
+  def optimize(
+    df: Params => Params,
+    params: Params
+  ) =
+    Iterator.iterate(params) { currentState =>
+        val grad = df(currentState)
+        params.map((k, g) =>
+            val g = grad.get[Variable](k)
+            val p = currentState.get[Variable](k)
+            val newp =  p.sub(g.mul(Tensor0(lr)))
+            newp
+        )
+    }

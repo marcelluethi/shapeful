@@ -1,28 +1,34 @@
 package shapeful.autodiff
 
-import shapeful.tensor.Tensor
-import shapeful.tensor.Tensor.{Tensor0, Tensor1}
-import shapeful.tensor.Dimension
-import shapeful.tensor.Dimension.Symbolic
+import shapeful.tensor.{Tensor0, Tensor, Variable}
+import torch.Float32
 
 
+/** Parameters are stored in a tree structure, where each node can have children
+  * of different types The param tree as such is jus represented as tensor, but
+  * when reading we specify the type to get the correct type of the parameter
+  *
+  * The idea is similar to jax pytrees and json structures
+  */
+class Params(m: Map[String, Variable]):
+  def get[A <: Variable](key: String): A = m(key).asInstanceOf[A]
 
+  def update[A <: Variable](pair : (String, Variable)): Params = 
+    val (k, v) = pair
+    if m.contains(k) then
+      Params(m.updated(k, v))
+    else
+      throw new NoSuchElementException(s"Key $k not found in Params")
 
-object Autodiff:
-
-  def deriv[Dims <: Tuple](f : Function1[Tensor[Dims], Tensor[EmptyTuple.type]]) : Derivative[Tuple1[Tensor[Dims]]] =
-    new Derivative1(f)
-
-  def deriv[DimsA <: Tuple, DimsB <: Tuple](f : Function2[Tensor[DimsA], Tensor[DimsB], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB])] =
-    new Derivative2(f)
-
-
-  def deriv[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple](f : Function3[Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB], Tensor[DimsC])] =
-    new Derivative3(f)
-
-  def deriv[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple, DimsD <: Tuple](f : Function4[Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD])] =
-    new Derivative4(f)
+  def map(f: Function2[String, Variable, Variable]): Params =
+    torch.noGrad {
+      Params(m.map { case (key, value) => (key, f(key, value)) })
+    }
 
     
-  def deriv[DimsA <: Tuple, DimsB <: Tuple, DimsC <: Tuple, DimsD <: Tuple, DimsE <: Tuple](f : Function5[Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor[DimsE], Tensor0]) : Derivative[(Tensor[DimsA], Tensor[DimsB], Tensor[DimsC], Tensor[DimsD], Tensor[DimsE])] =
-    new Derivative5(f)
+
+def deriv(f: Params => Tensor0[Float32]): Params => Params =
+  p =>
+    val value = f(p)
+    value.repr.backward()
+    p.map((k, v) => Variable.fromTorch(v.repr.grad.get.requiresGrad = false))

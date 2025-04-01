@@ -1,61 +1,48 @@
 package shapeful.tensor
 
-import shapeful.tensor.Tensor.Tensor0
-import scala.annotation.targetName
+import torch.DType
+import torch.Float32
+import torch.DType.float32
 
-/** operations that work tensors of all shapes **/
-object TensorOps {
-    
-  extension[Dims <: Tuple] (tensor: Tensor[Dims] )
-    @targetName("mul scalar")
-    def mul(s : Tensor0) : Tensor[Dims] =
-        val newt = tensor.stensor.mul(s.stensor)
-        new Tensor[Dims](tensor.shape, newt)
+/** Trait to create a tensor from a torch tensor */
+trait FromRepr[DType <: torch.DType, T <: Tensor[DType]]:
+  def createfromRepr(repr: torch.Tensor[DType]): T
 
-    @targetName("mul tensor")
-    def mul(s : Tensor[Dims]) : Tensor[Dims] =
-        val newt = tensor.stensor.mul(s.stensor)
-        new Tensor[Dims](tensor.shape, newt)
-
-    @targetName("add tensor")
-    def add(other : Tensor[Dims]) : Tensor[Dims] = {
-        val newt = tensor.stensor.add(other.stensor)
-        new Tensor[Dims](tensor.shape, newt)
-    }
-
-    @targetName("divtensor")
-    def div(other : Tensor[Dims]) : Tensor[Dims] =
-        val newt = tensor.stensor.div(other.stensor)
-        new Tensor[Dims](tensor.shape, newt)
-
-    @targetName("divscalar")
-    def div(scalar : Tensor0) : Tensor[Dims] =
-        val newt = tensor.stensor.div(scalar.stensor)
-        new Tensor[Dims](tensor.shape, newt)
-
-    @targetName("add scalar")
-    def add(other: Tensor0): Tensor[Dims] = {
-        val newt = tensor.stensor.add(other.stensor)
-        new Tensor[Dims](tensor.shape, newt)
-    }
-    @targetName("subtract tensor")
-    def sub(other: Tensor[Dims]): Tensor[Dims] = {
-        val newt = tensor.stensor.sub(other.stensor)
-        new Tensor[Dims](tensor.shape, newt)
-    }
-
-    def pow(exp : Int) : Tensor[Dims] =
-        val newt = tensor.stensor.pow(exp)
-        new Tensor[Dims] (tensor.shape, newt)
-
-    def log: Tensor[Dims] =
-        val newt = tensor.stensor.log
-        new Tensor[Dims](tensor.shape, newt)
-
-    def clamp(min : Option[Float], max : Option[Float]): Tensor[Dims] =
-
-        val newt = torch.clamp(tensor.stensor, min, max)
-        new Tensor[Dims](tensor.shape, newt)
+/** operations that work on any tensor and simply transform each element without
+  * changing the shape or type of the tensors
+  */
 
 
-}
+
+object TensorOps:
+
+  extension [DType <: torch.DType, T <: Tensor[DType]](t: T)
+    def pow(p: Int)(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] = t.repr.pow(p).to(t.dtype)
+      fromRepr.createfromRepr(tt)
+
+
+    def log()(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] = t.repr.log().to(t.dtype)
+      fromRepr.createfromRepr(tt)
+
+    def add(b: T | Tensor0[DType])(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] =
+        t.repr.add(b.repr).asInstanceOf[torch.Tensor[DType]]
+      fromRepr.createfromRepr(tt)
+
+    def sub(b: T | Tensor0[DType])(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] =
+        t.repr.sub(b.repr).asInstanceOf[torch.Tensor[DType]]
+      fromRepr.createfromRepr(tt)
+
+    def mul(b: T | Tensor0[DType])(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] =
+        t.repr.mul(b.repr).asInstanceOf[torch.Tensor[DType]]
+      fromRepr.createfromRepr(tt)
+
+    def div(b: T | Tensor0[DType])(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] =
+      t.repr.div(b.repr).asInstanceOf[torch.Tensor[DType]]
+      fromRepr.createfromRepr(tt)
+

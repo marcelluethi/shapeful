@@ -1,75 +1,73 @@
 package shapeful.examples
 
-
 // Example usage:
 
 import shapeful.distributions.Normal
-import shapeful.tensor.Dimension.Symbolic
-import shapeful.tensor.Tensor.{Tensor0, Tensor1, Tensor2}
-
-import shapeful.tensor.TensorOps.* 
-import shapeful.tensor.Tensor0Ops.* 
-import shapeful.tensor.Tensor2Ops.* 
-
-import shapeful.autodiff.Autodiff
-import shapeful.tensor.TensorTupleOps
-import shapeful.optimization.GradientOptimizer
-import shapeful.inference.MetropolisHastings
-import shapeful.tensor.Dimension
-import shapeful.tensor.Tensor
+import shapeful.tensor.Tensor2
+import shapeful.tensor.~>
 import shapeful.tensor.Shape
-
+import shapeful.tensor.Tensor1
+import shapeful.tensor.Tensor0
+import shapeful.tensor.Variable1
+import shapeful.tensor.Variable0
+import torch.Float32
+import shapeful.tensor.TensorOps.*
+import shapeful.tensor.Tensor1Ops.* 
+import shapeful.tensor.Tensor2Ops.*
+import shapeful.autodiff.Params
+import shapeful.inference.MetropolisHastings
 
 def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
 
-  type Data = "data"
-  type Space = "space"
-  val spaceShape = Shape[Space](1)
-  val dataShape = Shape[Data](xs.size)
-  
+  val wShape = Shape("Features" ~> 1)
+  val XShape = Shape("Data"~>xs.length, "Features" ~>1)
+  val yShape = Shape("Data"~>y.length)
 
-  val X = Tensor.fromSeq(dataShape ++ spaceShape, xs)
-  val yt = Tensor.fromSeq(dataShape, y)
+  val X = Tensor2.fromSeq(XShape, xs)
+  val yt = Tensor1.fromSeq(yShape, y)
 
-  val pw = Normal(spaceShape, Tensor(spaceShape, 0f), Tensor(spaceShape, 10f))
-  val pb = Normal(Shape.empty, Tensor(Shape.empty, 1), Tensor(Shape.empty, 100f))
+  val pw = Normal(Tensor1(wShape, 0f), Tensor1(wShape, 10f))
+  val pb = Normal(Tensor0(1f), Tensor0(1f))
 
-  def likelihood(w : Tensor1[Space], b : Tensor0) : Tensor0 =
-    val mu : Tensor1[Data] = X.matmul(w).add(b)
-    val sigma : Tensor1[Data] = Tensor(dataShape, 1)
 
-    Normal[Tuple1[Data]](dataShape, mu, sigma).logpdf(yt).mean[Data]
+  def likelihood(w : Variable1["Features"], b : Variable0) : Tensor0[Float32] =
+    val mu  = X.matmul1(w).add(b)
+    val sigma = Tensor1(yShape, 1f)
 
-  def f(w : Tensor1[Space], b: Tensor0) : Tensor0 =
-    val logpw = pw.logpdf(w).sum[Space]
-    val logpb = pb.logpdf(b).sum[Space]
+    Normal(mu, sigma).logpdf(yt).mean
+
+  def f(params : Params) : Tensor0[Float32] =
+
+    val w = params.get[Variable1["Features"]]("w")
+    val b = params.get[Variable0]("b")
+    val logpw = pw.logpdf(w).sum
+    val logpb = pb.logpdf(b)
 
     val ll = likelihood(w, b)
     logpw.add(logpb).add(ll)
 
-
-
-  val w0 : Tensor1[Space] = Tensor(spaceShape, 0.0, requiresGrad = true)
-  val b0 : Tensor0 = Tensor(Shape.empty, 0.0, requiresGrad = true)
-
+  val params0 = new Params(
+    Map("w" -> Variable1(wShape, 0.0f), 
+    "b" -> Variable0(0.0f))
+    )
 
   // sampling from posterior
-  def proposal(wb : (Tensor1[Space], Tensor0)) : (Tensor1[Space], Tensor0) =
-    val (w, b) = wb
+  def proposal(param : Params) : Params =
+    val w = param.get[Variable1["Features"]]("w")
+    val b = param.get[Variable0]("b")
 
-    val nw = Normal(w.shape, w, Tensor(w.shape, 0.1f, requiresGrad = false))
-    val nb = Normal(b.shape, b, Tensor(b.shape, 0.1f, requiresGrad = false))
+    val nw = Normal(w, Tensor1(w.shape, 0.1f))
+    val nb = Normal(b, Tensor0(0.1f))
 
     val neww = nw.sample()
     val newb = nb.sample()
 
-    (neww, newb)
+    param.update("w" -> neww.toVariable).update("b"-> newb.toVariable)
 
-  
   val samples = MetropolisHastings.sample(
-      f.tupled,
-      proposal  , 
-      (w0, b0)
+      f,
+      proposal ,
+      params0
     ).zipWithIndex.map { case (z, i) =>
       if i % 100 == 0 then
         println(s"Iteration $i: $z")
@@ -78,11 +76,11 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
     .drop(1000)
     .take(1000)
     .toSeq
-  
-  val mean = samples.map(_._1).reduce(_.add(_)).mul(Tensor(Shape.empty, 1.0f / samples.size))
+
+  val mean = samples.map(_.get[Variable1["Features"]]("w")).reduce((a, s) => a.add(s)).mul(Tensor0(1.0f / samples.size))
   println("mean: " + mean)
 
-@main def runBayesianLinearRegression() : Unit = 
+@main def runBayesianLinearRegression() : Unit =
 
     val w = 1f
     val b = 5f

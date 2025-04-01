@@ -1,19 +1,14 @@
 package shapeful.tensor
 
-import shapeful.tensor.Tensor.Tensor1
+import shapeful.tensor.Tensor0
+import shapeful.tensor.Tensor1
 
-object Tensor1Ops {
-    extension[A] (tensor: Tensor1[A]) 
+object Tensor1Ops:
 
-        def dot[B](other : Tensor[Tuple1[B]]) : Tensor[Tuple1[A]] =
-            val newt = tensor.stensor `@` other.stensor
-            val newShape = Shape[A](newt.shape.head)
-            new Tensor[Tuple1[A]](newShape, newt)
+ extension [A <: Singleton, DType <: torch.DType](t: Tensor1[A, DType])
+  def mean: Tensor0[DType] =
+    new Tensor0[DType](t.repr.mean, t.dtype)
 
-        def cov : Tensor[(A, A)] =
-            val n = tensor.dim[A]
-            val newt = tensor.stensor.matmul(tensor.stensor.t) * (1.0f / n)
-            val newShape = Shape[A, A](n, n)
-            new Tensor(newShape, newt)
+  def sum: Tensor0[DType] =
+    new Tensor0[DType](torch.sum(t.repr), t.dtype)
 
-}

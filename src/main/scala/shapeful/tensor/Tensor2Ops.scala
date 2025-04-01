@@ -1,33 +1,37 @@
-package shapeful.tensor
+package shapeful.tensor 
 
-import shapeful.tensor.Tensor.Tensor1
-import scala.annotation.targetName
-import shapeful.tensor.Tensor.Tensor2
+import shapeful.tensor.* 
+import torch.Float32
+import torch.DType.float32
 
-object Tensor2Ops {
-  
-extension [A, B](tensor: Tensor[(A, B)])
 
-  @targetName("matmulvec")
-  def matmul(other: Tensor1[B]): Tensor[Tuple1[A]] = {
-    val newt = tensor.stensor.matmul(other.stensor)
-    val newShape = Shape[A](tensor.shape.dim[A])
-    val t = new Tensor[Tuple1[A]](newShape, newt)
-    t
-  }
+object Tensor2Ops:
+  extension [A <: Singleton, B <: Singleton, DType <: torch.DType](t: Tensor2[A, B, DType])
+    def matmul[C <: Singleton](
+        y: Tensor2[B, C, DType]
+    ): Tensor2[A, C, DType] =
+      new Tensor2[A, C, DType](new Shape2[A, C](t.shape.dim1, y.shape.dim2), t.repr.matmul(y.repr), t.dtype)
 
-  @targetName("matmulmat")
-  def matmul[C](other: Tensor2[B, C]): Tensor[(A, C)] = {
-    val newt = tensor.stensor.matmul(other.stensor)
-    val newShape = Shape[A, C](tensor.shape.dim[A], tensor.shape.dim[C])
-    val t = new Tensor[(A, C)](newShape, newt)
-    t
-  }
+    
+    def matmul1(y: Tensor1[B, DType]): Tensor1[A, DType] =
+      new Tensor1[A, DType](new Shape1[A](t.shape.dim1), t.repr.matmul(y.repr), t.dtype)
 
-   @targetName("add horizontal")
-    def addAlongDim[Dim](other : Tensor1[Dim]) : Tensor[(A, B)] = {
-        val newShape = tensor.shape.updateValue[Dim](other.shape.dim[Dim] + tensor.shape.dim[Dim])
-        val newt = tensor.stensor.add(other.stensor)
-        new Tensor[(A, B)](newShape, newt)
-    }
-}
+    
+    def rowsum: Tensor1[A, DType] =
+      new Tensor1[A, DType](new Shape1[A](t.shape.dim1), t.repr.sum(dim = 0), t.dtype)
+
+    def colsum: Tensor1[B, DType] =
+      new Tensor1[B, DType](new Shape1[B](t.shape.dim2), t.repr.sum(dim = 1), t.dtype)
+
+    def rowmean: Tensor1[A, Float32] =
+      val newt : torch.Tensor[Float32] = torch.mean(t.repr.to(float32), dim = 0).to(float32)
+      new Tensor1[A, Float32](new Shape1[A](t.shape.dim1), newt)
+
+    def colmean: Tensor1[B, Float32] =
+      val newt : torch.Tensor[Float32] = torch.mean(t.repr.to(float32), dim = 1).to(float32)
+      new Tensor1[B, Float32](new Shape1[B](t.shape.dim2), newt)
+
+    def transpose(
+      x: Tensor2[A, B, DType]
+  ): Tensor2[B, A, DType] =
+    new Tensor2[B, A, DType](new Shape2[B, A](x.shape.dim2, x.shape.dim1), x.repr.transpose(0, 1), x.dtype)

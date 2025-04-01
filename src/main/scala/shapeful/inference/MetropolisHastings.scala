@@ -1,14 +1,14 @@
 package shapeful.inference
 
-import shapeful.tensor.Tensor.Tensor0
-import shapeful.tensor.IsTensorTuple
-import shapeful.tensor.Tensor0Ops.*
-import shapeful.tensor.TensorOps.*
+import shapeful.tensor.Tensor0
+import torch.Float32
+import shapeful.autodiff.Params
 
+import shapeful.tensor.TensorOps.sub
 
 object MetropolisHastings:
 
-    def sample[Tensors <: Tuple : IsTensorTuple](targetLogDensity: Tensors => Tensor0, proposal: Tensors => Tensors, initial: Tensors) : Iterator[Tensors] =
+    def sample(targetLogDensity: Params => Tensor0[Float32], proposal: Params => Params, initial: Params) : Iterator[Params] =
         Iterator.iterate(initial) { current =>
             val proposed = proposal(current)
             val logAcceptance = targetLogDensity(proposed).sub(targetLogDensity(current)).item

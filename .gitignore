@@ -8,4 +8,5 @@ project/project/project/target/*
 .metals
 data
 playground
-*.log
+*.log   
+project/project/**

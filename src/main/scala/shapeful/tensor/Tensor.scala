@@ -24,6 +24,9 @@ trait Tensor[DType <: torch.DType]:
       case t: Tensor2[a, b, DType] => new Variable2(shape.asInstanceOf[Shape2[a, b]], newRepr)
       case _ => throw new Exception("Unsupported tensor shape")
 
+  override def toString(): String = 
+    repr.toString()
+
 object Tensor:
   def fromTorch[DType <: torch.DType](t: torch.Tensor[DType]): Tensor[DType] =
     t.shape.size match
@@ -87,7 +90,7 @@ object Variable0:
 class Tensor1[A <: Singleton, DType <: torch.DType](
     override val shape: Shape1[A],
     override val repr: torch.Tensor[DType],
-    override val dtype: DType = float32
+    override val dtype: DType
 ) extends Tensor[DType]:
 
   def apply(i: Int): Tensor0[DType] =
@@ -124,7 +127,7 @@ object Tensor1:
       new Tensor1[A, DType](new Shape1[A](repr.shape(0)), repr, repr.dtype)
 
 class Variable1[A <: Singleton](shape: Shape1[A], repr: torch.Tensor[Float32])
-    extends Tensor1[A, Float32](shape, repr) with Variable:
+    extends Tensor1[A, Float32](shape, repr, dtype=float32) with Variable:
     repr.requiresGrad = true
 
 object Variable1:
@@ -154,6 +157,9 @@ class Tensor2[A <: Singleton, B <: Singleton, DType <: torch.DType](
 
   def apply(i: Int, j: Int): Tensor0[DType] =
     new Tensor0[DType](repr(i, j), dtype)
+
+  def update(i: Int, j: Int, value: Float): Unit =
+    repr.update(Seq(i, j), value)
 
   // def getshape: (Int, Int) = (shape._1.n, shape._2.n)
   inline def sum[D <: A | B]: Tensor1[OtherDim[D, A, B], DType] =

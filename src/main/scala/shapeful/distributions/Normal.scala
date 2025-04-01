@@ -19,7 +19,7 @@ class Normal[T <: Tensor[Float32]](mu: T, sigma: T)(using
 
   // Precompute constants for efficiency
   private val variance = sigma.pow(2)
-  private val logSigma = sigma.log()
+  private val logSigma = sigma.log
   private val log2Pi = Tensor0(math.log(2 * Pi).toFloat)
 
   /** Computes the log of the probability density function at x More numerically

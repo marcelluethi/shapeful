@@ -6,6 +6,7 @@ import shapeful.tensor.Tensor0
 import shapeful.tensor.{Tensor, Variable}
 import shapeful.tensor.TensorOps.sub
 import shapeful.tensor.TensorOps.mul
+import shapeful.tensor.TensorOps.add
 
 class GradientOptimizer(lr : Float):
 
@@ -18,7 +19,6 @@ class GradientOptimizer(lr : Float):
         params.map((k, g) =>
             val g = grad.get[Variable](k)
             val p = currentState.get[Variable](k)
-            val newp =  p.sub(g.mul(Tensor0(lr)))
-            newp
+            p.add(g.mul(Tensor0(lr))).toVariable
         )
     }

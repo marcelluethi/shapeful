@@ -22,8 +22,8 @@ object TensorOps:
       fromRepr.createfromRepr(tt)
 
 
-    def log()(using fromRepr: FromRepr[DType, T]): T =
-      val tt: torch.Tensor[DType] = t.repr.log().to(t.dtype)
+    def log(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] = t.repr.log.to(t.dtype)
       fromRepr.createfromRepr(tt)
 
     def add(b: T | Tensor0[DType])(using fromRepr: FromRepr[DType, T]): T =

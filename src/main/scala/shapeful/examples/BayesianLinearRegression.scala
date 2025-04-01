@@ -70,15 +70,16 @@ def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
       params0
     ).zipWithIndex.map { case (z, i) =>
       if i % 100 == 0 then
-        println(s"Iteration $i: $z")
+        println(s"Iteration $i: w: ${z.get("w")} + b: ${z.get("b")}")
       z
     }
     .drop(1000)
     .take(1000)
     .toSeq
 
-  val mean = samples.map(_.get[Variable1["Features"]]("w")).reduce((a, s) => a.add(s)).mul(Tensor0(1.0f / samples.size))
-  println("mean: " + mean)
+  val meanW = samples.map(_.get[Variable1["Features"]]("w")).reduce((a, s) => a.add(s)).mul(Tensor0(1.0f / samples.size))
+  val meanB = samples.map(_.get[Variable0]("b")).reduce((a, s) => a.add(s)).mul(Tensor0(1.0f / samples.size))
+  println("means - w: " + meanW + " b: " + meanB)
 
 @main def runBayesianLinearRegression() : Unit =
 

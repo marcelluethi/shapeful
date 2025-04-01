@@ -1,149 +1,124 @@
-// package shapeful.examples
+package shapeful.examples
 
-// import shapeful.autodiff.Params
-// import shapeful.tensor.TensorExpr2
-// import shapeful.tensor.Variable2
-// import shapeful.tensor.Variable0
-// import shapeful.tensor.Plus2Scalar
-// import shapeful.tensor.MatMul2
-// import shapeful.tensor.Diff2
-// import shapeful.tensor.Sum
-// import shapeful.tensor.TensorExpr0
-// import shapeful.tensor.Mul2
-// import shapeful.tensor.TensorExpr1
-// import shapeful.tensor.DataTensor2
-// import torchvision.datasets.MNIST
-// import torch.Float32
-// import torch.DType.float32
-// import shapeful.autodiff.Autodiff
-// import shapeful.optimization.GradientOptimizer
+import shapeful.autodiff.Params
+import torchvision.datasets.MNIST
+import torch.Float32
+import torch.DType.float32
+import shapeful.optimization.GradientOptimizer
+import shapeful.tensor.Tensor2
+import shapeful.tensor.Variable2
+import shapeful.tensor.Variable0
+import shapeful.tensor.Tensor2Ops.*
+import shapeful.tensor.TensorOps.*
+import shapeful.tensor.Tensor0
+import shapeful.tensor.Tensor1
+import shapeful.tensor.Tensor1Ops.mean
+import torch.Int32
+import shapeful.tensor.Shape
+import shapeful.tensor.~>
+import shapeful.distributions.Normal
+import shapeful.autodiff.deriv
+import shapeful.tensor.Tensor
+import torch.DType.int32
+import shapeful.tensor.Variable1
+import shapeful.nn.Activation
 
-// object MNistExample:
+object MNistExample:
 
-//     /**
-//      * definition of neural network
-//      * */
-//     def layer1(params : Params) : TensorExpr2["data", "features"] => TensorExpr2["data", "hidden1"] =
-//         x =>
-//             val w1  = params.read[Variable2["features", "hidden1"]]("w1")
-//             val b1 = params.read[Variable0]("b1")
-//             Plus2Scalar(MatMul2(x, w1), b1)
 
-//     def layer2(params : Params) : TensorExpr2["data", "hidden1"] => TensorExpr2["data", "output"] =
-//         x =>
-//             val w2  = params.read[Variable2["hidden1", "output"]]("w2")
-//             val b2 =  params.read[Variable0]("b2")
-//             val xw2 : TensorExpr2["data", "output"] = MatMul2(x, w2)
-//             Plus2Scalar(xw2, b2)
+    /**
+     * definition of neural network
+     * */
+    def layer1(params : Params) : Tensor2["data", "features", Float32] => Tensor2["data", "hidden1", Float32] =
+        x =>
+            val w1  = params.get[Variable2["features", "hidden1"]]("w1")
+            val b1 = params.get[Variable1["hidden1"]]("b1")
+            Activation.relu(x.matmul(w1).addToCols(b1))
 
-//     def model(x : TensorExpr2["data", "features"])(params : Params) : TensorExpr2["data", "output"] =
-//         val l1 = layer1(params.read[Params]("layer1"))
-//         val l2 = layer2(params.read[Params]("layer2"))
-//         l1.andThen(l2)(x)
+    def layer2(params : Params) : Tensor2["data", "hidden1", Float32] => Tensor2["data", "output", Float32] =
+        x =>
+            val w2  = params.get[Variable2["hidden1", "output"]]("w2")
+            val b2 =  params.get[Variable1["output"]]("b2")
+            Activation.softmax(x.matmul(w2).addToCols(b2))
 
-//     def loss(y : TensorExpr2["data", "output"], yHat : TensorExpr2["data", "output"]) : TensorExpr0 =
-//         val diff = Diff2(y, yHat)
-//         val diff2 = Mul2(diff, diff)
-//         val sum = Sum(diff2)
-//         sum
+    def model(x : Tensor2["data", "features", Float32])(params : Params) : Tensor2["data", "output", Float32] =
+        val l1 = layer1(params)
+        val l2 = layer2(params)
+        l1.andThen(l2)(x)
 
-//     def f(x : TensorExpr2["data", "features"], y : TensorExpr2["data", "output"])(params : Params) : TensorExpr0 =
-//         val yHat = model(x)(params)
-//         loss(y, yHat)
+    def loss(y : Tensor2["data", "output", Float32], yHat : Tensor2["data", "output", Float32]) : Tensor1["data", Float32] =
+        val yhatlog = yHat.add(Tensor0(0.00001f)).log
+        val l = y.mul(yhatlog)
+        val m1 : Tensor0[Float32]= Tensor0(-1f)
+        val theloss = l.sum["output"].mul(m1)
+        theloss
 
-//     def toOneHot(labels: TensorExpr1["data"]): TensorExpr2["data", "output"] = {
-//         // val oneHotShape = Shape[Data, Output](labels.dim[Data], Output.dim[Output])
-//         // val oneHot = Tensor(oneHotShape, 0)
-//         // for i <- 0 until labels.dim[Data] do {
-//         //     val label = labels[Data](i).item.toInt//.select(Shape[Data](i)).item.toInt
-//         //     oneHot.update(Tuple2(i, label), 1)
-//         // }
-//         // oneHot
-//         ???
-//     }
+    def f(x : Tensor2["data", "features", Float32], y : Tensor2["data", "output", Float32])(params : Params) : Tensor0[Float32] =
+        val yHat = model(x)(params)
+        loss(y, yHat).mean
 
-//     def accuracy(y: DataTensor2["data", "output"], yHat: DataTensor2["data", "output"]): Float = {
-//         // val predicted = yHat.argmax[Output]
-//         // val label = y.argmax[Output]
-//         // var correct : Int = 0
-//         // for i <- 0 until y.dim[Data] do {
+    def toOneHot(labels: Tensor1["data", Int32]): Tensor2["data", "output", Float32] = {
+        val oneHotShape = Shape("data" ~> labels.shape.dim1, "output" ~> 10)
+        val oneHot = Tensor2(oneHotShape, 0)
+        for i <- 0 until labels.shape.dim1 do {
+            val label = labels(i).item
+            oneHot.update(i, label, 1)
+        }
+        oneHot
+    }
 
-//         //     if predicted[Data](i).item == label[Data](i).item  then
-//         //         correct += 1
-//         // }
-//         // correct / y.dim[Data].toFloat
-//         ???
-//     }
+    def accuracy(y: Tensor2["data", "output", Float32], yHat: Tensor2["data", "output", Float32]): Float = {
+        val predicted = yHat.rowArgmax
+        val label = y.rowArgmax
+        var correct : Int = 0
+        for i <- 0 until y.shape.dim1 do {
+            if predicted(i).item == label(i).item  then
+                correct += 1
+        }
+        correct / y.shape.dim1.toFloat
+    }
 
-//     def train(data : DataTensor2["data", "features"], target : DataTensor2["data", "output"]) : Unit =
+    def train(data : Tensor2["data", "features", Float32], target : Tensor2["data", "output", Float32]) : Unit =
 
-//         val params = Params(Map[String, Any]())
+        val w1Shape = Shape("features" ~> (28 * 28), "hidden1" ~> 50)
+        val b1Shape = Shape("hidden1" ~> 50)
+        val w2Shape = Shape("hidden1" ~> 50, "output" ~> 10)        
+        val outputShape = Shape("output" ~> 10)
+        
 
-//         val fv = f(data, target)(params)
-//         val df = Autodiff.deriv(f(data, target))
+        val params = Params(Map(
+            "w1" -> Normal(Tensor2(w1Shape, 0f), Tensor2(w1Shape, 0.01f)).sample().toVariable,
+            "b1" -> Normal(Tensor1(b1Shape, 0f), Tensor1(b1Shape, 0.01f)).sample().toVariable,
+            "w2" -> Normal(Tensor2(w2Shape, 0f), Tensor2(w2Shape, 0.01f)).sample().toVariable,
+            "b2" -> Normal(Tensor1(outputShape, 0f), Tensor1(outputShape, 0.01f)).sample().toVariable,
+        ))
 
-//         val xs = GradientOptimizer(-0.00001).optimize(df, params).zipWithIndex.take(1000)
-//         //.foreach{
-//         //     case (params, i) => {
-//         //         if i % 100 == 0 then
-//         //             sys.runtime.gc()
-//         //             println("Loss: " + f(data, target)(params))
-//         //     }
-//         // }
 
-//         // val mnist = MNIST(new java.io.File("./data").toPath(), train = true, download = true)
-//         // val imageTensors = mnist.features.reshape(60000, 28, 28)
-//         // val labelsTensor : torch.Tensor[Float32] = mnist.targets.to(float32)
+        val df = deriv(f(data, target))
 
-//         // val dataShape = Shape[Data](60000)
+        val xs = GradientOptimizer(-0.1).optimize(df, params).zipWithIndex.take(1000)
+        .foreach{
+            case (params, i) => {
+                if i % 10 == 0 then
+                    sys.runtime.gc()
+                    val yhat = model(data)(params)
+                    println("Loss: " + loss(target, yhat).mean.item)
+                    println("Accuracy: " + accuracy(target, yhat))
+            }
+        }  
 
-//         // val allimages : Tensor3[Data, ImageHeight, ImageWidth] = new Tensor(dataShape ++ imageShape, imageTensors)
-//         // val alllabels : Tensor1[Data] = new Tensor(dataShape, labelsTensor)
+@main
+def runMnistExample() : Unit =
+    val mnist = MNIST(new java.io.File("./data").toPath(), train = true, download = true)
+    val imageTensors = mnist.features.reshape(60000, 28 *28)
+    val labelsTensor : torch.Tensor[Int32] = mnist.targets.to(int32)
 
-//         // val (trainImages, valImages) = allimages.split(50000)
-//         // val (trainLabels, valLabels) = alllabels.split(50000)
-//         // val yTrain = toOneHot(trainLabels)
-//         // val yVal = toOneHot(valLabels)
+    val dataShape = Shape("data" ~> 60000, "features" ~> (28 * 28))
+    val labelShape = Shape("data" ~> 60000)
+    val allimages = new Tensor2(dataShape, imageTensors)
+    val alllabels = new Tensor1(labelShape, labelsTensor, dtype = int32)
 
-//         // val imageHiddenShape = imageFlattendShape ++ hiddenShape
-//         // val hiddenOutputShape = hiddenShape ++ Output
+    val yVal = MNistExample.toOneHot(alllabels)
+    MNistExample.train(allimages, yVal)
 
-//         // val w1 = Normal(imageHiddenShape, Tensor(imageHiddenShape, 0f), Tensor(imageHiddenShape, 0.01f)).sample().copy(requiresGrad = true)
-//         // val b1 = Normal(hiddenShape, Tensor(hiddenShape, 0f), Tensor(hiddenShape, 0.01f)).sample().copy(requiresGrad = true)
-//         // val w2 = Normal(hiddenOutputShape, Tensor(hiddenOutputShape, 0f), Tensor(hiddenOutputShape, 0.01f)).sample().copy(requiresGrad = true)
-//         // val b2 = Normal(Output, Tensor(Output, 0f), Tensor(Output, 0.01f)).sample().copy(requiresGrad = true)
-//         // val wconv = Normal(Shape[Conv1KernelHeight, Conv1KernelWidth](3, 3), Tensor(Shape[Conv1KernelHeight, Conv1KernelWidth](3, 3), 0f), Tensor(Shape[Conv1KernelHeight, Conv1KernelWidth](3, 3), 0.01f)).sample().copy(requiresGrad = true)
-//         // val outputs = model(wconv, w1, b1, w2, b2)(trainImages)
 
-//         // def f(images : Tensor3[Data, ImageHeight, ImageWidth], y : Tensor2[Data, Output])(
-//         //     wconv: Tensor2[Conv1KernelHeight, Conv1KernelWidth],
-//         //     w1: Tensor2[ImageFeatures, HiddenFeatures],
-//         //     b1: Tensor1[HiddenFeatures],
-//         //     w2: Tensor2[HiddenFeatures, Output],
-//         //     b2 : Tensor1[Output]
-//         //     ) : Tensor0 = {
-//         //         val yHat = model(wconv, w1, b1, w2, b2)(images)
-//         //         loss(y, yHat).sum[Data]
-//         //     }
-
-//         // val df = Autodiff.deriv(f(trainImages, yTrain))
-
-//         // GradientOptimizer(-0.00001).optimize(df, (wconv, w1, b1, w2, b2)).zipWithIndex.take(1000).foreach{
-//         //     case ((wconv, w1, b1, w2, b2), i) => {
-//         //         if i % 100 == 0 then
-//         //             sys.runtime.gc()
-//         //             println("Loss: " + f(trainImages, yTrain)(wconv, w1, b1, w2, b2).item)
-//         //             val pred = model(wconv, w1, b1, w2, b2)(trainImages)
-//         //             println("Training accuracy: " + accuracy(yTrain, pred))
-//         //             val predTest = model(wconv,w1, b1, w2, b2)(valImages)
-//         //             println("Validation accuracy: " + accuracy(yVal, predTest))
-//         //     }
-//         // }
-
-// @main
-// def runMnistExample() : Unit =
-
-//     val data : DataTensor2["data", "features"] = ???
-//     val target : DataTensor2["data", "output"] = ???
-
-//     MNistExample.train(data, target)

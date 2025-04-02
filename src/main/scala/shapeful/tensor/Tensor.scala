@@ -35,6 +35,12 @@ object Tensor:
       case 2 => new Tensor2(Shape(0 ~> t.shape(0), 1 ~> t.shape(1)), t, t.dtype)
       case _ => throw new Exception("Unsupported tensor shape")
 
+
+  given createfromRepr: FromRepr[Float32, Tensor[Float32]]
+  with
+    def createfromRepr(repr: torch.Tensor[Float32]): Tensor[Float32] =
+      fromTorch(repr)
+
 trait Variable extends Tensor[Float32]
   //override val dtype : Float32 = float32
 

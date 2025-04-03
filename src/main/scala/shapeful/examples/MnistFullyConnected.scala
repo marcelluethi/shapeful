@@ -33,13 +33,13 @@ object MNistExample:
         x =>
             val w1  = params.get[Variable2["features", "hidden1"]]("w1")
             val b1 = params.get[Variable1["hidden1"]]("b1")
-            Activation.relu(x.matmul(w1).addToCols(b1))
+            Activation.relu(x.matmul(w1).addTensor1(b1))
 
     def layer2(params : Params) : Tensor2["data", "hidden1", Float32] => Tensor2["data", "output", Float32] =
         x =>
             val w2  = params.get[Variable2["hidden1", "output"]]("w2")
             val b2 =  params.get[Variable1["output"]]("b2")
-            Activation.softmax(x.matmul(w2).addToCols(b2))
+            Activation.softmax(x.matmul(w2).addTensor1(b2))
 
     def model(x : Tensor2["data", "features", Float32])(params : Params) : Tensor2["data", "output", Float32] =
         val l1 = layer1(params)
@@ -68,8 +68,8 @@ object MNistExample:
     }
 
     def accuracy(y: Tensor2["data", "output", Float32], yHat: Tensor2["data", "output", Float32]): Float = {
-        val predicted = yHat.rowArgmax
-        val label = y.rowArgmax
+        val predicted = yHat.argmax["output"]
+        val label = y.argmax["output"]
         var correct : Int = 0
         for i <- 0 until y.shape.dim1 do {
             if predicted(i).item == label(i).item  then

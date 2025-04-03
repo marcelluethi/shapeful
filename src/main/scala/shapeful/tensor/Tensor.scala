@@ -3,9 +3,8 @@ package shapeful.tensor
 import torch.Int32
 import torch.Float32
 import torch.DType.float32
-import scala.compiletime.{erasedValue, summonInline}
+
 import scala.deriving.Mirror
-import shapeful.tensor.Tensor2.OtherDim
 
 trait Tensor[DType <: torch.DType]:
   def repr: torch.Tensor[DType]
@@ -167,20 +166,7 @@ class Tensor2[A <: Singleton, B <: Singleton, DType <: torch.DType](
   def update(i: Int, j: Int, value: Float): Unit =
     repr.update(Seq(i, j), value)
 
-  // def getshape: (Int, Int) = (shape._1.n, shape._2.n)
-  inline def sum[D <: A | B]: Tensor1[OtherDim[D, A, B], DType] =
-    val dimInd = inline erasedValue[D] match {
-      case _: A => 0
-      case _: B => 1
-      case _    => compiletime.error("Dimension must be either A or B")
-    }
-    val newt = torch.sum(repr, dimInd)
-    val newShape = new Shape1[OtherDim[D, A, B]](newt.shape(0))
-    new Tensor1(newShape, newt, dtype)
 
-  def transpose: Tensor2[B, A, DType] =
-    val newShape = new Shape2[B, A](shape.dim2, shape.dim1)
-    new Tensor2[B, A, DType](newShape, repr, dtype)
 
   def to[C <: Singleton, D <: Singleton]: Tensor2[C, D, DType] =
     val newShape = new Shape2[C, D](shape.dim1, shape.dim2)
@@ -219,11 +205,6 @@ object Tensor2:
         repr, 
         repr.dtype
       )
-
-  type OtherDim[D <: Singleton, A <: Singleton, B <: Singleton] = D match {
-    case A => B
-    case B => A
-  }
 
 /** A variable is a tensor that needs parameters
   */

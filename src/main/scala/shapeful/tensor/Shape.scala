@@ -1,19 +1,57 @@
 package shapeful.tensor
 
+import scala.compiletime.{erasedValue, summonInline}
+import scala.collection.View.Single
+
 case class TypedDim[A <: Singleton](val dim: Int)
 extension [A <: Singleton](singleton: A)
-  def ~>(dim: Int): TypedDim[A] = TypedDim[A](dim)
+  def ->>(dim: Int): TypedDim[A] = TypedDim[A](dim)
 
-trait Shape
-object Shape0 extends Shape
-class Shape1[A <: Singleton](val dim1: Int) extends Shape
+trait Shape:
+  def dims : Seq[Int]
+
+object Shape0 extends Shape:
+  def dims: Seq[Int] = Seq()  
+class Shape1[A <: Singleton](val dim1: Int) extends Shape:
+  def dims = Seq(dim1)
 class Shape2[A <: Singleton, B <: Singleton](val dim1: Int, val dim2: Int)
-    extends Shape
+    extends Shape:
+  def dims = Seq(dim1, dim2)
+  inline def dim[D <: A | B]: Int = inline erasedValue[D] match {
+    case _: A => dim1
+    case _: B => dim2
+    case _    => compiletime.error("Dimension must be either A or B")
+  }
+
+
 class Shape3[A <: Singleton, B <: Singleton, C <: Singleton](
     val dim1: Int,
     val dim2: Int,
     val dim3: Int
-) extends Shape
+) extends Shape:
+  def dims = Seq(dim1, dim2, dim3)
+  inline def dim[D <: A | B | C]: Int = inline erasedValue[D] match {
+    case _: A => dim1
+    case _: B => dim2
+    case _: C => dim3
+    case _    => compiletime.error("Dimension must be either A or B")
+  }
+
+
+class Shape4[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+    val dim1: Int,
+    val dim2: Int,
+    val dim3: Int,
+    val dim4: Int
+) extends Shape:
+  def dims = Seq(dim1, dim2, dim3, dim4)
+  inline def dim[Dim <: A | B | C | D ]: Int = inline erasedValue[Dim] match {
+    case _: A => dim1
+    case _: B => dim2
+    case _: C => dim3
+    case _: D => dim4
+    case _    => compiletime.error("Dimension must be either A or B or C or D")
+  }
 
 object Shape:
 
@@ -32,3 +70,10 @@ object Shape:
       dim3: TypedDim[C]
   ): Shape3[A, B, C] =
     new Shape3[A, B, C](dim1.dim, dim2.dim, dim3.dim)
+
+  def apply[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+      dim1: TypedDim[A],
+      dim2: TypedDim[B],
+      dim3: TypedDim[C],
+      dim4: TypedDim[D]  ): Shape4[A, B, C, D] =
+    new Shape4[A, B, C, D](dim1.dim, dim2.dim, dim3.dim, dim4.dim)

@@ -46,3 +46,13 @@ object TensorOps:
       t.repr.div(b.repr).asInstanceOf[torch.Tensor[DType]]
       fromRepr.createfromRepr(tt)
 
+    def sqrt(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] = torch.sqrt(t.repr).to(t.dtype)
+      fromRepr.createfromRepr(tt)
+    
+    def norm(using fromRepr: FromRepr[DType, T]): Tensor0[DType] =
+      new Tensor0(torch.sum(t.mul(t).sqrt.repr), t.dtype)
+
+    def abs(using fromRepr: FromRepr[DType, T]): T =
+      val tt: torch.Tensor[DType] = t.repr.abs.to(t.dtype)
+      fromRepr.createfromRepr(tt)

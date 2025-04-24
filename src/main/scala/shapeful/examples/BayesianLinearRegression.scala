@@ -4,7 +4,7 @@ package shapeful.examples
 
 import shapeful.distributions.Normal
 import shapeful.tensor.Tensor2
-import shapeful.tensor.~>
+import shapeful.tensor.->>
 import shapeful.tensor.Shape
 import shapeful.tensor.Tensor1
 import shapeful.tensor.Tensor0
@@ -19,9 +19,9 @@ import shapeful.inference.MetropolisHastings
 
 def bayesianLinearRegression(xs : Seq[Float], y : Seq[Float]) : Unit =
 
-  val wShape = Shape("Features" ~> 1)
-  val XShape = Shape("Data"~>xs.length, "Features" ~>1)
-  val yShape = Shape("Data"~>y.length)
+  val wShape = Shape("Features" ->> 1)
+  val XShape = Shape("Data"->>xs.length, "Features" ->>1)
+  val yShape = Shape("Data"->>y.length)
 
   val X = Tensor2.fromSeq(XShape, xs)
   val yt = Tensor1.fromSeq(yShape, y)

@@ -32,7 +32,7 @@ import shapeful.tensor.TensorOps.*
 // }
 
 class TensorShapeTests extends FunSuite {
-  val shape = Shape["Dim1", "Dim2"]("Dim1" ~> 2, "Dim2" ~> 4)
+  val shape = Shape["Dim1", "Dim2"]("Dim1" ->> 2, "Dim2" ->> 4)
   val t = Tensor2.fromSeq(shape, Seq(1f, 2f, 3f, 4f, 5f, 6f, 7f, 8f))
 
     test("correctly retrieves the shape of a tensor") {

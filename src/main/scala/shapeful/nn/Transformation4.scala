@@ -89,3 +89,27 @@ class Flatten4[From1 <: Singleton, From2 <: Singleton, From3 <: Singleton, To <:
     override def apply[Data <: Singleton](x : Tensor4[Data, From1, From2, From3, DType]) : Tensor2[Data, To, DType] = 
         val flattenedrepr = x.repr.reshape(x.shape.dim1, x.shape.dim2 * x.shape.dim3 * x.shape.dim4)
         new Tensor2[Data, To, DType](new Shape2(x.shape.dim1, x.shape.dim2 * x.shape.dim3 * x.shape.dim4), flattenedrepr, flattenedrepr.dtype)
+
+class MaxPooling[FromChannel <: Singleton, From1 <: Singleton, From2 <: Singleton, ToChannel <: Singleton, To1 <: Singleton, To2 <: Singleton](
+    kernelSize : Int = 2,
+    stride : Int = 2,
+    padding : Int = 0
+) extends Transformation4[FromChannel, From1, From2, ToChannel, To1, To2, Float32]:
+    self =>
+    override def apply[Data <: Singleton](x : Tensor4[Data, FromChannel, From1, From2, Float32]) : Tensor4[Data, ToChannel, To1, To2, Float32] =
+        val newT = torch.nn.functional.maxPool2d(x.repr.to(float32), kernelSize, stride = stride, padding = padding)
+        val outHeight = ((x.shape.dim[From1] + 2*padding - kernelSize) / stride) + 1
+        val outWidth = ((x.shape.dim[From2] + 2*padding - kernelSize) / stride) + 1
+        
+        val newShape = new Shape4[Data, ToChannel, To1, To2](
+            x.shape.dim[Data],
+            x.shape.dim[FromChannel],
+            outHeight,
+            outWidth
+        )
+
+        new Tensor4[Data, ToChannel, To1, To2, Float32](
+            newShape,
+            newT.to(float32),
+            newT.dtype
+        )

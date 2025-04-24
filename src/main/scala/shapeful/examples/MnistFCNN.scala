@@ -29,15 +29,18 @@ import org.bytedeco.pytorch.Slice
 object MNistCNNExample:
 
     def model(x : Tensor4["data", "Value",  "imgHeight", "imgWidth", Float32])(params : Params) : Tensor2["data", "output", Float32] =
-    
+
         val m = 
-            Conv2D["Value", "imgHeight", "imgWidth", "Channels",  "imgHeight2", "imgWidth2"](
+            Conv2D["Value", "imgHeight", "imgWidth", "Channels",  "imgHeight", "imgWidth"](
                 params.get[Variable4["Channels", "Value", "imgHeight", "imgWidth"]]("convWeight"),
                 params.get[Variable1["Channels"]]("convBias"),
                 1, 
                 0
             ).andThen(
-                Flatten4["Channels", "imgHeight2", "imgWidth2", "feature", Float32]()
+                MaxPooling["Channels", "imgHeight", "imgWidth", "Channels", "imgHeight", "imgWidth"](2, 2, 0)
+            )
+            .andThen(
+                Flatten4["Channels", "imgHeight", "imgWidth", "feature", Float32]()
             ).andThen(            
             AffineTransformation(
                     params.get[Variable2["feature", "hidden1"]]("w1"),
@@ -89,7 +92,7 @@ object MNistCNNExample:
         val nHidden = 50
         val convWeightShape = Shape("Channels" ->> nChannels, "Value" ->> 1, "imgHeight" ->> 3, "imgWidth" ->> 3)
         val convBiasShape = Shape("Channels" ->> nChannels)
-        val w1Shape = Shape("features" ->> (26 * 26 * nChannels), "hidden1" ->> nHidden)
+        val w1Shape = Shape("features" ->> (13 * 13 * nChannels), "hidden1" ->> nHidden)
         val b1Shape = Shape("hidden1" ->> nHidden)
         val w2Shape = Shape("hidden1" ->> nHidden, "output" ->> 10)        
         val outputShape = Shape("output" ->> 10)

@@ -9,19 +9,20 @@ import scala.compiletime.{erasedValue, summonInline}
 import scala.annotation.targetName
 import torch.Device.{CPU, CUDA}
 import shapeful.linalg.BasicLinalg
+import shapeful.Label
 
 
 object Tensor3Ops:
 
 
-  type Tensor2Selector[D <: Singleton, A <: Singleton, B <: Singleton, C <: Singleton, DType <: torch.DType] = D match {
+  type Tensor2Selector[D <: Label, A <: Label, B <: Label, C <: Label, DType <: torch.DType] = D match {
     case A => Tensor2[B, C, DType]
     case B => Tensor2[A, C, DType]
     case C => Tensor2[A, B, DType]
   }
 
 
-  extension [A <: Singleton, B <: Singleton, C <: Singleton, DType <: torch.DType](t: Tensor3[A, B, C, DType])
+  extension [A <: Label, B <: Label, C <: Label, DType <: torch.DType](t: Tensor3[A, B, C, DType])
 
     inline def dimInd[D <: A | B | C]: Int = inline erasedValue[D] match {
       case _: A => 0

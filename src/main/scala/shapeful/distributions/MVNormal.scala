@@ -13,8 +13,9 @@ import shapeful.tensor.Tensor2Ops.*
 import shapeful.tensor.Tensor1Ops.dot
 import shapeful.linalg.BasicLinalg
 import shapeful.tensor.Shape2
+import shapeful.Label
 
-class MVNormal[D <: Singleton](mu: Tensor1[D, Float32], cov: Tensor2[D, D, Float32]):
+class MVNormal[D <: Label](mu: Tensor1[D, Float32], cov: Tensor2[D, D, Float32]):
 
   private val L = BasicLinalg.cholesky(cov) // Cholesky decomposition of the covariance matrix
 
@@ -35,7 +36,7 @@ class MVNormal[D <: Singleton](mu: Tensor1[D, Float32], cov: Tensor2[D, D, Float
     x.add(mu) // x = L * z + mu
   }
 
-  def sample[S <: Singleton](n : Int): Tensor2[S, D, Float32] = {
+  def sample[S <: Label](n : Int): Tensor2[S, D, Float32] = {
     val shape = new Shape2[D, S](mu.shape.dim1, n)
     val z = Normal(Tensor2(shape, 0f), Tensor2(shape, 1f)).sample()
     val x = L.matmul(z).transpose // L * z

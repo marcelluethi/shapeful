@@ -2,19 +2,22 @@ package shapeful.tensor
 
 import scala.compiletime.{erasedValue, summonInline}
 import scala.collection.View.Single
+import shapeful.Label
 
-case class TypedDim[A <: Singleton](val dim: Int)
-extension [A <: Singleton](singleton: A)
+case class TypedDim[A <: Label](val dim: Int)
+extension [A <: Label](Label: A)
   def ->>(dim: Int): TypedDim[A] = TypedDim[A](dim)
+
+
 
 trait Shape:
   def dims : Seq[Int]
 
 object Shape0 extends Shape:
   def dims: Seq[Int] = Seq()  
-class Shape1[A <: Singleton](val dim1: Int) extends Shape:
+class Shape1[A <: Label](val dim1: Int) extends Shape:
   def dims = Seq(dim1)
-class Shape2[A <: Singleton, B <: Singleton](val dim1: Int, val dim2: Int)
+class Shape2[A <: Label, B <: Label](val dim1: Int, val dim2: Int)
     extends Shape:
   def dims = Seq(dim1, dim2)
   inline def dim[D <: A | B]: Int = inline erasedValue[D] match {
@@ -24,7 +27,7 @@ class Shape2[A <: Singleton, B <: Singleton](val dim1: Int, val dim2: Int)
   }
 
 
-class Shape3[A <: Singleton, B <: Singleton, C <: Singleton](
+class Shape3[A <: Label, B <: Label, C <: Label](
     val dim1: Int,
     val dim2: Int,
     val dim3: Int
@@ -38,7 +41,7 @@ class Shape3[A <: Singleton, B <: Singleton, C <: Singleton](
   }
 
 
-class Shape4[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+class Shape4[A <: Label, B <: Label, C <: Label, D <: Label](
     val dim1: Int,
     val dim2: Int,
     val dim3: Int,
@@ -55,23 +58,23 @@ class Shape4[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
 
 object Shape:
 
-  def apply[A <: Singleton](dim1: TypedDim[A]): Shape1[A] =
+  def apply[A <: Label](dim1: TypedDim[A]): Shape1[A] =
     new Shape1[A](dim1.dim)
 
-  def apply[A <: Singleton, B <: Singleton](
+  def apply[A <: Label, B <: Label](
       dim1: TypedDim[A],
       dim2: TypedDim[B]
   ): Shape2[A, B] =
     new Shape2[A, B](dim1.dim, dim2.dim)
 
-  def apply[A <: Singleton, B <: Singleton, C <: Singleton](
+  def apply[A <: Label, B <: Label, C <: Label](
       dim1: TypedDim[A],
       dim2: TypedDim[B],
       dim3: TypedDim[C]
   ): Shape3[A, B, C] =
     new Shape3[A, B, C](dim1.dim, dim2.dim, dim3.dim)
 
-  def apply[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+  def apply[A <: Label, B <: Label, C <: Label, D <: Label](
       dim1: TypedDim[A],
       dim2: TypedDim[B],
       dim3: TypedDim[C],

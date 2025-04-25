@@ -6,6 +6,7 @@ import shapeful.tensor.{Tensor1, Tensor2, Tensor3}
 
 import shapeful.tensor.Shape
 import shapeful.tensor.Shape2
+import shapeful.Label
 
 trait TensorTree[T <: Tensor[Float32], TT <: TensorTree[T, TT]](m: Map[String, T]):
 
@@ -66,12 +67,12 @@ object Autodiff:
       value.repr.backward()
       p.mapToGrad((k, v) => Tensor.fromTorch(v.repr.grad.get.requiresGrad = false))
 
-  def jacobian[A <: Singleton](f : Params => Tensor1[A, Float32]): Params => Seq[Grads] = ???
+  def jacobian[A <: Label](f : Params => Tensor1[A, Float32]): Params => Seq[Grads] = ???
 
-  def jacobianMatrix[Sample <: Singleton, A <: Singleton, B <: Singleton](f: Params => Tensor2[Sample, A, Float32]): 
+  def jacobianMatrix[Sample <: Label, A <: Label, B <: Label](f: Params => Tensor2[Sample, A, Float32]): 
     Params => Tensor3[Sample, A, B, Float32] = ???
     
-  // def jacobian[A <: Singleton, B <: Singleton](f: Params => Tensor1[A, Float32]): Params => Seq[Grads] = {
+  // def jacobian[A <: Label, B <: Label](f: Params => Tensor1[A, Float32]): Params => Seq[Grads] = {
   //   p => 
 
   //   val output = f(p)
@@ -101,7 +102,7 @@ object Autodiff:
   //   new Tensor2(new Shape2[A, B](outputSize, inputSize), torch.Tensor(jacMatrixSeq).reshape(outputSize, inputSize)) // Create a Tensor from the resulting matrix
   // }
 
-  //   def jacobian2[Data <: Singleton, A <: Singleton, B <: Singleton](f: Params => Tensor2[Data, A, Float32]): Params => Tensor3[Data, A, B, Float32] = {
+  //   def jacobian2[Data <: Label, A <: Label, B <: Label](f: Params => Tensor2[Data, A, Float32]): Params => Tensor3[Data, A, B, Float32] = {
   //   p => 
 
   //   // val output = f(p)

@@ -6,27 +6,28 @@ import torch.Float32
 import shapeful.autodiff.Autodiff.jacobian
 import shapeful.autodiff.Autodiff
 import shapeful.autodiff.Params
+import shapeful.Label
 
 
 /**
  * A feature transform. Takes a bunch of data with features of type From and transforms them to features of type To.
  */
-trait Transformation2[From <: Singleton, To <: Singleton, DType <: torch.DType]:
+trait Transformation2[From <: Label, To <: Label, DType <: torch.DType]:
     self =>
-    def apply[Data <: Singleton](x : Tensor2[Data, From, DType]) : Tensor2[Data, To, DType]
-    def andThen[OtherTo <: Singleton](other : Transformation2[To, OtherTo, DType]) : Transformation2[From, OtherTo, DType] =//Tensor2[Data, From] => Tensor2[Data, OtherTo] =
+    def apply[Data <: Label](x : Tensor2[Data, From, DType]) : Tensor2[Data, To, DType]
+    def andThen[OtherTo <: Label](other : Transformation2[To, OtherTo, DType]) : Transformation2[From, OtherTo, DType] =//Tensor2[Data, From] => Tensor2[Data, OtherTo] =
         new Transformation2[From, OtherTo, DType] {
-            override def apply[Data <: Singleton](x : Tensor2[Data, From, DType]) :Tensor2[Data, OtherTo, DType] = other.apply(self.apply(x))
+            override def apply[Data <: Label](x : Tensor2[Data, From, DType]) :Tensor2[Data, OtherTo, DType] = other.apply(self.apply(x))
         }
 object Transformation2:
     //Define operator with explicit precedence
-    extension [From <: Singleton, To <: Singleton, DType <: torch.DType](self: Transformation2[From, To, DType])
-        infix def |>[OtherTo <: Singleton](other: Transformation2[To, OtherTo, DType]):  Transformation2[From, OtherTo, DType] =
+    extension [From <: Label, To <: Label, DType <: torch.DType](self: Transformation2[From, To, DType])
+        infix def |>[OtherTo <: Label](other: Transformation2[To, OtherTo, DType]):  Transformation2[From, OtherTo, DType] =
             self.andThen(other)
 
-class AffineTransformation[From <: Singleton, To <: Singleton](w : Tensor2[From, To, Float32], b : Tensor1[To, Float32]) extends Transformation2[From, To, Float32]:
+class AffineTransformation[From <: Label, To <: Label](w : Tensor2[From, To, Float32], b : Tensor1[To, Float32]) extends Transformation2[From, To, Float32]:
     self =>
-    override def apply[Data <: Singleton](x : Tensor2[Data, From, Float32]) : Tensor2[Data, To, Float32] =
+    override def apply[Data <: Label](x : Tensor2[Data, From, Float32]) : Tensor2[Data, To, Float32] =
         x.matmul(w).addTensor1(b)
 
 

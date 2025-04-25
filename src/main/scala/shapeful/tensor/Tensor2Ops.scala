@@ -10,18 +10,19 @@ import scala.annotation.targetName
 import torch.Device.{CPU, CUDA}
 import shapeful.linalg.BasicLinalg
 import javax.print.attribute.standard.MediaSize.Other
+import shapeful.Label
 
 
 object Tensor2Ops:
 
-  type OtherDim[D <: Singleton, A <: Singleton, B <: Singleton] = D match {
+  type OtherDim[D <: Label, A <: Label, B <: Label] = D match {
     case A => B
     case B => A
   }
 
 
-  extension [A <: Singleton, B <: Singleton, DType <: torch.DType](t: Tensor2[A, B, DType])
-    def matmul[C <: Singleton](
+  extension [A <: Label, B <: Label, DType <: torch.DType](t: Tensor2[A, B, DType])
+    def matmul[C <: Label](
         y: Tensor2[B, C, DType]
     ): Tensor2[A, C, DType] =
       new Tensor2[A, C, DType](new Shape2[A, C](t.shape.dim1, y.shape.dim2), t.repr.matmul(y.repr), t.dtype)
@@ -33,7 +34,7 @@ object Tensor2Ops:
 
     def inv: Tensor2[B, A, Float32] = 
       require(t.shape.dim1 == t.shape.dim2, "Tensor must be square to compute inverse")
-      val floatT : Tensor2[A, B, Float32] = t.to[A, B, Float32](float32)
+      val floatT : Tensor2[A, B, Float32] = t.toType(float32)
       BasicLinalg.inverse(floatT, numIterations = 10, initialGuess = None)
 
 

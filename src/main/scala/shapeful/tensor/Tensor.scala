@@ -5,8 +5,10 @@ import torch.Float32
 import torch.DType.float32
 
 import scala.deriving.Mirror
+import shapeful.Label
 
 trait Tensor[DType <: torch.DType]: 
+  self =>
 
   def repr: torch.Tensor[DType]
   def shape: Shape
@@ -26,6 +28,8 @@ trait Tensor[DType <: torch.DType]:
 
   override def toString(): String = 
     repr.toString()
+
+
 
 object Tensor:
   def fromTorch[DType <: torch.DType](t: torch.Tensor[DType]): Tensor[DType] =
@@ -67,6 +71,12 @@ class Tensor0[DType <: torch.DType](override val repr: torch.Tensor[DType], over
   def item: torch.DTypeToScala[DType] = repr.item
   override val shape = Shape0
 
+  def toType[NewDType <: torch.DType](newDType: NewDType): Tensor0[NewDType] =
+    new Tensor0(repr.to(newDType), newDType)
+
+  def toDevice(device: torch.Device): Tensor0[DType] =
+    new Tensor0(repr.to(device), dtype)
+
 object Tensor0:
   def apply[DType <: torch.DType](
       value: Float,
@@ -98,7 +108,7 @@ object Variable0:
     def createfromRepr(repr: torch.Tensor[Float32]): Variable0 =
       new Variable0(repr)
 
-class Tensor1[A <: Singleton, DType <: torch.DType](
+class Tensor1[A <: Label, DType <: torch.DType](
     override val shape: Shape1[A],
     override val repr: torch.Tensor[DType],
     override val dtype: DType
@@ -110,15 +120,21 @@ class Tensor1[A <: Singleton, DType <: torch.DType](
   def apply(i: Int): Tensor0[DType] =
     new Tensor0[DType](repr(i), dtype)
 
+  def toType[NewDType <: torch.DType](newDType: NewDType): Tensor1[A, NewDType] = 
+    new Tensor1(shape, repr.to(newDType), newDType)
+
+  def toDevice(device: torch.Device): Tensor1[A, DType] =
+    new Tensor1(shape, repr.to(device), dtype)
+
 object Tensor1:
-  def apply[A <: Singleton,DType <: torch.DType](
+  def apply[A <: Label,DType <: torch.DType](
       shape: Shape1[A],
       initializer: => Float,
   ): Tensor1[A, Float32] =
 
     apply(shape, initializer, float32)
 
-  def apply[A <: Singleton,DType <: torch.DType](
+  def apply[A <: Label,DType <: torch.DType](
       shape: Shape1[A],
       initializer: => Float,
       dtype: DType
@@ -128,24 +144,24 @@ object Tensor1:
     new Tensor1[A, DType](shape, sTensor, dtype)
 
 
-  def fromSeq[A <: Singleton, DType <: torch.DType](
+  def fromSeq[A <: Label, DType <: torch.DType](
       shape: Shape1[A],
       data: Seq[Float]
   ): Tensor1[A, Float32] =
     val sTensor = torch.Tensor(data.toArray).reshape(shape.dim1)
     new Tensor1[A, Float32](shape, sTensor, float32)
 
-  given createfromRepr[DType <: torch.DType, A <: Singleton]
+  given createfromRepr[DType <: torch.DType, A <: Label]
       : FromRepr[DType, Tensor1[A, DType]] with
     def createfromRepr(repr: torch.Tensor[DType]): Tensor1[A, DType] =
       new Tensor1[A, DType](new Shape1[A](repr.shape(0)), repr, repr.dtype)
 
-class Variable1[A <: Singleton](shape: Shape1[A], repr: torch.Tensor[Float32])
+class Variable1[A <: Label](shape: Shape1[A], repr: torch.Tensor[Float32])
     extends Tensor1[A, Float32](shape, repr, dtype=float32) with Variable:
     repr.requiresGrad = true
 
 object Variable1:
-  def apply[A <: Singleton](
+  def apply[A <: Label](
       shape: Shape1[A],
       initializer: => Float
   ): Variable1[A] =
@@ -155,7 +171,7 @@ object Variable1:
     new Variable1[A](shape, sTensor)
 
 
-  given createfromRepr[A <: Singleton]
+  given createfromRepr[A <: Label]
       : FromRepr[Float32, Variable1[A]] with
     def createfromRepr(repr: torch.Tensor[Float32]): Variable1[A] =
       new Variable1[A](new Shape1[A](repr.shape(0)), repr)
@@ -163,7 +179,7 @@ object Variable1:
 
 /** A constant is a tensor that does not need parameters
   */
-class Tensor2[A <: Singleton, B <: Singleton, DType <: torch.DType](
+class Tensor2[A <: Label, B <: Label, DType <: torch.DType](
     override val shape: Shape2[A, B],
     override val repr: torch.Tensor[DType], 
     override val dtype: DType = float32
@@ -177,20 +193,25 @@ class Tensor2[A <: Singleton, B <: Singleton, DType <: torch.DType](
     repr.update(Seq(i, j), value.repr)
 
 
+  def toType[NewDType <: torch.DType](newDType: NewDType): Tensor2[A, B, NewDType] = 
+    new Tensor2(shape, repr.to(newDType), newDType)
 
-  def to[C <: Singleton, D <: Singleton, DType <: torch.DType](dtype : DType): Tensor2[C, D, DType] =
+  def relabel[C <: Label, D <: Label]: Tensor2[C, D, DType] =
     val newShape = new Shape2[C, D](shape.dim1, shape.dim2)
-    new Tensor2[C, D, DType](newShape, repr.to(dtype), dtype)
+    new Tensor2[C, D, DType](newShape, repr, dtype)
+  
+  def toDevice(device: torch.Device): Tensor2[A, B, DType] =
+    new Tensor2(shape, repr.to(device), dtype)
 
 object Tensor2:
 
-  def apply[A <: Singleton, B <: Singleton](
+  def apply[A <: Label, B <: Label](
       shape: Shape2[A, B],
       initializer: => Float,
   ): Tensor2[A, B, Float32] =
     apply(shape, initializer, float32)
 
-  def apply[A <: Singleton, B <: Singleton, DType <: torch.DType](
+  def apply[A <: Label, B <: Label, DType <: torch.DType](
       shape: Shape2[A, B],
       initializer: => Float,
       dtype: DType
@@ -201,21 +222,21 @@ object Tensor2:
     new Tensor2[A, B, DType](shape, sTensor, dtype)
 
 
-  def eye[A <: Singleton, B <: Singleton](
+  def eye[A <: Label, B <: Label](
       shape: Shape2[A, B]
   ): Tensor2[A, B, Float32] =
     val sTensor = torch.eye(shape.dim1, None)
     new Tensor2[A, B, Float32](shape, sTensor, float32)
 
 
-  def fromSeq[A <: Singleton, B <: Singleton](
+  def fromSeq[A <: Label, B <: Label](
       shape: Shape2[A, B],
       data: Seq[Float]
   ): Tensor2[A, B, Float32] =
     val sTensor = torch.Tensor(data.toArray).reshape(shape.dim1, shape.dim2)
     new Tensor2[A, B, Float32](shape, sTensor, float32)
 
-  given createfromRepr[DType <: torch.DType, A <: Singleton, B <: Singleton]
+  given createfromRepr[DType <: torch.DType, A <: Label, B <: Label]
       : FromRepr[DType, Tensor2[A, B, DType]] with
     def createfromRepr(repr: torch.Tensor[DType]): Tensor2[A, B, DType] =
       new Tensor2[A, B, DType](
@@ -226,10 +247,10 @@ object Tensor2:
 
 /** A variable is a tensor that needs parameters
   */
-class Variable2[A <: Singleton, B <: Singleton](shape: Shape2[A, B], repr: torch.Tensor[Float32])
+class Variable2[A <: Label, B <: Label](shape: Shape2[A, B], repr: torch.Tensor[Float32])
     extends Tensor2[A, B, Float32](shape, repr) with Variable
 object Variable2:
-  def apply[A <: Singleton, B <: Singleton](
+  def apply[A <: Label, B <: Label](
       shape: Shape2[A, B],
       initializer: => Float
   ): Variable2[A, B] =
@@ -241,7 +262,7 @@ object Variable2:
 
 
 
-class Tensor3[A <: Singleton, B <: Singleton, C <: Singleton, DType <: torch.DType](
+class Tensor3[A <: Label, B <: Label, C <: Label, DType <: torch.DType](
     override val shape: Shape3[A, B, C],
     override val repr: torch.Tensor[DType], 
     override val dtype: DType = float32
@@ -256,15 +277,19 @@ class Tensor3[A <: Singleton, B <: Singleton, C <: Singleton, DType <: torch.DTy
     repr.update(Seq(i, j, k), value.repr)
 
 
+  def toType[NewDType <: torch.DType](newDType: NewDType): Tensor3[A, B, C, NewDType] = 
+    new Tensor3(shape, repr.to(newDType), newDType)
 
-  def to[ANew <: Singleton, BNew <: Singleton, CNew <: Singleton]: Tensor3[ANew, BNew, CNew, DType] =
+  def relabel[ANew <: Label, BNew <: Label, CNew <: Label]: Tensor3[ANew, BNew, CNew, DType] =
     val newShape = new Shape3[ANew, BNew, CNew](shape.dim1, shape.dim2, shape.dim3)
     new Tensor3[ANew, BNew, CNew, DType](newShape, repr, dtype)
 
-
+  def toDevice(device: torch.Device): Tensor3[A, B, C, DType] =
+    new Tensor3(shape, repr.to(device), dtype)
+    
 object Tensor3:
   
-    def apply[A <: Singleton, B <: Singleton, C <: Singleton](
+    def apply[A <: Label, B <: Label, C <: Label](
         shape: Shape3[A, B, C],
         initializer: => Float,
     ): Tensor3[A, B, C, Float32] =
@@ -272,7 +297,7 @@ object Tensor3:
       val repr = torch.Tensor(data).reshape(shape.dims*)
       new Tensor3(shape, repr, float32)
   
-    def fromSeq[A <: Singleton, B <: Singleton, C <: Singleton](
+    def fromSeq[A <: Label, B <: Label, C <: Label](
         shape: Shape3[A, B, C],
         data: Seq[Float]
     ): Tensor3[A, B, C, Float32] =
@@ -280,7 +305,7 @@ object Tensor3:
       new Tensor3(shape, sTensor, float32)
 
 
-    given createfromRepr[DType <: torch.DType, A <: Singleton, B <: Singleton, C <: Singleton]
+    given createfromRepr[DType <: torch.DType, A <: Label, B <: Label, C <: Label]
       : FromRepr[DType, Tensor3[A, B, C, DType]] with
         def createfromRepr(repr: torch.Tensor[DType]): Tensor3[A, B, C, DType] =
           new Tensor3[A, B, C, DType](
@@ -291,10 +316,10 @@ object Tensor3:
 
 
 
-class Variable3[A <: Singleton, B <: Singleton, C <: Singleton](shape: Shape3[A, B, C], repr: torch.Tensor[Float32])
+class Variable3[A <: Label, B <: Label, C <: Label](shape: Shape3[A, B, C], repr: torch.Tensor[Float32])
     extends Tensor3[A, B, C, Float32](shape, repr) with Variable
 object Variable3:
-  def apply[A <: Singleton, B <: Singleton, C <: Singleton](
+  def apply[A <: Label, B <: Label, C <: Label](
       shape: Shape3[A, B, C],
       initializer: => Float
   ): Variable3[A, B, C] =
@@ -306,7 +331,7 @@ object Variable3:
 
 
 
-class Tensor4[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton, DType <: torch.DType](
+class Tensor4[A <: Label, B <: Label, C <: Label, D <: Label, DType <: torch.DType](
     override val shape: Shape4[A, B, C, D],
     override val repr: torch.Tensor[DType], 
     override val dtype: DType = float32
@@ -320,11 +345,19 @@ class Tensor4[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton, DT
   def update(i: Int, j: Int, k : Int, l : Int,  value: Tensor0[DType]): Unit =
     repr.update(Seq(i, j, k, l), value.repr)
 
+  def toType[NewDType <: torch.DType](newDType: NewDType): Tensor4[A, B, C, D, NewDType] = 
+    new Tensor4(shape, repr.to(newDType), newDType)
 
+  def relabel[NewA <: Label, NewB <: Label, NewC <: Label, NewD <: Label]: Tensor4[NewA, NewB, NewC, NewD, DType] =
+    val newShape = new Shape4[NewA, NewB, NewC, NewD](shape.dim1, shape.dim2, shape.dim3, shape.dim4)
+    new Tensor4(newShape, repr, dtype)
+  
+  def toDevice(device: torch.Device): Tensor4[A, B, C, D, DType] =
+    new Tensor4(shape, repr.to(device), dtype)
 
 object Tensor4:
  
-    def apply[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+    def apply[A <: Label, B <: Label, C <: Label, D <: Label](
         shape: Shape4[A, B, C, D],
         initializer: => Float,
     ): Tensor4[A, B, C, D, Float32] =
@@ -332,7 +365,7 @@ object Tensor4:
       val repr = torch.Tensor(data).reshape(shape.dims*)
       new Tensor4(shape, repr, float32)
   
-    def fromSeq[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+    def fromSeq[A <: Label, B <: Label, C <: Label, D <: Label](
         shape: Shape4[A, B, C, D],
         data: Seq[Float]
     ): Tensor4[A, B, C, D, Float32] =
@@ -340,7 +373,7 @@ object Tensor4:
       new Tensor4(shape, sTensor, float32)
 
 
-    given createfromRepr[DType <: torch.DType, A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton]
+    given createfromRepr[DType <: torch.DType, A <: Label, B <: Label, C <: Label, D <: Label]
       : FromRepr[DType, Tensor4[A, B, C, D, DType]] with
         def createfromRepr(repr: torch.Tensor[DType]): Tensor4[A, B, C, D, DType] =
           new Tensor4[A, B, C, D, DType](
@@ -349,10 +382,10 @@ object Tensor4:
             repr.dtype
       )
 
-class Variable4[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](shape: Shape4[A, B, C, D], repr: torch.Tensor[Float32])
+class Variable4[A <: Label, B <: Label, C <: Label, D <: Label](shape: Shape4[A, B, C, D], repr: torch.Tensor[Float32])
     extends Tensor4[A, B, C, D, Float32](shape, repr) with Variable
 object Variable4:
-  def apply[A <: Singleton, B <: Singleton, C <: Singleton, D <: Singleton](
+  def apply[A <: Label, B <: Label, C <: Label, D <: Label](
       shape: Shape4[A, B, C, D],
       initializer: => Float
   ): Variable4[A, B, C, D] =

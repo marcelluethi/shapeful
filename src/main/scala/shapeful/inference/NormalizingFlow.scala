@@ -29,10 +29,11 @@ import shapeful.tensor.Variable2
 import torch.DType.float32
 import torch.Float32
 import shapeful.tensor.TensorOps.abs
+import shapeful.Label
 
-class AffineFlow[From <: Singleton, To <: Singleton](w : Tensor2[From, To, Float32], b : Tensor1[To, Float32]):
+class AffineFlow[From <: Label, To <: Label](w : Tensor2[From, To, Float32], b : Tensor1[To, Float32]):
 
-    def jac[Sample <: Singleton](x : Tensor2[Sample, From, Float32]) : Tensor3[Sample, From, To, Float32] = 
+    def jac[Sample <: Label](x : Tensor2[Sample, From, Float32]) : Tensor3[Sample, From, To, Float32] = 
         val j = Tensor3(
             new Shape3[Sample, From, To](x.shape.dim[Sample], w.shape.dim[From], w.shape.dim[To]),
             0f
@@ -42,7 +43,7 @@ class AffineFlow[From <: Singleton, To <: Singleton](w : Tensor2[From, To, Float
         )
 
 
-    def forward[Sample <: Singleton](x : Tensor2[Sample, From, Float32]) : Tensor2[Sample, To, Float32] = 
+    def forward[Sample <: Label](x : Tensor2[Sample, From, Float32]) : Tensor2[Sample, To, Float32] = 
         x.matmul(w).map[Sample](row => row.add(b))
         
     

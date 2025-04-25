@@ -24,6 +24,8 @@ import shapeful.tensor.Variable1
 import shapeful.nn.*
 import shapeful.nn.Transformation2.|>
 
+import torch.Device.{CPU, CUDA}
+
 object MNistExample:
 
     def model(x : Tensor2["data", "features", Float32])(params : Params) : Tensor2["data", "output", Float32] =
@@ -69,7 +71,7 @@ object MNistExample:
         correct / y.shape.dim1.toFloat
     }
 
-    def train(data : Tensor2["data", "features", Float32], target : Tensor2["data", "output", Float32]) : Unit =
+    def train(data : Tensor2["data", "features", Float32], target : Tensor2["data", "output", Float32], device : torch.Device) : Unit =
 
         val w1Shape = Shape("features" ->> (28 * 28), "hidden1" ->> 50)
         val b1Shape = Shape("hidden1" ->> 50)
@@ -78,10 +80,10 @@ object MNistExample:
         
 
         val params = Params(Map(
-            "w1" -> Normal(Tensor2(w1Shape, 0f), Tensor2(w1Shape, 0.01f)).sample().toVariable,
-            "b1" -> Normal(Tensor1(b1Shape, 0f), Tensor1(b1Shape, 0.01f)).sample().toVariable,
-            "w2" -> Normal(Tensor2(w2Shape, 0f), Tensor2(w2Shape, 0.01f)).sample().toVariable,
-            "b2" -> Normal(Tensor1(outputShape, 0f), Tensor1(outputShape, 0.01f)).sample().toVariable,
+            "w1" -> Normal(Tensor2(w1Shape, 0f), Tensor2(w1Shape, 0.01f)).sample().toDevice(device).toVariable,
+            "b1" -> Normal(Tensor1(b1Shape, 0f), Tensor1(b1Shape, 0.01f)).sample().toDevice(device).toVariable,
+            "w2" -> Normal(Tensor2(w2Shape, 0f), Tensor2(w2Shape, 0.01f)).sample().toDevice(device).toVariable,
+            "b2" -> Normal(Tensor1(outputShape, 0f), Tensor1(outputShape, 0.01f)).sample().toDevice(device).toVariable,
         ))
 
 
@@ -100,16 +102,21 @@ object MNistExample:
 
 @main
 def runMnistExample() : Unit =
+
+
+    val device = if torch.cuda.isAvailable then CUDA else CPU
+    println("Using device: " + device)
+
     val mnist = MNIST(new java.io.File("./data").toPath(), train = true, download = true)
     val imageTensors = mnist.features.reshape(60000, 28 *28)
     val labelsTensor : torch.Tensor[Int32] = mnist.targets.to(int32)
 
     val dataShape = Shape("data" ->> 60000, "features" ->> (28 * 28))
     val labelShape = Shape("data" ->> 60000)
-    val allimages = new Tensor2(dataShape, imageTensors)
-    val alllabels = new Tensor1(labelShape, labelsTensor, dtype = int32)
+    val allimages = new Tensor2(dataShape, imageTensors).toDevice(device)
+    val alllabels = new Tensor1(labelShape, labelsTensor, dtype = int32).toDevice(device)
 
     val yVal = MNistExample.toOneHot(alllabels)
-    MNistExample.train(allimages, yVal)
+    MNistExample.train(allimages, yVal, device)
 
 

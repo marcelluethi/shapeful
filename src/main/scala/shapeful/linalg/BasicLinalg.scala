@@ -15,6 +15,7 @@ import shapeful.tensor.FromRepr
 import shapeful.tensor.TensorOps.add
 import shapeful.tensor.TensorOps.sqrt
 import shapeful.tensor.TensorOps.abs
+import shapeful.Label
 
 object BasicLinalg:
 
@@ -31,7 +32,7 @@ object BasicLinalg:
         Approximate inverse of A
         */
 
-    def inverse[A <: Singleton, B <: Singleton](
+    def inverse[A <: Label, B <: Label](
         t: Tensor2[A, B, Float32],  numIterations : Int = 10, initialGuess: Option[Tensor2[B, A, Float32]] = None
     )(using fromReprAA : FromRepr[Float32, Tensor2[A, A, Float32]]): Tensor2[B, A, Float32] =
 
@@ -81,7 +82,7 @@ object BasicLinalg:
      * Throws:
      *     Exception if the matrix is not positive-definite
      */
-    def cholesky[A <: Singleton, B <: Singleton](
+    def cholesky[A <: Label, B <: Label](
         t: Tensor2[A, B, Float32]
     ): Tensor2[A, B, Float32] =
         require(t.shape.dim1 == t.shape.dim2, "Matrix must be square for Cholesky decomposition")
@@ -120,7 +121,7 @@ object BasicLinalg:
 
 
 
-    // def det[A <: Singleton, B <: Singleton](t: Tensor2[A, B, Float32]) : Tensor0[Float32] =
+    // def det[A <: Label, B <: Label](t: Tensor2[A, B, Float32]) : Tensor0[Float32] =
     //     // implement determinant using gaussian elimination
     //     require(t.shape.dim1 == t.shape.dim2, "Matrix must be square to compute determinant")
     //     val n = t.shape.dim1

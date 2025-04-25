@@ -2,10 +2,11 @@ package shapeful.tensor
 
 import shapeful.tensor.Tensor0
 import shapeful.tensor.Tensor1
+import shapeful.Label
 
 object Tensor1Ops:
 
- extension [A <: Singleton, DType <: torch.DType](t: Tensor1[A, DType])
+ extension [A <: Label, DType <: torch.DType](t: Tensor1[A, DType])
   def mean: Tensor0[DType] =
     new Tensor0[DType](t.repr.mean, t.dtype)
 

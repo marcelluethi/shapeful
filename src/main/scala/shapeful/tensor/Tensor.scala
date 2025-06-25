@@ -10,67 +10,9 @@ import me.shadaj.scalapy.py.SeqConverters
 
 class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val dtype: DType = DType.Float32):
 
-  inline def dim[D <: Label]: Int = shape.dim[D]
-
-  // override def toString: String = {
-  //     val jaxValues = jaxValue.block_until_ready()
-  //     jaxValues.toString()
-  // }
-  override def toString: String =
-
-    val jaxArray = jaxValue.block_until_ready()
-
-    // For scalar tensors (0D), use item() to get the scalar value
-    shape.dims.size match
-      case 0 =>
-        jaxArray.item().toString
-      case 1 =>
-        // For multi-dimensional tensors, convert to nested Python lists
-        jaxArray.tolist().as[Seq[Float]].toString()
-      case 2 =>
-        // For 2D tensors, convert to nested Python lists
-        jaxArray.tolist().as[Seq[Seq[Float]]].map(_.toString).mkString("[", ", ", "]")
-      case _ =>
-        "higher-dimensional tensor with shape " + shape.dims.mkString("(", ", ", ")")
-
-  def stats(): String =
-    try
-      val jaxValues = jaxValue.block_until_ready()
-      val mean = Jax.jnp.mean(jaxValues).item().as[Float]
-      val stdDev = Jax.jnp.std(jaxValues).item().as[Float]
-      val min = Jax.jnp.min(jaxValues).item().as[Float]
-      val max = Jax.jnp.max(jaxValues).item().as[Float]
-
-      s"  Mean: $mean\t" +
-        s"  StdDev: $stdDev\t" +
-        s"  Min: $min\t" +
-        s"  Max: $max"
-    catch
-      case ex: Exception =>
-        s"Error calculating stats: ${ex.getMessage}"
-
-  def inspect: String =
-    try
-      val jaxValues = jaxValue.block_until_ready()
-      val pythonStr = jaxValues.toString()
-
-      val shapeStr = shape.dims.mkString("(", ", ", ")")
-      // Show shape info instead of trying to extract type names
-      val infoStr = s"shape=${shapeStr}"
-
-      s"Tensor[${infoStr}](\n" +
-        s"  dtype: ${dtype.name}\n" +
-        s"  values:\n${indentLines(pythonStr, "    ")}\n" +
-        s")"
-    catch
-      case ex: Exception =>
-        val shapeStr = shape.dims.mkString("(", ", ", ")")
-        s"Tensor[shape=${shapeStr}](dtype: ${dtype.name}, values: <error: ${ex.getMessage}>)"
-
-  // Helper method to indent each line of a multiline string
-  private def indentLines(text: String, indent: String): String =
-    text.split("\n").map(line => if line.trim.nonEmpty then indent + line else line).mkString("\n")
-
+  /**
+   * map a function over the given axis of the tensor
+   */ 
   inline def vmap[VmapAxis <: Label, OuterShape <: Tuple](
       f: Tensor[TupleHelpers.Remove[VmapAxis, T]] => Tensor[OuterShape]
   ): Tensor[Tuple.Concat[Tuple1[VmapAxis], OuterShape]] =
@@ -113,6 +55,9 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
     new Tensor(resultShape, vmap_val, dtype)
 
+  /**
+   * zip two tensors and apply a function over the given axis of both tensors. 
+   */
   inline def zipVmap[VmapAxis <: Label, OtherShape <: Tuple, OuterShape <: Tuple](other: Tensor[OtherShape])(
       f: (
           Tensor[TupleHelpers.Remove[VmapAxis, T]],
@@ -154,58 +99,37 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
     // Get result shape from JAX output
     val resultDims = vmap_val.shape.as[Seq[Int]]
-    val resultTuple = TupleHelpers.createTupleFromSeq(resultDims)
+    val resultTuple = TupleHelpers.createTupleFromSeq[ResultTuple](resultDims)
 
     // ✅ Create shape with correct type annotation
-    val resultShape = Shape[ResultTuple](resultTuple.asInstanceOf[ToIntTuple[ResultTuple]])
+    val resultShape = Shape[ResultTuple](resultTuple)
 
     new Tensor(resultShape, vmap_val, dtype)
 
-  private inline def reduce_impl[ReduceAxis <: Label](
-      jaxReduceOp: (Jax.PyDynamic, Int) => Jax.PyDynamic
-  ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
-    // The index of the axis to reduce over
-    val reduceAxisIndex = TupleHelpers.indexOf[ReduceAxis, T]
-
-    // Use JAX mean function to reduce over the specified axis
-    val jaxResult = jaxReduceOp(jaxValue, reduceAxisIndex)
-
-    // The result shape is the original shape with the reduce axis removed
-    type ResultTuple = TupleHelpers.Remove[ReduceAxis, T]
-    val resultTupleIndices = TupleHelpers.indicesOf[ResultTuple, T]
-    // Get result shape from JAX output
-    val resultDims = jaxResult.shape.as[Seq[Int]]
-    val resultTuple = TupleHelpers.createTupleFromSeq[ResultTuple](resultDims)
-
-    val resultShape = Shape(resultTuple)
-
-    new Tensor(resultShape, jaxResult, dtype)
-
-  inline def mean[ReduceAxis <: Label]: Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
-    reduce_impl((jaxValue, axis) => Jax.jnp.mean(jaxValue, axis = axis))
-
-  inline def sum[ReduceAxis <: Label]: Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
-    reduce_impl((jaxValue, axis) => Jax.jnp.sum(jaxValue, axis = axis))
-
-  inline def argmax[ReduceAxis <: Label]: Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
-    reduce_impl((jaxValue, axis) => Jax.jnp.argmax(jaxValue, axis = axis))
-
-  inline def argmin[ReduceAxis <: Label]: Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
-    reduce_impl((jaxValue, axis) => Jax.jnp.argmin(jaxValue, axis = axis))
-
+  /**
+    * Reshape the tensor to a new shape.
+    */
   def reshape[NewT <: Tuple](newShape: Shape[NewT]): Tensor[NewT] =
     if shape.dims.product != newShape.dims.product then
       throw new IllegalArgumentException("New shape must have the same number of elements")
     val result = Jax.jnp.reshape(jaxValue, newShape.dims.toPythonProxy)
     new Tensor[NewT](newShape, result, dtype)
 
+  /**
+    * change the labels of the tensor dimensions.
+    */
   def relabel[Names <: Tuple](using ev: Tuple.Size[T] =:= Tuple.Size[Names]): Tensor[Names] =
     new Tensor[Names](shape.relabel[Names], jaxValue, dtype)
 
-  // For single dimension ding with label
+  /**
+    * Access a specific index of the tensor.
+    */
   def at(idx: ToIntTuple[T]): TensorIndexer[T] =
     new TensorIndexer(this, idx)
 
+  /**
+   * Change the dtype of the tensor.
+   */
   def withDType(newDType: DType): Tensor[T] =
     if dtype == newDType then
       // No conversion needed
@@ -215,7 +139,9 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
       val convertedJaxValue = Jax.jnp.astype(jaxValue, newDType.jaxDtype)
       new Tensor[T](shape, convertedJaxValue, newDType)
 
-  // Deep equality comparison at JAX value level
+  /**
+    * Compare two tensors for equality.
+    */
   def tensorEquals(other: Tensor[?]): Boolean =
     // First check if shapes match
     if this.shape.dims != other.shape.dims then false
@@ -234,14 +160,19 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
   // Operator overload for !=
   def !=(other: Tensor[?]): Boolean = !tensorEquals(other)
 
-  // Element-wise comparison that returns a boolean tensor
+  /**
+   * Element-wise equality check between two tensors.
+   * Returns a new tensor of boolean values indicating equality.
+   */
   def elementEquals[U <: Tuple](other: Tensor[U]): Tensor[T] =
     require(this.shape.dims == other.shape.dims, s"Shape mismatch: ${this.shape.dims} vs ${other.shape.dims}")
 
     val resultJax = Jax.jnp.equal(this.jaxValue, other.jaxValue)
     new Tensor[T](this.shape, resultJax, DType.Bool)
 
-  // Approximate equality for floating point tensors
+  /**
+   * Approximate equality check between two tensors.
+   */
   def approxEquals(other: Tensor[?], tolerance: Float = 1e-6f): Boolean =
     if this.shape.dims != other.shape.dims then false
     else if this.dtype != other.dtype then false
@@ -264,23 +195,82 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
   // Override hashCode to be consistent with equals
   override def hashCode(): Int =
     try
-      // Use shape and a hash of the values for hashcode
       val shapeHash = shape.dims.hashCode()
       val dtypeHash = dtype.hashCode()
-
-      // For small tensors, include value hash; for large ones, just use shape/dtype
-      val valueHash = if shape.dims.product <= 100 then
-        // Convert to string representation for hashing small tensors
-        val jaxArray = jaxValue.block_until_ready()
-        jaxArray.toString().hashCode()
-      else
-        // For large tensors, just hash a simple representation
-        val flattened = Jax.jnp.flatten(jaxValue)
-        // Just use the string representation for simplicity
-        flattened.toString().hashCode()
-
+      
+      // For consistent hashing, we need to be deterministic about values
+      val valueHash = if shape.dims.product <= 10 then
+        try 
+          if shape.dims.isEmpty then 
+            // For scalars, use the actual value
+            jaxValue.item().hashCode()
+          else 
+            // For small tensors, flatten and convert to python list for consistent hashing
+            val flattened = Jax.jnp.flatten(jaxValue)
+            val pythonList = flattened.tolist()
+            pythonList.hashCode()
+        catch case _ => 
+          // Fallback to shape-based hash
+          shape.dims.product.hashCode()
+      else 
+        // For large tensors, use shape and dtype only for performance
+        (shape.dims.product, shape.dims.sum).hashCode()
+      
       (shapeHash, dtypeHash, valueHash).hashCode()
     catch case _: Exception => (shape.dims, dtype).hashCode()
+
+
+
+  override def toString: String =
+    try
+      val jaxArray = jaxValue.block_until_ready()
+      
+      // For scalar tensors (0D), use item() to get the scalar value
+      shape.dims.size match
+        case 0 => jaxArray.item().toString
+        case _ => jaxArray.toString() // Let JAX handle the formatting for all dimensions
+    catch case _: Exception => 
+      s"Tensor[shape=${shape.dims.mkString("(", ", ", ")")}](dtype=${dtype.name})"
+
+  def stats(): String =
+    try
+      val jaxValues = jaxValue.block_until_ready()
+      val mean = Jax.jnp.mean(jaxValues).item().as[Float]
+      val stdDev = Jax.jnp.std(jaxValues).item().as[Float]
+      val min = Jax.jnp.min(jaxValues).item().as[Float]
+      val max = Jax.jnp.max(jaxValues).item().as[Float]
+
+      s"  Mean: $mean\t" +
+        s"  StdDev: $stdDev\t" +
+        s"  Min: $min\t" +
+        s"  Max: $max"
+    catch
+      case ex: Exception =>
+        s"Error calculating stats: ${ex.getMessage}"
+
+  def inspect: String =
+    try
+      val jaxValues = jaxValue.block_until_ready()
+      val pythonStr = jaxValues.toString()
+
+      val shapeStr = shape.dims.mkString("(", ", ", ")")
+      // Show shape info instead of trying to extract type names
+      val infoStr = s"shape=${shapeStr}"
+
+      s"Tensor[${infoStr}](\n" +
+        s"  dtype: ${dtype.name}\n" +
+        s"  values:\n${indentLines(pythonStr, "    ")}\n" +
+        s")"
+    catch
+      case ex: Exception =>
+        val shapeStr = shape.dims.mkString("(", ", ", ")")
+        s"Tensor[shape=${shapeStr}](dtype: ${dtype.name}, values: <error: ${ex.getMessage}>)"
+
+  // Helper method to indent each line of a multiline string
+  private def indentLines(text: String, indent: String): String =
+    text.split("\n").map(line => if line.trim.nonEmpty then indent + line else line).mkString("\n")
+
+
 
 object Tensor:
 
@@ -290,7 +280,7 @@ object Tensor:
   type Tensor3[L1 <: Label, L2 <: Label, L3 <: Label] = Tensor[(L1, L2, L3)]
   type Tensor4[L1 <: Label, L2 <: Label, L3 <: Label, L4 <: Label] = Tensor[(L1, L2, L3, L4)]
 
-  def apply[T <: Tuple](shape: Shape[T], values: Seq[Float], dtype: DType = DType.Float32) =
+  def apply[T <: Tuple](shape: Shape[T], values: Seq[Float], dtype: DType = DType.Float32): Tensor[T] =
     val jaxValues = Jax.jnp
       .array(
         values.toPythonProxy,
@@ -316,23 +306,50 @@ object Tensor0:
       case v: Boolean => new Tensor[EmptyTuple](Shape.empty, Jax.jnp.array(v), DType.Bool)
 
 object Tensor1:
-
-  def apply[L <: Label](values: Seq[Float]): Tensor[Tuple1[L]] =
-    val jaxValues = values.map(v => Jax.Any.from(v)).toPythonProxy
+  def apply[L <: Label](values: Seq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
+    require(values.nonEmpty, "Cannot create tensor from empty sequence")
     val shape = Shape1[L](values.length)
-    new Tensor(shape, Jax.jnp.array(jaxValues), DType.Float32)
+    val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxDtype)
+    new Tensor(shape, jaxValues, dtype)
 
 object Tensor2:
-  def apply[L1 <: Label, L2 <: Label](values: Seq[Seq[Float]]): Tensor[(L1, L2)] =
-    val jaxValues = values.flatten.map(v => Jax.Any.from(v)).toPythonProxy
+  def apply[L1 <: Label, L2 <: Label](values: Seq[Seq[Float]], dtype: DType = DType.Float32): Tensor[(L1, L2)] =
+    require(values.nonEmpty, "Cannot create tensor from empty sequence")
+    require(values.forall(_.nonEmpty), "All rows must be non-empty")
+    
     val rows = values.length
-    val cols = values.headOption.getOrElse(Seq.empty).length
+    val cols = values.head.length
+    require(values.forall(_.length == cols), "All rows must have the same length")
+    
     val shape = Shape2[L1, L2](rows, cols)
+    val flatValues = values.flatten
+    val jaxValues = Jax.jnp.array(flatValues.toPythonProxy, dtype = dtype.jaxDtype)
+      .reshape(rows, cols)
+    
+    new Tensor(shape, jaxValues, dtype)
 
-    // ✅ Reshape the array to be 2D
-    val jaxArray = Jax.jnp.array(jaxValues).reshape(rows, cols)
-
-    new Tensor(shape, jaxArray, DType.Float32)
+object Tensor3:
+  def apply[L1 <: Label, L2 <: Label, L3 <: Label](
+    values: Seq[Seq[Seq[Float]]], 
+    dtype: DType = DType.Float32
+  ): Tensor[(L1, L2, L3)] =
+    require(values.nonEmpty, "Cannot create tensor from empty sequence")
+    require(values.forall(_.nonEmpty), "All outer dimensions must be non-empty")
+    require(values.forall(_.forall(_.nonEmpty)), "All inner dimensions must be non-empty")
+    
+    val dim1 = values.length
+    val dim2 = values.head.length
+    val dim3 = values.head.head.length
+    
+    require(values.forall(_.length == dim2), "All second dimensions must match")
+    require(values.forall(_.forall(_.length == dim3)), "All third dimensions must match")
+    
+    val shape = Shape3[L1, L2, L3](dim1, dim2, dim3)
+    val flatValues = values.flatten.flatten
+    val jaxValues = Jax.jnp.array(flatValues.toPythonProxy, dtype = dtype.jaxDtype)
+      .reshape(dim1, dim2, dim3)
+    
+    new Tensor(shape, jaxValues, dtype)
 
 class TensorIndexer[T <: Tuple](
     private val tensor: Tensor[T],

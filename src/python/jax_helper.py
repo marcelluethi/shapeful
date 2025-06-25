@@ -53,6 +53,7 @@ def vmap2(f, dims):
     return jax.vmap(python_wrapper, in_axes=in_axes)
 
 
+
 def grad(f):
     """
     Computes the gradient of a function `f` with respect to its arguments.

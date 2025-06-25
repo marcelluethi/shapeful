@@ -45,7 +45,7 @@ class TensorTests extends FunSuite:
 
     assertEquals(tensor.shape.dims, Seq(4))
     assertEquals(tensor.dtype, DType.Float32)
-    assertEquals(tensor.dim[Feature], 4)
+    assertEquals(tensor.shape.dim[Feature], 4)
   }
 
   test("Tensor2 creation") {
@@ -56,8 +56,8 @@ class TensorTests extends FunSuite:
     val tensor = Tensor2[Height, Width](values)
 
     assertEquals(tensor.shape.dims, Seq(2, 3))
-    assertEquals(tensor.dim[Height], 2)
-    assertEquals(tensor.dim[Width], 3)
+    assertEquals(tensor.shape.dim[Height], 2)
+    assertEquals(tensor.shape.dim[Width], 3)
   }
 
   test("zeros and ones creation") {
@@ -111,8 +111,8 @@ class TensorTests extends FunSuite:
 
     val relabeled = tensor.relabel[(Batch, Feature)]
     assertEquals(relabeled.shape.dims, Seq(2, 3))
-    assertEquals(relabeled.dim[Batch], 2)
-    assertEquals(relabeled.dim[Feature], 3)
+    assertEquals(relabeled.shape.dim[Batch], 2)
+    assertEquals(relabeled.shape.dim[Feature], 3)
   }
 
   test("dtype conversion") {
@@ -129,53 +129,6 @@ class TensorTests extends FunSuite:
     assert(sameTensor eq tensor)
   }
 
-  test("mean reduction") {
-    val shape = Shape2[Height, Width](2, 3)
-    val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
-    val tensor = Tensor(shape, values)
-
-    val meanHeight = tensor.mean[Height]
-    assertEquals(meanHeight.shape.dims, Seq(3))
-    // Mean across height should be: [(1+4)/2, (2+5)/2, (3+6)/2] = [2.5, 3.5, 4.5]
-    val expectedMeanHeight = Tensor(Shape1[Width](3), Seq(2.5f, 3.5f, 4.5f))
-    assert(meanHeight.approxEquals(expectedMeanHeight))
-
-    val meanWidth = tensor.mean[Width]
-    assertEquals(meanWidth.shape.dims, Seq(2))
-    // Mean across width should be: [(1+2+3)/3, (4+5+6)/3] = [2.0, 5.0]
-    val expectedMeanWidth = Tensor(Shape1[Height](2), Seq(2.0f, 5.0f))
-    assert(meanWidth.approxEquals(expectedMeanWidth))
-  }
-
-  test("sum reduction") {
-    val shape = Shape2[Height, Width](2, 3)
-    val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
-    val tensor = Tensor(shape, values)
-
-    val sumHeight = tensor.sum[Height]
-    assertEquals(sumHeight.shape.dims, Seq(3))
-    // Sum across height should be: [1+4, 2+5, 3+6] = [5, 7, 9]
-    val expectedSumHeight = Tensor(Shape1[Width](3), Seq(5.0f, 7.0f, 9.0f))
-    assert(sumHeight.tensorEquals(expectedSumHeight))
-
-    val sumWidth = tensor.sum[Width]
-    assertEquals(sumWidth.shape.dims, Seq(2))
-    // Sum across width should be: [1+2+3, 4+5+6] = [6, 15]
-    val expectedSumWidth = Tensor(Shape1[Height](2), Seq(6.0f, 15.0f))
-    assert(sumWidth.tensorEquals(expectedSumWidth))
-  }
-
-  test("argmax and argmin reduction") {
-    val shape = Shape2[Height, Width](2, 3)
-    val values = Seq(6.0f, 1.0f, 4.0f, 2.0f, 5.0f, 3.0f)
-    val tensor = Tensor(shape, values)
-
-    val argmaxHeight = tensor.argmax[Height]
-    assertEquals(argmaxHeight.shape.dims, Seq(3))
-
-    val argminWidth = tensor.argmin[Width]
-    assertEquals(argminWidth.shape.dims, Seq(2))
-  }
 
   test("vmap operation") {
     val shape = Shape2[Batch, Feature](3, 4)
@@ -328,8 +281,8 @@ class TensorTests extends FunSuite:
     val values = (1 to 35).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
-    assertEquals(tensor.dim[Height], 5)
-    assertEquals(tensor.dim[Width], 7)
+    assertEquals(tensor.shape.dim[Height], 5)
+    assertEquals(tensor.shape.dim[Width], 7)
   }
 
   test("complex vmap with reduction") {
@@ -340,25 +293,11 @@ class TensorTests extends FunSuite:
     // Map over batch and apply sum reduction to each batch element
     val vmapped = tensor.vmap[Batch, EmptyTuple] { batchElement =>
       // Sum all features for each batch element, returning a scalar
-      batchElement.sum[Feature]
+      Tensor0(1)
     }
 
     // Result should be scalar for each batch element: shape (3,)
     assertEquals(vmapped.shape.dims, Seq(3))
-  }
-
-  test("chained operations") {
-    val shape = Shape2[Height, Width](2, 4)
-    val values = (1 to 8).map(_.toFloat)
-    val tensor = Tensor(shape, values)
-
-    // Chain operations: reshape -> relabel -> mean
-    val result = tensor
-      .reshape(Shape2[Batch, Feature](4, 2))
-      .relabel[(Channel, Feature)]
-      .mean[Channel]
-
-    assertEquals(result.shape.dims, Seq(2))
   }
 
   test("tensor equality - identical tensors") {

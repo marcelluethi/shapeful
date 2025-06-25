@@ -1,5 +1,7 @@
 package shapeful.tensor
 
+import scala.language.experimental.namedTypeArguments
+
 import munit.FunSuite
 import shapeful.tensor.Shape.*
 

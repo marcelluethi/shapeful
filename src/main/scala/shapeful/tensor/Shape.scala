@@ -1,5 +1,6 @@
 package shapeful.tensor
 
+import scala.language.experimental.namedTypeArguments
 import TupleHelpers.{ToIntTuple, createTupleFromSeq}
 import shapeful.Label
 

@@ -129,7 +129,6 @@ class TensorTests extends FunSuite:
     assert(sameTensor eq tensor)
   }
 
-
   test("vmap operation") {
     val shape = Shape2[Batch, Feature](3, 4)
     val values = (1 to 12).map(_.toFloat)

@@ -25,11 +25,10 @@ object Shape:
 
     def asTuple: ToIntTuple[T] = s
 
-    /** Concatenate shapes to form a larger product type. This creates a new
-      * shape by joining dimensions, similar to tuple concatenation with *:
-      * Example: Shape(3, 4) *: Shape(5, 6) = Shape(3, 4, 5, 6)
+    /** Concatenate shapes to form a larger product type. This creates a new shape by joining dimensions, similar to
+      * tuple concatenation with *: Example: Shape(3, 4) *: Shape(5, 6) = Shape(3, 4, 5, 6)
       */
-    def *:[U <: Tuple](other: Shape[U]): Shape[Tuple.Concat[T, U]] = {
+    def *:[U <: Tuple](other: Shape[U]): Shape[Tuple.Concat[T, U]] =
       val leftDims = s.dims
       val rightDims = other.dims
       val combinedDims = leftDims ++ rightDims
@@ -37,7 +36,6 @@ object Shape:
       val resultTuple =
         TupleHelpers.createTupleFromSeq[Tuple.Concat[T, U]](combinedDims)
       Shape(resultTuple)
-    }
 
     // Add common tensor operations
     def size: Int = dims.product

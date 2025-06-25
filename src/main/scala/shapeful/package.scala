@@ -1,4 +1,3 @@
-
 package object shapeful:
 
   import jax.Jax

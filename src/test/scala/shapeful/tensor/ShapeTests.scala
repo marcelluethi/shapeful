@@ -3,7 +3,7 @@ package shapeful.tensor
 import munit.FunSuite
 import shapeful.tensor.Shape.*
 
-class ShapeTests extends FunSuite {
+class ShapeTests extends FunSuite:
 
   test("dim method works with labels") {
     val shape = Shape2["height", "width"](50, 100)
@@ -55,4 +55,3 @@ class ShapeTests extends FunSuite {
     assertEquals(shape2.asTuple, (3, 4))
     assertEquals(shape3.asTuple, (2, 3, 4))
   }
-}

@@ -120,12 +120,12 @@ class TensorTests extends FunSuite:
     val values = Seq(1.0f, 2.0f, 3.0f)
     val tensor = Tensor(shape, values, DType.Float32)
 
-    val intTensor = tensor.withDType(DType.Int32)
+    val intTensor = tensor.asType(DType.Int32)
     assertEquals(intTensor.dtype, DType.Int32)
     assertEquals(intTensor.shape.dims, tensor.shape.dims)
 
     // Converting to same dtype should return same instance
-    val sameTensor = tensor.withDType(DType.Float32)
+    val sameTensor = tensor.asType(DType.Float32)
     assert(sameTensor eq tensor)
   }
 

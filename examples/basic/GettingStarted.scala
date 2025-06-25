@@ -77,9 +77,15 @@ object GettingStarted extends App:
 
   // 6. Working with different data types
   println("6. Data Types")
-  val intTensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
-  println(s"Float32 tensor: $intTensor (${intTensor.dtype})")
-  println("Note: DType conversion methods would be available in a complete implementation")
+  val floatTensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
+  println(s"Float32 tensor: $floatTensor (${floatTensor.dtype})")
+  
+  // Convert to different dtype
+  val doubleTensor = floatTensor.asType(DType.Float64)
+  println(s"Float64 tensor: $doubleTensor (${doubleTensor.dtype})")
+  
+  val intTensor = floatTensor.asType(DType.Int32)
+  println(s"Int32 tensor: $intTensor (${intTensor.dtype})")
   println()
 
   // 7. Basic properties

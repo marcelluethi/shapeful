@@ -125,7 +125,7 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
   /** Change the dtype of the tensor.
     */
-  def withDType(newDType: DType): Tensor[T] =
+  def asType(newDType: DType): Tensor[T] =
     if dtype == newDType then
       // No conversion needed
       this

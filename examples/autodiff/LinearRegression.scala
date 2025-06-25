@@ -4,110 +4,114 @@ import scala.language.experimental.namedTypeArguments
 import shapeful.*
 
 /**
- * Complete linear regression example with gradient descent.
+ * Simple linear regression example with vmap and automatic differentiation.
  * 
  * This example demonstrates:
- * - Defining a parameterized model
- * - Computing gradients for multiple parameters
- * - Implementing gradient descent optimization
- * - Training on synthetic data
+ * - Real linear regression with input-output data
+ * - Using vmap for vectorized operations
+ * - Automatic differentiation for gradient computation
+ * - Gradient descent optimization
  */
 object LinearRegression extends App:
 
-  println("=== Linear Regression with Automatic Differentiation ===\n")
+  println("=== Simple Linear Regression with vmap ===\n")
 
   type Feature = "feature"
   type Sample = "sample"
 
-  // Define our linear model parameters as a simple tuple
-  type LinearModel = (Tensor1[Feature], Tensor0)  // (weight, bias)
-
-  // 1. Generate synthetic training data
-  println("1. Generating Synthetic Data")
+  // 1. Create synthetic dataset
+  println("1. Creating Synthetic Dataset")
   
-  // True parameters: y = 2*x1 + 3*x2 - 1*x3 + 5
-  val trueWeight = Tensor1[Feature](Seq(2.0f, 3.0f, -1.0f))
-  val trueBias = Tensor0(5.0f)
+  val X = Tensor2[Sample, Feature](Seq(
+    Seq(1.0f, 2.0f),
+    Seq(2.0f, 3.0f), 
+    Seq(3.0f, 4.0f),
+    Seq(4.0f, 5.0f)
+  ))
+  val y = Tensor1[Sample](Seq(5.0f, 8.0f, 11.0f, 14.0f))  // y = x1 + 2*x2 + 1
   
-  // For simplicity, we'll work with a very basic example
-  println(s"True weight: $trueWeight")
-  println(s"True bias: $trueBias")
+  println(s"Training data X (${X.shape.dims}):")
+  println(s"${X.inspect}")
+  println(s"Training labels y: $y")
+  println(s"True relationship: y = x1 + 2*x2 + 1")
   println()
 
-  // 2. Define loss function
-  println("2. Defining Loss Function")
+  // 2. Initialize model parameters
+  println("2. Initializing Model Parameters")
   
-  def simpleLoss(model: LinearModel): Tensor0 =
-    val (weight, bias) = model
-    // Simple quadratic loss for demonstration: (sum(weight) + bias - target)^2
-    val target = Tensor0(10.0f)
-    val prediction = weight.sum() + bias
-    val diff = prediction - target
-    diff * diff
+  var weight = Tensor1[Feature](Seq(0.1f, 0.1f))
+  var bias = Tensor0(0.0f)
   
-  // Get gradient function
-  val gradFunction = Autodiff.grad(simpleLoss)
-  
-  println("Loss function defined: (sum(weight) + bias - 10)^2")
+  println(s"Initial weight: $weight")
+  println(s"Initial bias: ${bias.toFloat}")
   println()
 
-  // 3. Initialize model parameters
-  println("3. Initializing Model")
+  // 3. Define prediction function using vmap
+  println("3. Defining Model with vmap")
   
-  var model: LinearModel = (
-    Tensor1[Feature](Seq(0.1f, 0.1f, 0.1f)),  // Small random initialization
-    Tensor0(0.0f)
+  def predict(w: Tensor1[Feature], b: Tensor0, x: Tensor2[Sample, Feature]): Tensor1[Sample] =
+    // Use vmap to apply dot product across all samples
+    x.vmap[VmapAxis=Sample](sample => sample.dot(w) + b)
+
+  // 4. Loss function (Mean Squared Error)
+  def loss(w: Tensor1[Feature], b: Tensor0): Tensor0 =
+    val predictions = predict(w, b, X)
+    val errors = predictions - y
+    (errors * errors).mean()  // Mean squared error
+
+  // 5. Get gradient function
+  val gradFn = Autodiff.grad((params: (Tensor1[Feature], Tensor0)) =>
+    val (w, b) = params
+    loss(w, b)
   )
   
-  println(s"Initial model:")
-  println(s"  weight: ${model._1}")
-  println(s"  bias: ${model._2}")
-  
-  val initialLoss = simpleLoss(model)
-  println(s"  initial loss: ${initialLoss.toFloat}")
+  val initialLoss = loss(weight, bias)
+  println(s"Initial loss: ${initialLoss.toFloat}")
+  println(s"Loss function: MSE = mean((predictions - labels)²)")
   println()
 
-  // 4. Training loop
+  // 6. Training loop
   println("4. Training with Gradient Descent")
   
   val learningRate = 0.01f
-  val numEpochs = 10
+  val numEpochs = 150
   
   for epoch <- 1 to numEpochs do
-    // Compute gradients
-    val gradients = gradFunction(model)
+    // Compute gradients using automatic differentiation
+    val gradients = gradFn((weight, bias))
     
     // Update parameters: param = param - learning_rate * gradient
-    model = (
-      model._1 - gradients._1 * Tensor0(learningRate),
-      model._2 - gradients._2 * Tensor0(learningRate)
-    )
+    weight = weight - gradients._1 * Tensor0(learningRate)
+    bias = bias - gradients._2 * Tensor0(learningRate)
     
-    // Compute current loss
-    val currentLoss = simpleLoss(model)
-    
-    if epoch % 2 == 0 || epoch == 1 then
-      println(f"Epoch $epoch%2d: loss = ${currentLoss.toFloat}%.6f, weight = ${model._1}, bias = ${model._2.toFloat}%.4f")
-  
+    // Print progress every 10 epochs
+    if epoch % 10 == 0 then
+      val currentLoss = loss(weight, bias)
+      println(f"Epoch $epoch%2d: loss = ${currentLoss.toFloat}%.6f")
+
   println()
 
-  // 5. Final results
+  // 7. Final results
   println("5. Final Results")
   
-  val finalLoss = simpleLoss(model)
-  println(s"Final model:")
-  println(s"  weight: ${model._1}")
-  println(s"  bias: ${model._2}")
-  println(s"  final loss: ${finalLoss.toFloat}")
+  val finalLoss = loss(weight, bias)
+  println(s"Final weight: $weight")
+  println(s"Final bias: ${bias.toFloat}")
+  println(s"Final loss: ${finalLoss.toFloat}")
   println()
   
-  println("Note: This is a simplified example for demonstration.")
-  println("The model should converge to weights that sum to ~10 to minimize loss.")
-  println("A complete implementation would include:")
-  println("- Proper matrix multiplication for predictions")
-  println("- Real training data with input-output pairs")
-  println("- Learning rate scheduling")
-  println("- Validation and test sets")
-  println("- More sophisticated optimization (Adam, etc.)")
+  println("Expected parameters: weight ≈ [1.0, 2.0], bias ≈ 1.0")
+  
+  // Show final predictions vs true labels
+  val finalPredictions = predict(weight, bias, X)
+  println(s"Final predictions: $finalPredictions")
+  println(s"True labels:      $y")
+  println()
+  
+  println("Key features demonstrated:")
+  println("- vmap for vectorized operations across the Sample dimension")
+  println("- Automatic differentiation with Autodiff.grad")
+  println("- Real linear regression with proper matrix operations")
+  println("- Type-safe tensor dimensions with semantic labels")
   
   println("\n=== Linear Regression Complete! ===")

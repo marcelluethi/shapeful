@@ -15,5 +15,23 @@ lazy val root = (project in file("."))
     fork := true
   )
 
+// Examples subproject
+lazy val examples = (project in file("examples"))
+  .dependsOn(root)
+  .settings(
+    name := "shapeful-examples",
+    // Examples use the same Scala version and dependencies as main project
+    libraryDependencies ++= Seq(
+      "dev.scalapy" %% "scalapy-core" % "0.5.3"
+    ),
+    fork := true,
+    // Don't publish examples
+    publish := {},
+    publishLocal := {},
+    publishArtifact := false,
+    // Examples source directory
+    Compile / scalaSource := baseDirectory.value
+  )
+
 
 

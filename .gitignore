@@ -10,3 +10,5 @@ data
 playground
 *.log   
 project/project/**
+*.pyc
+examples/target/

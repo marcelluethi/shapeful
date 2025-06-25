@@ -61,7 +61,3 @@ object Jax:
           s"Failed to import jax_helper module. Make sure it exists in the Python path: ${e.getMessage}",
           e
         )
-
-trait ToPyTree[P]:
-  def toPyTree(p: P): Jax.PyAny
-  def fromPyTree(p: Jax.PyAny): P

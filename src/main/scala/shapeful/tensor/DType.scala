@@ -1,8 +1,5 @@
 package shapeful.tensor
 
-import me.shadaj.scalapy.py
-import shapeful.jax.Jax
-
 enum DType(val name: String, val size: Int):
   case Float32 extends DType("float32", 4)
   case Float64 extends DType("float64", 8)
@@ -16,27 +13,6 @@ enum DType(val name: String, val size: Int):
   case Bool extends DType("bool", 1)
   case Complex64 extends DType("complex64", 8)
   case Complex128 extends DType("complex128", 16)
-
-  // JAX integration - will be available at runtime
-  def jaxDtype: py.Dynamic =
-    try
-      val jnp = Jax.jnp
-      this match
-        case Float32    => jnp.float32
-        case Float64    => jnp.float64
-        case Int32      => jnp.int32
-        case Int64      => jnp.int64
-        case Int16      => jnp.int16
-        case Int8       => jnp.int8
-        case UInt32     => jnp.uint32
-        case UInt16     => jnp.uint16
-        case UInt8      => jnp.uint8
-        case Bool       => jnp.bool_
-        case Complex64  => jnp.complex64
-        case Complex128 => jnp.complex128
-    catch
-      case e: Exception =>
-        throw new RuntimeException(s"Failed to get JAX dtype for $name: ${e.getMessage}", e)
 
   // Default values with correct types
   def zero: Float | Double | Int | Long | Short | Byte | Boolean = this match
@@ -161,15 +137,6 @@ object DType:
     case "complex64" | "c64"          => Some(Complex64)
     case "complex128" | "c128"        => Some(Complex128)
     case _                            => None
-
-  // Create JAX array with specific dtype
-  def createJaxArray(data: py.Any, dtype: DType): py.Dynamic =
-    try
-      val jnp = Jax.jnp
-      jnp.array(data, dtype = dtype.jaxDtype)
-    catch
-      case e: Exception =>
-        throw new RuntimeException(s"Failed to create JAX array with dtype ${dtype.name}: ${e.getMessage}", e)
 
   // More specific given conversions
   given floatToDType: Conversion[Float, DType] = _ => Float32

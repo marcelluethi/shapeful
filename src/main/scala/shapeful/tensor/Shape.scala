@@ -9,8 +9,15 @@ import shapeful.Label
 opaque type Shape[T <: Tuple] = ToIntTuple[T]
 
 object Shape:
+
   def apply[T <: Tuple](t: ToIntTuple[T]): Shape[T] = t
   def empty: Shape[EmptyTuple] = Shape(EmptyTuple)
+
+  type Shape0 = Shape[EmptyTuple]
+  type Shape1[L <: Label] = Shape[L *: EmptyTuple]
+  type Shape2[L1 <: Label, L2 <: Label] = Shape[L1 *: L2 *: EmptyTuple]
+  type Shape3[L1 <: Label, L2 <: Label, L3 <: Label] =
+    Shape[L1 *: L2 *: L3 *: EmptyTuple]
 
   extension [T <: Tuple](s: Shape[T])
     def dims: Seq[Int] = s.productIterator.toSeq.asInstanceOf[Seq[Int]]

@@ -4,6 +4,7 @@ import scala.language.experimental.namedTypeArguments
 import scala.annotation.targetName
 
 import shapeful.jax.Jax
+import shapeful.jax.JaxDType
 import shapeful.Label
 import shapeful.tensor.TupleHelpers.ToIntTuple
 import me.shadaj.scalapy.py.SeqConverters
@@ -130,7 +131,7 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
       this
     else
       // Use JAX's astype function to convert dtype
-      val convertedJaxValue = Jax.jnp.astype(jaxValue, newDType.jaxDtype)
+      val convertedJaxValue = Jax.jnp.astype(jaxValue, JaxDType.jaxDtype(newDType))
       new Tensor[T](shape, convertedJaxValue, newDType)
 
   /** Compare two tensors for equality.
@@ -273,18 +274,18 @@ object Tensor:
     val jaxValues = Jax.jnp
       .array(
         values.toPythonProxy,
-        dtype = dtype.jaxDtype
+        dtype = JaxDType.jaxDtype(dtype)
       )
       .reshape(shape.dims.toPythonProxy)
 
     new Tensor[T](shape, jaxValues, dtype)
 
   def zeros[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
-    val jaxValues = Jax.jnp.zeros(shape.dims.toPythonProxy, dtype = dtype.jaxDtype)
+    val jaxValues = Jax.jnp.zeros(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
   def ones[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
-    val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = dtype.jaxDtype)
+    val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
 object Tensor0:
@@ -298,7 +299,7 @@ object Tensor1:
   def apply[L <: Label](values: Seq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
     val shape = Shape1[L](values.length)
-    val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxDtype)
+    val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
 object Tensor2:
@@ -313,7 +314,7 @@ object Tensor2:
     val shape = Shape2[L1, L2](rows, cols)
     val flatValues = values.flatten
     val jaxValues = Jax.jnp
-      .array(flatValues.toPythonProxy, dtype = dtype.jaxDtype)
+      .array(flatValues.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
       .reshape(rows, cols)
 
     new Tensor(shape, jaxValues, dtype)
@@ -337,7 +338,7 @@ object Tensor3:
     val shape = Shape3[L1, L2, L3](dim1, dim2, dim3)
     val flatValues = values.flatten.flatten
     val jaxValues = Jax.jnp
-      .array(flatValues.toPythonProxy, dtype = dtype.jaxDtype)
+      .array(flatValues.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
       .reshape(dim1, dim2, dim3)
 
     new Tensor(shape, jaxValues, dtype)

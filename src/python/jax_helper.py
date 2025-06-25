@@ -1,18 +1,93 @@
 # JAX helper functions for shapeful library
 
-def hello_jax():
-    """Simple function to test JAX helper import"""
-    return "Hello from JAX helper!"
+import jax
+import jax.numpy as jnp
+from jax import vmap
 
-def array_info(arr):
-    """Get information about a JAX array"""
-    return {
-        'shape': arr.shape,
-        'dtype': str(arr.dtype),
-        'size': arr.size
-    }
+import builtins
+builtins.jax = jax
+builtins.jnp = jnp
 
-def create_identity_matrix(n):
-    """Create an identity matrix of size n x n"""
-    import jax.numpy as jnp
-    return jnp.eye(n)
+def vmap(f, dims):
+    """
+    Applies a function `f` to a tensor using JAX's vmap functionality.
+    
+    It is wrapped in a Python function to ensure that the function, as otherwise
+    jax will crash upon inspection.
+    """
+                
+    # Wrap the ScalaPy function in a pure Python wrapper
+    def python_wrapper(x):
+        return f(x)
+            
+    # Create vmap with the wrapper
+    return jax.vmap(python_wrapper, in_axes=dims)
+            
+
+
+def vmap2(f, dims):
+    """
+    Applies a function `f` to two tensors using JAX's vmap functionality.
+    
+    Args:
+        f: Function that takes two arguments (x, y)
+        dims: Either an integer (same axis for both inputs) or tuple (axis1, axis2)
+    
+    It is wrapped in a Python function to ensure that the function, as otherwise
+    jax will crash upon inspection.
+    """
+                
+    # Wrap the ScalaPy function in a pure Python wrapper
+    def python_wrapper(x, y):
+        return f(x, y)
+    
+    # Handle dims parameter - can be int or tuple
+    if isinstance(dims, int):
+        # Same axis for both inputs
+        in_axes = (dims, dims)
+    else:
+        # Different axes for each input
+        in_axes = dims
+            
+    # Create vmap with the wrapper
+    return jax.vmap(python_wrapper, in_axes=in_axes)
+
+
+def grad(f):
+    """
+    Computes the gradient of a function `f` with respect to its arguments.
+    
+    This is a simple wrapper around JAX's grad function.
+    Only works for scalar-output functions.
+    """
+    from jax import grad as jax_grad
+    def python_wrapper(*args):
+        # Remove debug print that might cause issues
+        return f(*args)
+    
+    return jax_grad(python_wrapper)
+
+def jacfwd(f):
+    """
+    Computes the Jacobian of a function `f` using forward-mode differentiation.
+    
+    Works for vector-output functions. Efficient when output dimension > input dimension.
+    """
+    from jax import jacfwd as jax_jacfwd
+    def python_wrapper(x):
+        return f(x)
+    
+    return jax_jacfwd(python_wrapper)
+
+def jacrev(f):
+    """
+    Computes the Jacobian of a function `f` using reverse-mode differentiation.
+    
+    Works for vector-output functions. Efficient when input dimension > output dimension.
+    """
+    from jax import jacrev as jax_jacrev
+    def python_wrapper(x):
+        return f(x)
+    
+    return jax_jacrev(python_wrapper)
+     

@@ -7,6 +7,10 @@ import me.shadaj.scalapy.py.PyQuote
 object Jax:
 
   type PyAny = py.Any
+  type PyDynamic = py.Dynamic
+
+  export py.Any
+  export py.Dynamic
 
   // Lazy initialization to avoid errors if JAX is not installed
   lazy val sys = py.module("sys")

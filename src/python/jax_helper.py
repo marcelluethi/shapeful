@@ -68,6 +68,19 @@ def grad(f):
     
     return jax_grad(python_wrapper)
 
+def value_and_grad(f):
+    """
+    Computes both the value and gradient of a function `f` with respect to its arguments.
+    
+    This is more efficient than computing value and gradient separately.
+    Only works for scalar-output functions.
+    """
+    from jax import value_and_grad as jax_value_and_grad
+    def python_wrapper(*args):
+        return f(*args)
+    
+    return jax_value_and_grad(python_wrapper)
+
 def jacfwd(f):
     """
     Computes the Jacobian of a function `f` using forward-mode differentiation.
@@ -91,4 +104,3 @@ def jacrev(f):
         return f(x)
     
     return jax_jacrev(python_wrapper)
-     

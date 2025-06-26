@@ -77,6 +77,111 @@ class AutodiffTests extends FunSuite:
     )
   }
 
+  test("value_and_grad computes both value and gradient") {
+    // f(x) = x^3 + 2x, f'(x) = 3x^2 + 2
+    val f = (x: Tensor0) => x * x * x + Tensor0(2.0f) * x
+    val valueAndGradF = Autodiff.valueAndGrad(f)
+
+    val x = Tensor0(2.0f)
+    val (value, gradient) = valueAndGradF(x)
+
+    // Expected value: f(2) = 8 + 4 = 12
+    val expectedValue = Tensor0(12.0f)
+    assert(
+      value.approxEquals(expectedValue, tolerance = 1e-5f),
+      s"Value: expected ${expectedValue.toFloat}, got ${value.toFloat}"
+    )
+
+    // Expected gradient: f'(2) = 3*4 + 2 = 14
+    val expectedGradient = Tensor0(14.0f)
+    assert(
+      gradient.approxEquals(expectedGradient, tolerance = 1e-5f),
+      s"Gradient: expected ${expectedGradient.toFloat}, got ${gradient.toFloat}"
+    )
+
+    // Verify it matches separate computations
+    val separateValue = f(x)
+    val separateGradient = Autodiff.grad(f)(x)
+
+    assert(
+      value.approxEquals(separateValue, tolerance = 1e-6f),
+      "value_and_grad value should match separate function evaluation"
+    )
+    assert(
+      gradient.approxEquals(separateGradient, tolerance = 1e-6f),
+      "value_and_grad gradient should match separate gradient computation"
+    )
+  }
+
+  test("jacFwd computes Jacobian using forward-mode differentiation") {
+    // Vector function using available operations: f(x) = [sum(x^2), mean(x), norm(x)]
+    val f = (x: Tensor1[Feature]) =>
+      val squared = x * x
+      val sumSquared = squared.sum() // Sum of squares
+      val meanVal = x.mean() // Mean value
+      val normVal = x.norm() // L2 norm
+      Tensor0.stack[Output](Seq(sumSquared, meanVal, normVal))
+
+    val jacF = Autodiff.jacFwd[Feature, Output](f)
+
+    val x = Tensor1[Feature](Seq(2.0f, 3.0f))
+    val jacobian: Tensor2[Output, Feature] = jacF(x)
+
+
+    // Expected Jacobian:
+    // f(x) = [x0^2 + x1^2, (x0 + x1)/2, sqrt(x0^2 + x1^2)]
+    // For x = [2, 3]:
+    // df1/dx0 = 2*x0 = 4, df1/dx1 = 2*x1 = 6
+    // df2/dx0 = 0.5, df2/dx1 = 0.5
+    // df3/dx0 = x0 / sqrt(x0^2 + x1^2) = 2/√13
+    // df3/dx1 = x1 / sqrt(x0^2 + x1^2) = 3/√13
+    val sqrt13 = math.sqrt(13.0).toFloat
+    val expected = Tensor2[Output, Feature](
+      Seq(
+        Seq(4.0f, 6.0f),
+        Seq(0.5f, 0.5f),
+        Seq(2.0f / sqrt13, 3.0f / sqrt13)
+      )
+    )
+
+    // Verify the computation runs and produces correct shape
+    assert(jacobian.shape.dims.length == 2, "Jacobian should be a 2D tensor")
+    assert(jacobian.shape.dims(0) == 3, "Output dimension should be 3")
+    assert(jacobian.shape.dims(1) == 2, "Input dimension should be 2")
+    // Check actual values
+    assert(jacobian.approxEquals(expected, tolerance = 1e-5f), s"Jacobian values incorrect.\nExpected: ${expected.inspect}\nActual: ${jacobian.inspect}")
+  }
+
+  test("jacRev computes Jacobian using reverse-mode differentiation") {
+    // Simple vector function using available operations: f(x) = [2*sum(x), mean(x)]
+    val f = (x: Tensor1[Feature]) =>
+      val scaledSum = x.sum() * Tensor0(2.0f) // 2 * sum
+      val meanVal = x.mean() // Mean value
+      Tensor1[Output](Seq(scaledSum.toFloat, meanVal.toFloat))
+
+    val jacF = Autodiff.jacRev[Feature, Output](f)
+
+    val x = Tensor1[Feature](Seq(3.0f, 4.0f))
+    val jacobian: Tensor2[Output, Feature] = jacF(x)
+
+    println(s"Jacobian shape: ${jacobian.shape.dims}")
+    println(s"Jacobian: ${jacobian.inspect}")
+
+    // Verify the computation runs and produces a 2D tensor
+    assert(jacobian.shape.dims.length == 2, "Jacobian should be a 2D tensor")
+    assert(jacobian.shape.dims(0) == 2, "Output dimension should be 2")
+    assert(jacobian.shape.dims(1) == 2, "Input dimension should be 2")
+
+    // Test that jacFwd and jacRev give the same result for this function
+    val jacFwdF = Autodiff.jacFwd[Feature, Output](f)
+    val jacobianFwd: Tensor2[Output, Feature] = jacFwdF(x)
+
+    assert(
+      jacobian.approxEquals(jacobianFwd, tolerance = 1e-5f),
+      "jacRev and jacFwd should give the same result"
+    )
+  }
+
   test("grad of vector sum") {
     // f(v) = sum(v), gradient should be vector of ones
     val f = (v: Tensor1[Feature]) => v.sum()
@@ -185,6 +290,35 @@ class AutodiffTests extends FunSuite:
     assert(
       math.abs(analyticalGrad.toFloat - numericalGrad) < 1e-2f,
       s"Analytical grad: ${analyticalGrad.toFloat}, Numerical grad: $numericalGrad"
+    )
+  }
+
+  test("second derivative by applying grad twice") {
+    // f(x) = x^4, f'(x) = 4x^3, f''(x) = 12x^2
+    val f = (x: Tensor0) => x * x * x * x
+
+    // First derivative
+    val gradF = Autodiff.grad(f)
+
+    // Second derivative - gradient of the gradient
+    val grad2F = Autodiff.grad(gradF)
+
+    val x = Tensor0(2.0f)
+
+    // First derivative at x=2: f'(2) = 4 * 2^3 = 32
+    val firstDerivative = gradF(x)
+    val expectedFirst = Tensor0(32.0f)
+    assert(
+      firstDerivative.approxEquals(expectedFirst, tolerance = 1e-5f),
+      s"First derivative: expected ${expectedFirst.toFloat}, got ${firstDerivative.toFloat}"
+    )
+
+    // Second derivative at x=2: f''(2) = 12 * 2^2 = 48
+    val secondDerivative = grad2F(x)
+    val expectedSecond = Tensor0(48.0f)
+    assert(
+      secondDerivative.approxEquals(expectedSecond, tolerance = 1e-5f),
+      s"Second derivative: expected ${expectedSecond.toFloat}, got ${secondDerivative.toFloat}"
     )
   }
 

@@ -417,4 +417,23 @@ class TensorTests extends FunSuite:
     }
   }
 
+  test("stack operation for Tensor0 and Tensor1") {
+    // Stack three scalars into a vector
+    val t1 = Tensor0(1.0f)
+    val t2 = Tensor0(2.0f)
+    val t3 = Tensor0(3.0f)
+    val stacked = Tensor0.stack[NewAxis=Feature](Seq(t1, t2, t3))
+    val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
+    assertEquals(stacked.shape.dims, Seq(3))
+    assert(stacked.tensorEquals(expected))
+
+    // Stack two vectors into a matrix
+    val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
+    val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
+    val stacked2 = Tensor1.stack[NewAxis = Batch](Seq(v1, v2))
+    val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
+    assertEquals(stacked2.shape.dims, Seq(2, 2))
+    assert(stacked2.tensorEquals(expected2))
+  }
+
 end TensorTests

@@ -11,6 +11,8 @@ import me.shadaj.scalapy.py.SeqConverters
 
 class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val dtype: DType = DType.Float32):
 
+
+
   /** map a function over the given axis of the tensor
     */
   inline def vmap[VmapAxis <: Label, OuterShape <: Tuple](
@@ -288,21 +290,51 @@ object Tensor:
     val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
+
+  
+  def stack[NewAxis <: Label, T <: Tuple](tensors: Seq[Tensor[T]], dtype: DType = DType.Float32): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] = 
+    require(tensors.nonEmpty, "Cannot stack empty sequence")
+    val refShape = tensors.head.shape
+  
+    val jaxValues = tensors.map(_.jaxValue).toPythonProxy
+    val stacked = Jax.jnp.stack(jaxValues)
+    val newShapeSeq = Seq(tensors.length) ++ refShape.dims
+    val newShapeTuple = TupleHelpers.createTupleFromSeq[Tuple.Concat[Tuple1[NewAxis], T]](newShapeSeq)
+    val shape = Shape[Tuple.Concat[Tuple1[NewAxis], T]](newShapeTuple)
+    new Tensor(shape, stacked, dtype)
+
+
 object Tensor0:
+  import Tensor.{Tensor0, Tensor1}
+
   def apply(value: Float | Int | Boolean): Tensor[EmptyTuple] =
     value match
       case v: Float   => new Tensor[EmptyTuple](Shape.empty, Jax.jnp.array(v), DType.Float32)
       case v: Int     => new Tensor[EmptyTuple](Shape.empty, Jax.jnp.array(v), DType.Int32)
       case v: Boolean => new Tensor[EmptyTuple](Shape.empty, Jax.jnp.array(v), DType.Bool)
 
+  def stack[NewAxis <: Label](
+      tensors: Seq[Tensor0]
+  ): Tensor1[NewAxis] = Tensor.stack[NewAxis, EmptyTuple](tensors)
+
 object Tensor1:
+  import Tensor.{Tensor1, Tensor2}
+
   def apply[L <: Label](values: Seq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
     val shape = Shape1[L](values.length)
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
+  def stack[NewAxis <: Label, L <: Label](
+      tensors: Seq[Tensor1[L]]
+  ): Tensor2[NewAxis, L] = Tensor.stack[NewAxis, Tuple1[L]](tensors)
+
+
 object Tensor2:
+
+  import Tensor.{Tensor2, Tensor3}
+
   def apply[L1 <: Label, L2 <: Label](values: Seq[Seq[Float]], dtype: DType = DType.Float32): Tensor[(L1, L2)] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
     require(values.forall(_.nonEmpty), "All rows must be non-empty")
@@ -318,6 +350,11 @@ object Tensor2:
       .reshape(rows, cols)
 
     new Tensor(shape, jaxValues, dtype)
+
+  def stack[NewAxis <: Label, L1 <: Label, L2 <: Label](
+      tensors: Seq[Tensor2[L1, L2]]
+  ): Tensor3[NewAxis, L1, L2] = Tensor.stack[NewAxis, Tuple2[L1, L2]](tensors)
+
 
 object Tensor3:
   def apply[L1 <: Label, L2 <: Label, L3 <: Label](

@@ -52,11 +52,11 @@ object TensorOps:
       val result = Jax.jnp.divide(t.jaxValue, other.jaxValue)
       new Tensor[T](t.shape, result, DType.promoteTypes(t.dtype, other.dtype))
 
-    def exp(): Tensor[T] =
+    def exp: Tensor[T] =
       val result = Jax.jnp.exp(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
-    def log(): Tensor[T] =
+    def log: Tensor[T] =
       val result = Jax.jnp.log(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
@@ -64,61 +64,61 @@ object TensorOps:
       val result = Jax.jnp.pow(t.jaxValue, n.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
-    def norm(): Tensor0 =
+    def norm: Tensor0 =
       val result = Jax.jnp.linalg.norm(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
     // Reduction operations
-    def sum(): Tensor0 =
+    def sum: Tensor0 =
       val result = Jax.jnp.sum(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
-    def mean(): Tensor0 =
+    def mean: Tensor0 =
       val result = Jax.jnp.mean(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
-    def min(): Tensor0 =
+    def min: Tensor0 =
       val result = Jax.jnp.min(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
-    def max(): Tensor0 =
+    def max: Tensor0 =
       val result = Jax.jnp.max(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
-    def argmin(): Tensor0 =
+    def argmin: Tensor0 =
       val result = Jax.jnp.argmin(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, DType.Int32)
 
-    def argmax(): Tensor0 =
+    def argmax: Tensor0 =
       val result = Jax.jnp.argmax(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, DType.Int32)
 
-    def std(): Tensor0 =
+    def std: Tensor0 =
       val result = Jax.jnp.std(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
-    def variance(): Tensor0 =
+    def variance: Tensor0 =
       val result = Jax.jnp.`var`(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
     // Additional math operations
-    def abs(): Tensor[T] =
+    def abs: Tensor[T] =
       val result = Jax.jnp.abs(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
-    def sqrt(): Tensor[T] =
+    def sqrt: Tensor[T] =
       val result = Jax.jnp.sqrt(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
-    def sin(): Tensor[T] =
+    def sin: Tensor[T] =
       val result = Jax.jnp.sin(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
-    def cos(): Tensor[T] =
+    def cos: Tensor[T] =
       val result = Jax.jnp.cos(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
-    def tanh(): Tensor[T] =
+    def tanh: Tensor[T] =
       val result = Jax.jnp.tanh(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
@@ -191,9 +191,28 @@ object TensorOps:
       )
 
     @targetName("tensor2MatmulTensor1")
-    def matmul(other: Tensor1[L2]): Tensor1[L1] =
+    def matmul1(other: Tensor1[L2]): Tensor1[L1] =
       val result = Jax.jnp.dot(t.jaxValue, other.jaxValue)
       new Tensor(Shape1[L1](t.shape.dim[L1]), result, DType.promoteTypes(t.dtype, other.dtype))
+
+    /** 
+     * Compute the determinant of a square matrix
+     * 
+     * @return A scalar tensor containing the determinant
+     */
+    @targetName("tensor2Det")
+    def det: Tensor0 =
+      val detValue = Jax.jnp.linalg.det(t.jaxValue)
+      new Tensor(Shape0, detValue.as[Jax.PyDynamic], t.dtype)
+    
+    /** 
+     * Compute the inverse of a square matrix
+     * 
+     * @return The inverse matrix with transposed dimensions
+     */
+    @targetName("tensor2Inv")
+    def inv: Tensor2[L2, L1] = 
+      shapeful.linalg.Linalg.inverse(t)
 
     @targetName("tensor2as")
     def as[NewL1 <: Label, NewL2 <: Label]: Tensor[(NewL1, NewL2)] =

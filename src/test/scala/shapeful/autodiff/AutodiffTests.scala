@@ -63,7 +63,7 @@ class AutodiffTests extends FunSuite:
 
   test("grad of exponential function") {
     // f(x) = exp(x), f'(x) = exp(x)
-    val f = (x: Tensor0) => x.exp()
+    val f = (x: Tensor0) => x.exp
     val gradF = Autodiff.grad(f)
 
     val x = Tensor0(1.0f)
@@ -117,9 +117,9 @@ class AutodiffTests extends FunSuite:
     // Vector function using available operations: f(x) = [sum(x^2), mean(x), norm(x)]
     val f = (x: Tensor1[Feature]) =>
       val squared = x * x
-      val sumSquared = squared.sum() // Sum of squares
-      val meanVal = x.mean() // Mean value
-      val normVal = x.norm() // L2 norm
+      val sumSquared = squared.sum // Sum of squares
+      val meanVal = x.mean // Mean value
+      val normVal = x.norm // L2 norm
       Tensor0.stack[Output](Seq(sumSquared, meanVal, normVal))
 
     val jacF = Autodiff.jacFwd[Feature, Output](f)
@@ -155,8 +155,8 @@ class AutodiffTests extends FunSuite:
   test("jacRev computes Jacobian using reverse-mode differentiation") {
     // Simple vector function using available operations: f(x) = [2*sum(x), mean(x)]
     val f = (x: Tensor1[Feature]) =>
-      val scaledSum = x.sum() * Tensor0(2.0f) // 2 * sum
-      val meanVal = x.mean() // Mean value
+      val scaledSum = x.sum * Tensor0(2.0f) // 2 * sum
+      val meanVal = x.mean // Mean value
       Tensor1[Output](Seq(scaledSum.toFloat, meanVal.toFloat))
 
     val jacF = Autodiff.jacRev[Feature, Output](f)
@@ -184,7 +184,7 @@ class AutodiffTests extends FunSuite:
 
   test("grad of vector sum") {
     // f(v) = sum(v), gradient should be vector of ones
-    val f = (v: Tensor1[Feature]) => v.sum()
+    val f = (v: Tensor1[Feature]) => v.sum
     val gradF = Autodiff.grad(f)
 
     val v = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
@@ -199,7 +199,7 @@ class AutodiffTests extends FunSuite:
     // f(v) = ||v||^2 = sum(v^2), f'(v) = 2v
     val f = (v: Tensor1[Feature]) =>
       val squared = v * v
-      squared.sum()
+      squared.sum
     val gradF = Autodiff.grad(f)
 
     val v = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))

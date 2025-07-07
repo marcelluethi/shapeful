@@ -103,7 +103,7 @@ object CustomPyTree extends App:
     val (w1, b1, scale) = params
     
     // Simplified forward pass for demonstration
-    val hiddenActivation = w1.sum() + b1.sum()  // Simplified
+    val hiddenActivation = w1.sum + b1.sum  // Simplified
     val output = hiddenActivation * scale  // Simplified
     
     // Simple loss: squared output
@@ -136,7 +136,7 @@ object CustomPyTree extends App:
   
   def modelWithSimpleParams(params: SimplePair): Tensor0 =
     val (weight, scale) = params
-    weight.sum() * scale
+    weight.sum * scale
   
   val simpleParams: SimplePair = (
     Tensor2[Feature, Hidden](Seq(Seq(1.0f, 2.0f))),
@@ -178,7 +178,7 @@ object CustomPyTree extends App:
   // Test that we can use these parameters with autodiff
   def testFunction(params: (Tensor1[Feature], Tensor2[Feature, Hidden], Tensor0)): Tensor0 =
     val (t1, t2, s) = params
-    t1.sum() + t2.sum() + s
+    t1.sum + t2.sum + s
   
   val testLoss = testFunction(testParams)
   val testGrads = Autodiff.grad(testFunction)(testParams)

@@ -68,10 +68,10 @@ object ArithmeticOps extends App:
   
   val values = Tensor1[Feature](Seq(0.0f, 1.0f, 2.0f, 3.0f))
   println(s"values = $values")
-  println(s"exp(values) = ${values.exp()}")
-  println(s"sin(values) = ${values.sin()}")
-  println(s"cos(values) = ${values.cos()}")
-  println(s"tanh(values) = ${values.tanh()}")
+  println(s"exp(values) = ${values.exp}")
+  println(s"sin(values) = ${values.sin}")
+  println(s"cos(values) = ${values.cos}")
+  println(s"tanh(values) = ${values.tanh}")
   println()
 
   // 5. Reduction operations
@@ -84,10 +84,10 @@ object ArithmeticOps extends App:
   ))
   
   println(s"data = $data")
-  println(s"sum() = ${data.sum()}")
-  println(s"mean() = ${data.mean()}")
-  println(s"max() = ${data.max()}")
-  println(s"min() = ${data.min()}")
+  println(s"sum = ${data.sum}")
+  println(s"mean = ${data.mean}")
+  println(s"max = ${data.max}")
+  println(s"min = ${data.min}")
   println()
 
   // 6. Comparisons and boolean operations
@@ -107,8 +107,8 @@ object ArithmeticOps extends App:
   
   val input = Tensor1[Feature](Seq(-2.0f, -1.0f, 0.0f, 1.0f, 2.0f))
   val result = input
-    .exp()           // Exponential
-    .tanh()          // Hyperbolic tangent
+    .exp           // Exponential
+    .tanh          // Hyperbolic tangent
     * Tensor0(10.0f) // Scale by 10
     + Tensor0(1.0f)  // Add bias
   

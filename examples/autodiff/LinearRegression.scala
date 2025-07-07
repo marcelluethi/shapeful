@@ -57,7 +57,7 @@ object LinearRegression extends App:
   def loss(w: Tensor1[Feature], b: Tensor0): Tensor0 =
     val predictions = predict(w, b, X)
     val errors = predictions - y
-    (errors * errors).mean()  // Mean squared error
+    (errors * errors).mean  // Mean squared error
 
   // 5. Get gradient function
   val gradFn = Autodiff.grad((params: (Tensor1[Feature], Tensor0)) =>

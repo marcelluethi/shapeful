@@ -52,6 +52,17 @@ object Jax:
           e
         )
 
+  lazy val jrandom =
+    configurePythonPath
+    try py.module("jax.random")
+    catch
+      case e: Exception =>
+        throw new RuntimeException(
+          s"Failed to import JAX Random module. Make sure JAX is installed: ${e.getMessage}",
+          e
+        )
+
+
   lazy val jax_helper =
     configurePythonPath
     try py.module("jax_helper")

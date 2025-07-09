@@ -290,7 +290,14 @@ object Tensor:
     val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
-
+  def randn[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32, key : Int = scala.util.Random().nextInt()): Tensor[T] =
+    // Use JAX's random normal distribution
+    val jaxValues = Jax.jrandom.normal(
+      Jax.jrandom.key(0), // Use a fixed key for reproducibility
+      shape.dims.toPythonProxy, 
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    new Tensor[T](shape, jaxValues, dtype)
   
   def stack[NewAxis <: Label, T <: Tuple](tensors: Seq[Tensor[T]], dtype: DType = DType.Float32): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] = 
     require(tensors.nonEmpty, "Cannot stack empty sequence")

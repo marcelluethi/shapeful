@@ -181,6 +181,12 @@ object TensorOps:
       t.relabel[Tuple1[NewL]]
 
   extension [L1 <: Label, L2 <: Label](t: Tensor2[L1, L2])
+
+
+    def transpose: Tensor2[L2, L1] =
+      val result = Jax.jnp.transpose(t.jaxValue)
+      new Tensor(Shape2[L2, L1](t.shape.dim[L2], t.shape.dim[L1]), result, t.dtype)
+
     @targetName("tensor2MatmulTensor2")
     def matmul[L2Other <: Label](other: Tensor2[L2, L2Other]): Tensor2[L1, L2Other] =
       val result = Jax.jnp.matmul(t.jaxValue, other.jaxValue)

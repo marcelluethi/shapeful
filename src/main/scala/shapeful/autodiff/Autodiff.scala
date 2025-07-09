@@ -15,6 +15,8 @@ trait GradType[P, G]:
   /** Convert from gradient type back to parameter type if needed */
   def fromGradient(grad: G): P
 
+
+
 /** Companion object with helper methods and default instances */
 object GradType:
   /** Access an implicit GradType instance */
@@ -24,6 +26,7 @@ object GradType:
   given identityGradType[P]: GradType[P, P] = new GradType[P, P]:
     def toGradient(params: P, gradientValue: P): P = gradientValue
     def fromGradient(grad: P): P = grad
+      
 
 object Autodiff:
 

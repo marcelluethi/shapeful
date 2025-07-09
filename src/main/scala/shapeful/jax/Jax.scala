@@ -62,7 +62,6 @@ object Jax:
           e
         )
 
-
   lazy val jax_helper =
     configurePythonPath
     try py.module("jax_helper")

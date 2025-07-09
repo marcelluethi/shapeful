@@ -21,6 +21,5 @@ package object shapeful:
   export tensor.DType
   export linalg.Linalg
 
-
   // Export all TensorOps extensions
   export tensor.TensorOps.*

@@ -182,7 +182,6 @@ object TensorOps:
 
   extension [L1 <: Label, L2 <: Label](t: Tensor2[L1, L2])
 
-
     def transpose: Tensor2[L2, L1] =
       val result = Jax.jnp.transpose(t.jaxValue)
       new Tensor(Shape2[L2, L1](t.shape.dim[L2], t.shape.dim[L1]), result, t.dtype)
@@ -201,23 +200,23 @@ object TensorOps:
       val result = Jax.jnp.dot(t.jaxValue, other.jaxValue)
       new Tensor(Shape1[L1](t.shape.dim[L1]), result, DType.promoteTypes(t.dtype, other.dtype))
 
-    /** 
-     * Compute the determinant of a square matrix
-     * 
-     * @return A scalar tensor containing the determinant
-     */
+    /** Compute the determinant of a square matrix
+      *
+      * @return
+      *   A scalar tensor containing the determinant
+      */
     @targetName("tensor2Det")
     def det: Tensor0 =
       val detValue = Jax.jnp.linalg.det(t.jaxValue)
       new Tensor(Shape0, detValue.as[Jax.PyDynamic], t.dtype)
-    
-    /** 
-     * Compute the inverse of a square matrix
-     * 
-     * @return The inverse matrix with transposed dimensions
-     */
+
+    /** Compute the inverse of a square matrix
+      *
+      * @return
+      *   The inverse matrix with transposed dimensions
+      */
     @targetName("tensor2Inv")
-    def inv: Tensor2[L2, L1] = 
+    def inv: Tensor2[L2, L1] =
       shapeful.linalg.Linalg.inverse(t)
 
     @targetName("tensor2as")

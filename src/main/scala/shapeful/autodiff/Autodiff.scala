@@ -4,33 +4,31 @@ import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import me.shadaj.scalapy.py
 
-/**
- * Typeclass defining the relationship between a parameter type P and its gradient type G.
- * This allows for type-safe gradient computation where gradients are explicitly typed.
- */
+/** Typeclass defining the relationship between a parameter type P and its gradient type G. This allows for type-safe
+  * gradient computation where gradients are explicitly typed.
+  */
 trait GradType[P, G]:
   /** Convert parameter and computed gradient value to the gradient type */
   def toGradient(params: P, gradientValue: P): G
-  
+
   /** Convert from gradient type back to parameter type if needed */
   def fromGradient(grad: G): P
-
-
 
 /** Companion object with helper methods and default instances */
 object GradType:
   /** Access an implicit GradType instance */
   def apply[P, G](using gt: GradType[P, G]): GradType[P, G] = gt
-  
+
   /** Default instance where parameters and gradients have the same type */
   given identityGradType[P]: GradType[P, P] = new GradType[P, P]:
     def toGradient(params: P, gradientValue: P): P = gradientValue
     def fromGradient(grad: P): P = grad
-      
 
 object Autodiff:
 
-  def grad[Params: ToPyTree, Gradient](f: Params => Tensor[EmptyTuple])(using gradType : GradType[Params, Gradient]): Params => Gradient =
+  def grad[Params: ToPyTree, Gradient](f: Params => Tensor[EmptyTuple])(using
+      gradType: GradType[Params, Gradient]
+  ): Params => Gradient =
 
     val ptree = summon[ToPyTree[Params]]
 
@@ -63,7 +61,6 @@ object Autodiff:
       val value = new Tensor[EmptyTuple](Shape.empty, pyvalue)
       val grad = ptree.fromPyTree(pygrad)
       (value, grad)
-
 
   def jacFwd[InputDim <: Label, OutputDim <: Label](
       f: Tensor1[InputDim] => Tensor1[OutputDim]

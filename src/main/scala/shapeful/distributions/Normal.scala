@@ -11,8 +11,7 @@ class Normal[S <: Tuple](mu: Tensor[S], sigma: Tensor[S]):
   private val logSigma = sigma.log
   private val log2Pi = Tensor0(math.log(2 * Pi).toFloat)
 
-  /** Computes the log of the probability density function at x More numerically
-    * stable for very small probabilities
+  /** Computes the log of the probability density function at x More numerically stable for very small probabilities
     *
     * @param x
     *   Input tensor
@@ -26,7 +25,6 @@ class Normal[S <: Tuple](mu: Tensor[S], sigma: Tensor[S]):
     val xsubmu = x - mu
     val term3 = xsubmu.pow(Tensor0(2f)) / (variance) * (Tensor0(-0.5f))
 
-    
     (term2 + term3) + term1
 
   /** Generate samples from the normal distribution
@@ -34,7 +32,6 @@ class Normal[S <: Tuple](mu: Tensor[S], sigma: Tensor[S]):
     * @return
     *   Samples from the normal distribution
     */
-  def sample(): Tensor[S] = {
+  def sample(): Tensor[S] =
     val z = Tensor.randn(mu.shape)
     mu + sigma * z
-  }

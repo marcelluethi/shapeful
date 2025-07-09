@@ -127,7 +127,6 @@ class AutodiffTests extends FunSuite:
     val x = Tensor1[Feature](Seq(2.0f, 3.0f))
     val jacobian: Tensor2[Output, Feature] = jacF(x)
 
-
     // Expected Jacobian:
     // f(x) = [x0^2 + x1^2, (x0 + x1)/2, sqrt(x0^2 + x1^2)]
     // For x = [2, 3]:
@@ -149,7 +148,10 @@ class AutodiffTests extends FunSuite:
     assert(jacobian.shape.dims(0) == 3, "Output dimension should be 3")
     assert(jacobian.shape.dims(1) == 2, "Input dimension should be 2")
     // Check actual values
-    assert(jacobian.approxEquals(expected, tolerance = 1e-5f), s"Jacobian values incorrect.\nExpected: ${expected.inspect}\nActual: ${jacobian.inspect}")
+    assert(
+      jacobian.approxEquals(expected, tolerance = 1e-5f),
+      s"Jacobian values incorrect.\nExpected: ${expected.inspect}\nActual: ${jacobian.inspect}"
+    )
   }
 
   test("jacRev computes Jacobian using reverse-mode differentiation") {
@@ -163,9 +165,6 @@ class AutodiffTests extends FunSuite:
 
     val x = Tensor1[Feature](Seq(3.0f, 4.0f))
     val jacobian: Tensor2[Output, Feature] = jacF(x)
-
-    println(s"Jacobian shape: ${jacobian.shape.dims}")
-    println(s"Jacobian: ${jacobian.inspect}")
 
     // Verify the computation runs and produces a 2D tensor
     assert(jacobian.shape.dims.length == 2, "Jacobian should be a 2D tensor")

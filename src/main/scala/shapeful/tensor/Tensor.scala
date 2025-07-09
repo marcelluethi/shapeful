@@ -11,8 +11,6 @@ import me.shadaj.scalapy.py.SeqConverters
 
 class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val dtype: DType = DType.Float32):
 
-
-
   /** map a function over the given axis of the tensor
     */
   inline def vmap[VmapAxis <: Label, OuterShape <: Tuple](
@@ -290,26 +288,32 @@ object Tensor:
     val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
-  def randn[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32, key : Int = scala.util.Random().nextInt()): Tensor[T] =
+  def randn[T <: Tuple](
+      shape: Shape[T],
+      dtype: DType = DType.Float32,
+      key: Int = scala.util.Random().nextInt()
+  ): Tensor[T] =
     // Use JAX's random normal distribution
     val jaxValues = Jax.jrandom.normal(
       Jax.jrandom.key(0), // Use a fixed key for reproducibility
-      shape.dims.toPythonProxy, 
+      shape.dims.toPythonProxy,
       dtype = JaxDType.jaxDtype(dtype)
     )
     new Tensor[T](shape, jaxValues, dtype)
-  
-  def stack[NewAxis <: Label, T <: Tuple](tensors: Seq[Tensor[T]], dtype: DType = DType.Float32): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] = 
+
+  def stack[NewAxis <: Label, T <: Tuple](
+      tensors: Seq[Tensor[T]],
+      dtype: DType = DType.Float32
+  ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
     require(tensors.nonEmpty, "Cannot stack empty sequence")
     val refShape = tensors.head.shape
-  
+
     val jaxValues = tensors.map(_.jaxValue).toPythonProxy
     val stacked = Jax.jnp.stack(jaxValues)
     val newShapeSeq = Seq(tensors.length) ++ refShape.dims
     val newShapeTuple = TupleHelpers.createTupleFromSeq[Tuple.Concat[Tuple1[NewAxis], T]](newShapeSeq)
     val shape = Shape[Tuple.Concat[Tuple1[NewAxis], T]](newShapeTuple)
     new Tensor(shape, stacked, dtype)
-
 
 object Tensor0:
   import Tensor.{Tensor0, Tensor1}
@@ -337,7 +341,6 @@ object Tensor1:
       tensors: Seq[Tensor1[L]]
   ): Tensor2[NewAxis, L] = Tensor.stack[NewAxis, Tuple1[L]](tensors)
 
-
 object Tensor2:
 
   import Tensor.{Tensor2, Tensor3}
@@ -361,7 +364,6 @@ object Tensor2:
   def stack[NewAxis <: Label, L1 <: Label, L2 <: Label](
       tensors: Seq[Tensor2[L1, L2]]
   ): Tensor3[NewAxis, L1, L2] = Tensor.stack[NewAxis, Tuple2[L1, L2]](tensors)
-
 
 object Tensor3:
   def apply[L1 <: Label, L2 <: Label, L3 <: Label](

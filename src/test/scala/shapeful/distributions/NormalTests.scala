@@ -16,8 +16,7 @@ class NormalTests extends FunSuite:
   val tolerance = 1e-5f
 
   def assertApproxEqual(actual: Float, expected: Float, tolerance: Float = tolerance): Unit =
-    if abs(actual - expected) > tolerance then
-      fail(s"Expected $expected, but got $actual (tolerance: $tolerance)")
+    if abs(actual - expected) > tolerance then fail(s"Expected $expected, but got $actual (tolerance: $tolerance)")
 
   override def beforeAll(): Unit =
     super.beforeAll()
@@ -48,7 +47,7 @@ class NormalTests extends FunSuite:
     // Test at x = 0 (should be peak of standard normal)
     val x = Tensor0(0.0f)
     val logpdf = normal.logpdf(x)
-    
+
     // For standard normal at x=0: log(1/sqrt(2π)) = -0.5 * log(2π)
     val expected = -0.5f * log(2 * Pi).toFloat
     assertApproxEqual(logpdf.toFloat, expected)
@@ -61,7 +60,7 @@ class NormalTests extends FunSuite:
 
     val x = Tensor0(1.0f)
     val logpdf = normal.logpdf(x)
-    
+
     // For standard normal at x=1: -0.5 * log(2π) - 0.5 * 1^2
     val expected = -0.5f * log(2 * Pi).toFloat - 0.5f
     assertApproxEqual(logpdf.toFloat, expected)
@@ -74,7 +73,7 @@ class NormalTests extends FunSuite:
 
     val x = Tensor0(2.0f) // At the mean
     val logpdf = normal.logpdf(x)
-    
+
     // At the mean: -0.5 * log(2π) - log(σ)
     val expected = -0.5f * log(2 * Pi).toFloat - log(3.0f).toFloat
     assertApproxEqual(logpdf.toFloat, expected)
@@ -92,7 +91,7 @@ class NormalTests extends FunSuite:
     // All should give the same value since they're all at their means with same sigma
     val expected = -0.5f * log(2 * Pi).toFloat
     val expectedTensor = Tensor(shape, Seq(expected, expected, expected), DType.Float32)
-    
+
     // Use tensor equality for comparison
     assert(logpdf.approxEquals(expectedTensor, tolerance))
   }
@@ -104,7 +103,7 @@ class NormalTests extends FunSuite:
 
     val x1 = Tensor0(3.0f) // mu - 2
     val x2 = Tensor0(7.0f) // mu + 2
-    
+
     val logpdf1 = normal.logpdf(x1)
     val logpdf2 = normal.logpdf(x2)
 
@@ -119,7 +118,7 @@ class NormalTests extends FunSuite:
     val normal = Normal(mu, sigma)
 
     val sample = normal.sample()
-    
+
     assertEquals(sample.shape, shape)
     assertEquals(sample.dtype, DType.Float32)
   }
@@ -130,7 +129,7 @@ class NormalTests extends FunSuite:
     val normal = Normal(mu, sigma)
 
     val sample = normal.sample()
-    
+
     // Should be a scalar tensor
     assertEquals(sample.shape.dims.length, 0)
     assertEquals(sample.dtype, DType.Float32)
@@ -190,11 +189,11 @@ class NormalTests extends FunSuite:
     val logpdf = normal.logpdf(x)
 
     assertEquals(logpdf.shape, shape)
-    
+
     // All values should be the same since all inputs are at their respective means
     val expected = -0.5f * log(2 * Pi).toFloat
     val expectedTensor = Tensor(shape, Seq.fill(4)(expected), DType.Float32)
-    
+
     // Use tensor equality for comparison
     assert(logpdf.approxEquals(expectedTensor, tolerance))
   }

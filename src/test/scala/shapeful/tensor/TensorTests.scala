@@ -422,7 +422,7 @@ class TensorTests extends FunSuite:
     val t1 = Tensor0(1.0f)
     val t2 = Tensor0(2.0f)
     val t3 = Tensor0(3.0f)
-    val stacked = Tensor0.stack[NewAxis=Feature](Seq(t1, t2, t3))
+    val stacked = Tensor0.stack[NewAxis = Feature](Seq(t1, t2, t3))
     val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
     assertEquals(stacked.shape.dims, Seq(3))
     assert(stacked.tensorEquals(expected))

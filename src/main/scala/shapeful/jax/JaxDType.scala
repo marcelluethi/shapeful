@@ -31,11 +31,11 @@ object JaxDType:
         case "bool"       => DType.Bool
         case "complex64"  => DType.Complex64
         case "complex128" => DType.Complex128
-        case _ =>
+        case _            =>
           throw new IllegalArgumentException(s"Unsupported JAX dtype: $dtypeStr")
     catch
       case e: IllegalArgumentException => throw e
-      case e: Exception =>
+      case e: Exception                =>
         throw new RuntimeException(s"Failed to extract dtype from JAX object: ${e.getMessage}", e)
 
   // Convert DType to JAX dtype

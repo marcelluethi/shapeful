@@ -15,10 +15,10 @@ object TupleHelpers:
   /** Remove the first occurrence of an element A from a tuple B
     */
   type Remove[A, B <: Tuple] <: Tuple = B match
-    case EmptyTuple => EmptyTuple
+    case EmptyTuple      => EmptyTuple
     case A *: EmptyTuple =>
       EmptyTuple // If removing the only element, return empty
-    case A *: tail => tail // If removing first element, return tail
+    case A *: tail    => tail // If removing first element, return tail
     case head *: tail =>
       head *: Remove[A, tail] // Otherwise, keep head and recurse
 
@@ -74,13 +74,13 @@ object TupleHelpers:
     inline erasedValue[B] match
       case _: (A *: tail)    => 0
       case _: (head *: tail) => 1 + indexOf[A, tail]
-      case _: EmptyTuple =>
+      case _: EmptyTuple     =>
         error("Element not found in tuple")
 
   /** Get indices of all elements from ToFind in InTuple
     */
   inline def indicesOf[ToFind <: Tuple, InTuple <: Tuple]: Tuple =
     inline erasedValue[ToFind] match
-      case _: EmptyTuple => EmptyTuple
+      case _: EmptyTuple     => EmptyTuple
       case _: (head *: tail) =>
         indexOf[head, InTuple] *: indicesOf[tail, InTuple]

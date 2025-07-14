@@ -31,7 +31,11 @@ class TensorTreeTests extends FunSuite:
     def map(p: SimpleParams, f: [T <: Tuple] => Tensor[T] => Tensor[T]): SimpleParams =
       SimpleParams(f(p.value))
 
-    def zipMap(p1: SimpleParams, p2: SimpleParams, f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]): SimpleParams =
+    def zipMap(
+        p1: SimpleParams,
+        p2: SimpleParams,
+        f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]
+    ): SimpleParams =
       SimpleParams(f(p1.value, p2.value))
 
   given TensorTree[LinearParams] with
@@ -41,7 +45,11 @@ class TensorTreeTests extends FunSuite:
         bias = f(p.bias)
       )
 
-    def zipMap(p1: LinearParams, p2: LinearParams, f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]): LinearParams =
+    def zipMap(
+        p1: LinearParams,
+        p2: LinearParams,
+        f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]
+    ): LinearParams =
       LinearParams(
         weight = f(p1.weight, p2.weight),
         bias = f(p1.bias, p2.bias)
@@ -55,7 +63,11 @@ class TensorTreeTests extends FunSuite:
         scale = f(p.scale)
       )
 
-    def zipMap(p1: NetworkParams, p2: NetworkParams, f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]): NetworkParams =
+    def zipMap(
+        p1: NetworkParams,
+        p2: NetworkParams,
+        f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]
+    ): NetworkParams =
       NetworkParams(
         layer1 = TensorTree[LinearParams].zipMap(p1.layer1, p2.layer1, f),
         layer2 = TensorTree[LinearParams].zipMap(p1.layer2, p2.layer2, f),
@@ -66,7 +78,7 @@ class TensorTreeTests extends FunSuite:
   test("TensorTree works with single tensors") {
     val original = Tensor0(5.0f)
     val doubled = TensorTree[Tensor0].map(original, [T <: Tuple] => (t: Tensor[T]) => (t * Tensor0(2.0f)))
-    
+
     val expected = Tensor0(10.0f)
     assert(doubled.approxEquals(expected, tolerance = 1e-5f), s"Expected ${expected.toFloat}, got ${doubled.toFloat}")
   }
@@ -74,9 +86,12 @@ class TensorTreeTests extends FunSuite:
   test("TensorTree map preserves structure for simple params") {
     val params = SimpleParams(Tensor0(3.0f))
     val scaled = TensorTree[SimpleParams].map(params, [T <: Tuple] => (t: Tensor[T]) => (t * Tensor0(2.0f)))
-    
+
     val expected = Tensor0(6.0f)
-    assert(scaled.value.approxEquals(expected, tolerance = 1e-5f), s"Expected ${expected.toFloat}, got ${scaled.value.toFloat}")
+    assert(
+      scaled.value.approxEquals(expected, tolerance = 1e-5f),
+      s"Expected ${expected.toFloat}, got ${scaled.value.toFloat}"
+    )
   }
 
   test("TensorTree map works with linear layer parameters") {
@@ -110,18 +125,27 @@ class TensorTreeTests extends FunSuite:
     val halved = TensorTree[NetworkParams].map(params, [T <: Tuple] => (t: Tensor[T]) => (t / Tensor0(2.0f)))
 
     // Check that all tensors were halved
-    assert(halved.layer1.weight.at((0, 0)).get.approxEquals(Tensor0(0.5f), tolerance = 1e-5f), "Layer1 weight should be halved")
-    assert(halved.layer1.bias.at(Tuple1(0)).get.approxEquals(Tensor0(0.25f), tolerance = 1e-5f), "Layer1 bias should be halved")
-    assert(halved.layer2.weight.at((0, 0)).get.approxEquals(Tensor0(1.5f), tolerance = 1e-5f), "Layer2 weight should be halved")
+    assert(
+      halved.layer1.weight.at((0, 0)).get.approxEquals(Tensor0(0.5f), tolerance = 1e-5f),
+      "Layer1 weight should be halved"
+    )
+    assert(
+      halved.layer1.bias.at(Tuple1(0)).get.approxEquals(Tensor0(0.25f), tolerance = 1e-5f),
+      "Layer1 bias should be halved"
+    )
+    assert(
+      halved.layer2.weight.at((0, 0)).get.approxEquals(Tensor0(1.5f), tolerance = 1e-5f),
+      "Layer2 weight should be halved"
+    )
     assert(halved.scale.approxEquals(Tensor0(1.0f), tolerance = 1e-5f), "Scale should be halved")
   }
 
   test("TensorTree zipMap combines two simple tensors") {
     val t1 = Tensor0(3.0f)
     val t2 = Tensor0(4.0f)
-    
+
     val sum = TensorTree[Tensor0].zipMap(t1, t2, [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a + b))
-    
+
     val expected = Tensor0(7.0f)
     assert(sum.approxEquals(expected, tolerance = 1e-5f), s"Expected ${expected.toFloat}, got ${sum.toFloat}")
   }
@@ -129,15 +153,18 @@ class TensorTreeTests extends FunSuite:
   test("TensorTree zipMap works with simple parameter structures") {
     val params1 = SimpleParams(Tensor0(2.0f))
     val params2 = SimpleParams(Tensor0(3.0f))
-    
+
     val combined = TensorTree[SimpleParams].zipMap(
-      params1, 
-      params2, 
+      params1,
+      params2,
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a * b)
     )
-    
+
     val expected = Tensor0(6.0f)
-    assert(combined.value.approxEquals(expected, tolerance = 1e-5f), s"Expected ${expected.toFloat}, got ${combined.value.toFloat}")
+    assert(
+      combined.value.approxEquals(expected, tolerance = 1e-5f),
+      s"Expected ${expected.toFloat}, got ${combined.value.toFloat}"
+    )
   }
 
   test("TensorTree zipMap combines linear layer parameters") {
@@ -151,8 +178,8 @@ class TensorTreeTests extends FunSuite:
     )
 
     val sum = TensorTree[LinearParams].zipMap(
-      params1, 
-      params2, 
+      params1,
+      params2,
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a + b)
     )
 
@@ -189,42 +216,57 @@ class TensorTreeTests extends FunSuite:
     )
 
     val difference = TensorTree[NetworkParams].zipMap(
-      params1, 
-      params2, 
+      params1,
+      params2,
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a - b)
     )
 
     // Check specific values
-    assert(difference.layer1.weight.at((0, 0)).get.approxEquals(Tensor0(-1.0f), tolerance = 1e-5f), "Layer1 weight difference should be correct")
-    assert(difference.layer2.bias.at(Tuple1(0)).get.approxEquals(Tensor0(1.0f), tolerance = 1e-5f), "Layer2 bias difference should be correct")
+    assert(
+      difference.layer1.weight.at((0, 0)).get.approxEquals(Tensor0(-1.0f), tolerance = 1e-5f),
+      "Layer1 weight difference should be correct"
+    )
+    assert(
+      difference.layer2.bias.at(Tuple1(0)).get.approxEquals(Tensor0(1.0f), tolerance = 1e-5f),
+      "Layer2 bias difference should be correct"
+    )
     assert(difference.scale.approxEquals(Tensor0(-1.0f), tolerance = 1e-5f), "Scale difference should be correct")
   }
 
   test("extension methods work correctly") {
     val params = SimpleParams(Tensor0(4.0f))
     val scaled = params.map([T <: Tuple] => (t: Tensor[T]) => (t * Tensor0(3.0f)))
-    
+
     val expected = Tensor0(12.0f)
-    assert(scaled.value.approxEquals(expected, tolerance = 1e-5f), s"Extension method should work: expected ${expected.toFloat}, got ${scaled.value.toFloat}")
+    assert(
+      scaled.value.approxEquals(expected, tolerance = 1e-5f),
+      s"Extension method should work: expected ${expected.toFloat}, got ${scaled.value.toFloat}"
+    )
   }
 
   test("extension zipMap method works correctly") {
     val params1 = SimpleParams(Tensor0(6.0f))
     val params2 = SimpleParams(Tensor0(4.0f))
-    
+
     val ratio = params1.zipMap(params2, [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a / b))
-    
+
     val expected = Tensor0(1.5f)
-    assert(ratio.value.approxEquals(expected, tolerance = 1e-5f), s"Extension zipMap should work: expected ${expected.toFloat}, got ${ratio.value.toFloat}")
+    assert(
+      ratio.value.approxEquals(expected, tolerance = 1e-5f),
+      s"Extension zipMap should work: expected ${expected.toFloat}, got ${ratio.value.toFloat}"
+    )
   }
 
   test("TensorTree.apply summon syntax works") {
     val params = SimpleParams(Tensor0(7.0f))
     val tree = TensorTree[SimpleParams]
     val negated = tree.map(params, [T <: Tuple] => (t: Tensor[T]) => (t * Tensor0(-1.0f)))
-    
+
     val expected = Tensor0(-7.0f)
-    assert(negated.value.approxEquals(expected, tolerance = 1e-5f), s"TensorTree.apply should work: expected ${expected.toFloat}, got ${negated.value.toFloat}")
+    assert(
+      negated.value.approxEquals(expected, tolerance = 1e-5f),
+      s"TensorTree.apply should work: expected ${expected.toFloat}, got ${negated.value.toFloat}"
+    )
   }
 
   test("multiple operations can be chained") {
@@ -240,8 +282,14 @@ class TensorTreeTests extends FunSuite:
 
     // weight: 2.0 -> 4.0 -> 5.0 -> 25.0
     // bias: 1.0 -> 2.0 -> 3.0 -> 9.0
-    assert(step3.weight.at((0, 0)).get.approxEquals(Tensor0(25.0f), tolerance = 1e-5f), "Chained operations should work correctly")
-    assert(step3.bias.at(Tuple1(0)).get.approxEquals(Tensor0(9.0f), tolerance = 1e-5f), "Chained operations should work correctly")
+    assert(
+      step3.weight.at((0, 0)).get.approxEquals(Tensor0(25.0f), tolerance = 1e-5f),
+      "Chained operations should work correctly"
+    )
+    assert(
+      step3.bias.at(Tuple1(0)).get.approxEquals(Tensor0(9.0f), tolerance = 1e-5f),
+      "Chained operations should work correctly"
+    )
   }
 
   test("zipMap with different operations for different tensor types") {
@@ -256,17 +304,29 @@ class TensorTreeTests extends FunSuite:
 
     // Divide weights, subtract biases
     val weightDivided = TensorTree[LinearParams].zipMap(
-      params1, 
-      params2, 
+      params1,
+      params2,
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a / b)
     )
 
     // weight: 8/2=4, 12/3=4
     // bias: 4/2=2, 6/3=2
-    assert(weightDivided.weight.at((0, 0)).get.approxEquals(Tensor0(4.0f), tolerance = 1e-5f), "Weight division should be correct")
-    assert(weightDivided.weight.at((0, 1)).get.approxEquals(Tensor0(4.0f), tolerance = 1e-5f), "Weight division should be correct")
-    assert(weightDivided.bias.at(Tuple1(0)).get.approxEquals(Tensor0(2.0f), tolerance = 1e-5f), "Bias division should be correct")
-    assert(weightDivided.bias.at(Tuple1(1)).get.approxEquals(Tensor0(2.0f), tolerance = 1e-5f), "Bias division should be correct")
+    assert(
+      weightDivided.weight.at((0, 0)).get.approxEquals(Tensor0(4.0f), tolerance = 1e-5f),
+      "Weight division should be correct"
+    )
+    assert(
+      weightDivided.weight.at((0, 1)).get.approxEquals(Tensor0(4.0f), tolerance = 1e-5f),
+      "Weight division should be correct"
+    )
+    assert(
+      weightDivided.bias.at(Tuple1(0)).get.approxEquals(Tensor0(2.0f), tolerance = 1e-5f),
+      "Bias division should be correct"
+    )
+    assert(
+      weightDivided.bias.at(Tuple1(1)).get.approxEquals(Tensor0(2.0f), tolerance = 1e-5f),
+      "Bias division should be correct"
+    )
   }
 
 end TensorTreeTests

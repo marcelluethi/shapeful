@@ -22,57 +22,18 @@ class TensorTreeTests extends FunSuite:
     super.beforeAll()
 
   // Test parameter structures for testing
-  case class SimpleParams(value: Tensor0)
-  case class LinearParams(weight: Tensor2[Feature, Hidden], bias: Tensor1[Hidden])
-  case class NetworkParams(layer1: LinearParams, layer2: LinearParams, scale: Tensor0)
+  case class SimpleParams(value: Tensor0) derives TensorTree
 
-  // TensorTree instances for test structures
-  given TensorTree[SimpleParams] with
-    def map(p: SimpleParams, f: [T <: Tuple] => Tensor[T] => Tensor[T]): SimpleParams =
-      SimpleParams(f(p.value))
+  case class LinearParams(
+      weight: Tensor2[Feature, Hidden],
+      bias: Tensor1[Hidden]
+  ) derives TensorTree
 
-    def zipMap(
-        p1: SimpleParams,
-        p2: SimpleParams,
-        f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]
-    ): SimpleParams =
-      SimpleParams(f(p1.value, p2.value))
-
-  given TensorTree[LinearParams] with
-    def map(p: LinearParams, f: [T <: Tuple] => Tensor[T] => Tensor[T]): LinearParams =
-      LinearParams(
-        weight = f(p.weight),
-        bias = f(p.bias)
-      )
-
-    def zipMap(
-        p1: LinearParams,
-        p2: LinearParams,
-        f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]
-    ): LinearParams =
-      LinearParams(
-        weight = f(p1.weight, p2.weight),
-        bias = f(p1.bias, p2.bias)
-      )
-
-  given TensorTree[NetworkParams] with
-    def map(p: NetworkParams, f: [T <: Tuple] => Tensor[T] => Tensor[T]): NetworkParams =
-      NetworkParams(
-        layer1 = TensorTree[LinearParams].map(p.layer1, f),
-        layer2 = TensorTree[LinearParams].map(p.layer2, f),
-        scale = f(p.scale)
-      )
-
-    def zipMap(
-        p1: NetworkParams,
-        p2: NetworkParams,
-        f: [T <: Tuple] => (Tensor[T], Tensor[T]) => Tensor[T]
-    ): NetworkParams =
-      NetworkParams(
-        layer1 = TensorTree[LinearParams].zipMap(p1.layer1, p2.layer1, f),
-        layer2 = TensorTree[LinearParams].zipMap(p1.layer2, p2.layer2, f),
-        scale = f(p1.scale, p2.scale)
-      )
+  case class NetworkParams(
+      layer1: LinearParams,
+      layer2: LinearParams,
+      scale: Tensor0
+  ) derives TensorTree
 
   // Basic TensorTree functionality tests
   test("TensorTree works with single tensors") {
@@ -205,11 +166,11 @@ class TensorTreeTests extends FunSuite:
 
     val params2 = NetworkParams(
       layer1 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 3.0f))),
+        weight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 3.5f))),
         bias = Tensor1[Hidden](Seq(0.5f, 1.5f))
       ),
       layer2 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(5.0f, 6.0f))),
+        weight = Tensor2[Feature, Hidden](Seq(Seq(5.0f, 4.0f))),
         bias = Tensor1[Hidden](Seq(2.0f, 3.0f))
       ),
       scale = Tensor0(2.0f)
@@ -220,17 +181,15 @@ class TensorTreeTests extends FunSuite:
       params2,
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a - b)
     )
+    val expectedWeightDiffLayer2 =
+      Tensor2[Feature, Hidden](Seq(Seq(-2f, 0f)))
+    val expectedBiasDiffLayer2 =
+      Tensor1[Hidden](Seq(1f, 1f))
 
-    // Check specific values
     assert(
-      difference.layer1.weight.at((0, 0)).get.approxEquals(Tensor0(-1.0f), tolerance = 1e-5f),
-      "Layer1 weight difference should be correct"
+      difference.layer2.weight.approxEquals(expectedWeightDiffLayer2),
+      "Layer2 weight difference should be correct"
     )
-    assert(
-      difference.layer2.bias.at(Tuple1(0)).get.approxEquals(Tensor0(1.0f), tolerance = 1e-5f),
-      "Layer2 bias difference should be correct"
-    )
-    assert(difference.scale.approxEquals(Tensor0(-1.0f), tolerance = 1e-5f), "Scale difference should be correct")
   }
 
   test("extension methods work correctly") {

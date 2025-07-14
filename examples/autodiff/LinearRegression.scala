@@ -2,6 +2,7 @@ package examples.autodiff
 
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
+import shapeful.optimization.GradientDescent
 
 /**
  * Simple linear regression example with vmap and automatic differentiation.
@@ -76,18 +77,15 @@ object LinearRegression extends App:
   val learningRate = 0.01f
   val numEpochs = 150
   
-  for epoch <- 1 to numEpochs do
-    // Compute gradients using automatic differentiation
-    val gradients = gradFn((weight, bias))
-    
-    // Update parameters: param = param - learning_rate * gradient
-    weight = weight - gradients._1 * Tensor0(learningRate)
-    bias = bias - gradients._2 * Tensor0(learningRate)
-    
-    // Print progress every 10 epochs
-    if epoch % 10 == 0 then
-      val currentLoss = loss(weight, bias)
-      println(f"Epoch $epoch%2d: loss = ${currentLoss.toFloat}%.6f")
+  val optimizer = GradientDescent(learningRate)
+  optimizer.optimize(gradFn, (weight, bias)).take(numEpochs)
+  .zipWithIndex.foreach { case ((w, b), currentIteration) =>
+    weight = w
+    bias = b
+    val currentLoss = loss(weight, bias)
+    println(s"Epoch: $currentIteration, Loss: ${currentLoss.toFloat}, Weight: $weight, Bias: ${bias.toFloat}")
+  }
+
 
   println()
 

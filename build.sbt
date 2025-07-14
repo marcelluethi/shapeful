@@ -4,7 +4,6 @@ import ai.kien.python.Python
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.0"
 
-
 lazy val root = (project in file("."))
   .settings(
     name := "MapTensor",
@@ -25,12 +24,14 @@ lazy val examples = (project in file("examples"))
       "dev.scalapy" %% "scalapy-core" % "0.5.3"
     ),
     fork := true,
+    envVars := Map("PYTHONPATH" -> (baseDirectory.value.getParentFile / "src" / "python").getAbsolutePath),
     // Don't publish examples
     publish := {},
     publishLocal := {},
     publishArtifact := false,
     // Examples source directory
-    Compile / scalaSource := baseDirectory.value
+    Compile / scalaSource := baseDirectory.value,
+    scalafmtFailOnErrors := false
   )
 
 

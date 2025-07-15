@@ -3,6 +3,7 @@ package examples.autodiff
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.optimization.GradientDescent
+import shapeful.tree.TensorTree
 
 /**
  * Simple linear regression example with vmap and automatic differentiation.
@@ -37,36 +38,35 @@ object LinearRegression extends App:
   println(s"True relationship: y = x1 + 2*x2 + 1")
   println()
 
-  // 2. Initialize model parameters
+  // 2. Define model parameters
   println("2. Initializing Model Parameters")
+  case class ModelParams(
+    weight: Tensor1[Feature],
+    bias: Tensor0
+  ) derives TensorTree, ToPyTree
   
-  var weight = Tensor1[Feature](Seq(0.1f, 0.1f))
-  var bias = Tensor0(0.0f)
-  
-  println(s"Initial weight: $weight")
-  println(s"Initial bias: ${bias.toFloat}")
-  println()
-
   // 3. Define prediction function using vmap
   println("3. Defining Model with vmap")
   
-  def predict(w: Tensor1[Feature], b: Tensor0, x: Tensor2[Sample, Feature]): Tensor1[Sample] =
+  def predict(params : ModelParams, x: Tensor2[Sample, Feature]): Tensor1[Sample] =
     // Use vmap to apply dot product across all samples
-    x.vmap[VmapAxis=Sample](sample => sample.dot(w) + b)
+    x.vmap[VmapAxis=Sample](sample => sample.dot(params.weight) + params.bias)
 
   // 4. Loss function (Mean Squared Error)
-  def loss(w: Tensor1[Feature], b: Tensor0): Tensor0 =
-    val predictions = predict(w, b, X)
+  def loss(params : ModelParams): Tensor0 =
+    val predictions = predict(params, X)
     val errors = predictions - y
     (errors * errors).mean  // Mean squared error
 
   // 5. Get gradient function
-  val gradFn = Autodiff.grad((params: (Tensor1[Feature], Tensor0)) =>
-    val (w, b) = params
-    loss(w, b)
-  )
+  val gradFn = Autodiff.grad(params => loss(params))
   
-  val initialLoss = loss(weight, bias)
+  val initialParams = ModelParams(
+    weight = Tensor1[Feature](Seq(0.0f, 0.0f)), // Initial weights
+    bias = Tensor0(0.0f)                        // Initial bias
+  )
+
+  val initialLoss = loss(initialParams)
   println(s"Initial loss: ${initialLoss.toFloat}")
   println(s"Loss function: MSE = mean((predictions - labels)²)")
   println()
@@ -78,13 +78,12 @@ object LinearRegression extends App:
   val numEpochs = 150
   
   val optimizer = GradientDescent(learningRate)
-  optimizer.optimize(gradFn, (weight, bias)).take(numEpochs)
-  .zipWithIndex.foreach { case ((w, b), currentIteration) =>
-    weight = w
-    bias = b
-    val currentLoss = loss(weight, bias)
-    println(s"Epoch: $currentIteration, Loss: ${currentLoss.toFloat}, Weight: $weight, Bias: ${bias.toFloat}")
-  }
+  val finalParams = optimizer.optimize(gradFn, initialParams).take(numEpochs)
+  .zipWithIndex.map { case (params, currentIteration) =>
+    val currentLoss = loss(params)
+    println(s"Epoch: $currentIteration, Loss: ${currentLoss.toFloat}, Params: $params")
+    params
+  }.toSeq.last
 
 
   println()
@@ -92,16 +91,16 @@ object LinearRegression extends App:
   // 7. Final results
   println("5. Final Results")
   
-  val finalLoss = loss(weight, bias)
-  println(s"Final weight: $weight")
-  println(s"Final bias: ${bias.toFloat}")
+  val finalLoss = loss(finalParams)
+  println(s"Final weight: ${finalParams.weight}")
+  println(s"Final bias: ${finalParams.bias.toFloat}")
   println(s"Final loss: ${finalLoss.toFloat}")
   println()
   
   println("Expected parameters: weight ≈ [1.0, 2.0], bias ≈ 1.0")
   
   // Show final predictions vs true labels
-  val finalPredictions = predict(weight, bias, X)
+  val finalPredictions = predict(finalParams, X)
   println(s"Final predictions: $finalPredictions")
   println(s"True labels:      $y")
   println()

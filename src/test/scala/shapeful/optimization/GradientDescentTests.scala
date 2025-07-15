@@ -3,9 +3,7 @@ package shapeful.optimization
 import munit.FunSuite
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
-import shapeful.tree.{TensorTree, given}
-import shapeful.tree.TensorTree
-import shapeful.autodiff.Autodiff
+import shapeful.autodiff.*
 import shapeful.optimization.GradientDescent
 import me.shadaj.scalapy.py
 

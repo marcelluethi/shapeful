@@ -1,7 +1,9 @@
-package shapeful.jax
+package shapeful.autodiff
 
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
+import shapeful.jax.Jax
+
 import me.shadaj.scalapy.py.PyQuote
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters

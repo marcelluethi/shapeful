@@ -2,16 +2,9 @@ import scala.language.experimental.namedTypeArguments
 
 package object shapeful:
 
-  import jax.Jax
   import tensor.*
 
   type Label = Singleton
-
-  export jax.Jax.{PyAny, PyDynamic}
-  export jax.Jax
-  export jax.ToPyTree
-
-  export autodiff.Autodiff
 
   export tensor.{Shape, Shape0, Shape1, Shape2, Shape3}
   export tensor.Shape.{Shape0, Shape1, Shape2, Shape3}

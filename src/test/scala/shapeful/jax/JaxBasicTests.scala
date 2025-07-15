@@ -4,6 +4,7 @@ import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import me.shadaj.scalapy.py
 import shapeful.jax.Jax
+import shapeful.autodiff.ToPyTree
 
 class JaxBasicTests extends FunSuite:
 

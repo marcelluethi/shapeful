@@ -2,9 +2,8 @@ package shapeful.tree
 
 import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
-import shapeful.{Tensor, Tensor0, Tensor1, Tensor2, Label}
-import shapeful.tensor.Shape
-import shapeful.tensor.Shape.*
+import shapeful.*
+import shapeful.autodiff.*
 
 class TensorTreeTests extends FunSuite:
 

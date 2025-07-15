@@ -2,8 +2,8 @@ package examples.autodiff
 
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
+import shapeful.autodiff.*
 import shapeful.optimization.GradientDescent
-import shapeful.tree.TensorTree
 
 /**
  * Simple linear regression example with vmap and automatic differentiation.

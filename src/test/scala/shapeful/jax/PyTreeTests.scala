@@ -5,7 +5,8 @@ import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 
 import shapeful.*
-import shapeful.jax.{Jax, ToPyTree}
+import shapeful.jax.Jax
+import shapeful.autodiff.ToPyTree
 import shapeful.tensor.DType
 
 class PyTreeTests extends FunSuite:

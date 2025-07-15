@@ -2,6 +2,7 @@ package examples.advanced
 
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
+import shapeful.autodiff.*
 
 /**
  * Advanced PyTree customization examples.

@@ -5,7 +5,7 @@ import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 
 import shapeful.*
-import shapeful.jax.{Jax, ToPyTree}
+import shapeful.jax.Jax
 import shapeful.tensor.DType
 import me.shadaj.scalapy.py.SeqConverters
 

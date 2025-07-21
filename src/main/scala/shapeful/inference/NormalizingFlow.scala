@@ -3,35 +3,69 @@ import scala.language.experimental.namedTypeArguments
 import shapeful.Label
 import shapeful.*
 import shapeful.distributions.MVNormal
+import shapeful.autodiff.TensorTree
+import shapeful.autodiff.Autodiff
 
-class AffineFlow[From <: Label, To <: Label](w: Tensor2[From, To], b: Tensor1[To]):
+trait Flow[From <: Label, To <: Label]:
 
-  def jac[Sample <: Label](x: Tensor2[Sample, From]): Tensor3[Sample, From, To] =
-    val j = Tensor.zeros(
-      Shape3[Sample, From, To](x.shape.dim[Sample], w.shape.dim[From], w.shape.dim[To]),
-      0f
-    )
-    j.vmap[VmapAxis = Sample](row => row + w)
+  type Params
 
-  def forward[Sample <: Label](x: Tensor2[Sample, From]): Tensor2[Sample, To] =
-    x.vmap[VmapAxis = Sample](sample => sample.matmul(w) + b)
+  def forwardSample(x: Tensor1[From])(params: Params): Tensor1[To]
 
-type FlowParams[Latent <: Label, Output <: Label] = (Tensor2[Latent, Output], Tensor1[Output])
+  def forward[Sample <: Label](x: Tensor2[Sample, From])(params: Params): Tensor2[Sample, To] =
+    x.vmap[VmapAxis = Sample](x => forwardSample(x)(params))
+
+class AffineFlow[From <: Label, To <: Label] extends Flow[From, To]:
+
+  import AffineFlow.AffineFlowParams
+
+  type Params = AffineFlowParams[From, To]
+
+  def forwardSample(x: Tensor1[From])(params: AffineFlowParams[From, To]): Tensor1[To] =
+    val w = params.weight
+    val b = params.bias
+    x.matmul(w) + b
+
+object AffineFlow:
+
+  case class AffineFlowParams[From <: Label, To <: Label](
+      weight: Tensor2[From, To],
+      bias: Tensor1[To]
+  ) derives TensorTree
 
 def normalizingFlow[Samples <: Label, Latent <: Label, Output <: Label](
-    baseDist: MVNormal[Latent],
+    priorDist: MVNormal[Latent],
     numSamples: Int,
-    posteriorLogProb: Tensor1[Output] => Tensor0
-): FlowParams[Latent, Output] => Tensor0 =
+    posteriorLogProb: Tensor1[Output] => Tensor0,
+    flow: Flow[Latent, Output]
+): flow.Params => Tensor0 =
   params =>
-    val (w, b) = params
+    val baseSamples = priorDist.sample[Samples](numSamples)
 
-    val flow = AffineFlow(w, b)
+    // Transform all samples using the flow
+    val transformedSamples = flow.forward(baseSamples)(params)
 
-    val baseSamples = baseDist.sample[Samples](numSamples)
-    val transformedSamples = flow.forward(baseSamples)
-    val jac = flow.jac(baseSamples)
-    val logdet = jac.vmap[VmapAxis = Samples](t => t.det.abs.log)
-    val baseLogProb = baseSamples.vmap[VmapAxis = Samples](baseDist.logpdf)
-    val logProdTransformed = transformedSamples.vmap[VmapAxis = Samples](posteriorLogProb)
-    (baseLogProb - logdet - logProdTransformed).mean
+    // Compute log determinants using vmap over samples
+    val logdet = baseSamples.vmap[VmapAxis = Samples] { sample =>
+      // Define transformation function for a single sample using forwardSample
+      def transformSample(x: Tensor1[Latent]): Tensor1[Output] =
+        flow.forwardSample(x)(params)
+
+      // Compute Jacobian for this sample using autodiff
+      val jacFn = Autodiff.jacFwd(transformSample)
+      val jac = jacFn(sample) // Jacobian matrix for this sample
+      jac.det.abs.log
+    }
+
+    val baseLogProb = baseSamples.vmap[VmapAxis = Samples](priorDist.logpdf)
+    val targetLogProb = transformedSamples.vmap[VmapAxis = Samples](posteriorLogProb)
+
+    (baseLogProb + logdet + targetLogProb).mean
+
+    // def transformSamples()
+    // val transformedSamples = flow.forward(baseSamples)(params)
+    // val jac = flow.jac(baseSamples)(params)
+    // val logdet = jac.vmap[VmapAxis = Samples](t => t.det.abs.log)
+    // val baseLogProb = baseSamples.vmap[VmapAxis = Samples](priorDist.logpdf)
+    // val targetLogProb = transformedSamples.vmap[VmapAxis = Samples](posteriorLogProb)
+    // (baseLogProb + logdet + targetLogProb).mean

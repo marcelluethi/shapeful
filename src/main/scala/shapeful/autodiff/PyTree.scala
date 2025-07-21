@@ -30,30 +30,6 @@ object ToPyTree:
       val dtype = JaxDType.fromJaxDtype(p.as[Jax.PyDynamic].dtype)
       new Tensor[T](shape, p.as[Jax.PyDynamic], dtype)
 
-  // HIGH PRIORITY: Explicit instance for AffineFlowParams
-  given affineFlowParams[From <: shapeful.Label, To <: shapeful.Label]: ToPyTree[AffineFlow.AffineFlowParams[From, To]]
-  with
-    def toPyTree(p: AffineFlow.AffineFlowParams[From, To]): Jax.PyAny =
-      py.Dynamic.global.tuple(Seq(p.weight.jaxValue, p.bias.jaxValue).toPythonProxy)
-
-    def fromPyTree(pyTree: Jax.PyAny): AffineFlow.AffineFlowParams[From, To] =
-      val pyTuple = pyTree.as[py.Dynamic]
-      val weightPyTree = pyTuple.bracketAccess(0)
-      val biasPyTree = pyTuple.bracketAccess(1)
-
-      // Reconstruct tensors with proper shapes
-      val weightShapeJax = weightPyTree.shape.as[Seq[Int]]
-      val weightDtype = JaxDType.fromJaxDtype(weightPyTree.dtype)
-      val weightShapeTuple = TupleHelpers.createTupleFromSeq(weightShapeJax)
-      val weight = new Tensor(Shape(weightShapeTuple), weightPyTree, weightDtype)
-
-      val biasShapeJax = biasPyTree.shape.as[Seq[Int]]
-      val biasDtype = JaxDType.fromJaxDtype(biasPyTree.dtype)
-      val biasShapeTuple = TupleHelpers.createTupleFromSeq(biasShapeJax)
-      val bias = new Tensor(Shape(biasShapeTuple), biasPyTree, biasDtype)
-
-      AffineFlow.AffineFlowParams(weight.asInstanceOf[Tensor2[From, To]], bias.asInstanceOf[Tensor1[To]])
-
   // Fallback instances for basic types
   given ToPyTree[String] with
     def toPyTree(s: String): Jax.PyAny = py.Dynamic.global.str(s)

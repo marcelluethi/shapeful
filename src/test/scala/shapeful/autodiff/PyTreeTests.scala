@@ -61,11 +61,9 @@ class PyTreeTests extends FunSuite:
   }
 
   test("derives ToPyTree for nested case classes with tensors") {
-    case class InnerParams(weight: Tensor2["Label1", "Label2"], bias: Tensor1["Label2"])
-    case class OuterParams(inner: InnerParams, other: Tensor1["Label2"])
+    case class InnerParams(weight: Tensor2["Label1", "Label2"], bias: Tensor1["Label2"]) derives ToPyTree
+    case class OuterParams(inner: InnerParams, other: Tensor1["Label2"]) derives ToPyTree
 
-    given ToPyTree[InnerParams] = ToPyTree.derived
-    // given ToPyTree[OuterParams] = ToPyTree.derived
     val innerParams =
       InnerParams(Tensor2["Label1", "Label2"](Seq(Seq(1f, 2f), Seq(3f, 4f))), Tensor1["Label2"](Seq(5f, 6f)))
     val outerParams = OuterParams(innerParams, Tensor1["Label2"](Seq(7f, 8f)))

@@ -30,22 +30,6 @@ object ToPyTree:
       val dtype = JaxDType.fromJaxDtype(p.as[Jax.PyDynamic].dtype)
       new Tensor[T](shape, p.as[Jax.PyDynamic], dtype)
 
-  // Fallback instances for basic types
-  given ToPyTree[String] with
-    def toPyTree(s: String): Jax.PyAny = py.Dynamic.global.str(s)
-    def fromPyTree(p: Jax.PyAny): String = p.as[String]
-
-  given ToPyTree[Int] with
-    def toPyTree(i: Int): Jax.PyAny = py.Dynamic.global.int(i)
-    def fromPyTree(p: Jax.PyAny): Int = p.as[Int]
-
-  given ToPyTree[Float] with
-    def toPyTree(f: Float): Jax.PyAny = py.Dynamic.global.float(f)
-    def fromPyTree(p: Jax.PyAny): Float = p.as[Float]
-
-  given ToPyTree[Double] with
-    def toPyTree(d: Double): Jax.PyAny = py.Dynamic.global.float(d)
-    def fromPyTree(p: Jax.PyAny): Double = p.as[Double]
 
   // Tuple instances - these should have lower priority than specific case classes
   given tupleInstance[A, B](using ta: ToPyTree[A], tb: ToPyTree[B]): ToPyTree[(A, B)] with

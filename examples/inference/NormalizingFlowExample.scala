@@ -5,9 +5,9 @@ import shapeful.*
 import shapeful.distributions.MVNormal
 import shapeful.autodiff.{Autodiff, TensorTree, ToPyTree}
 import shapeful.optimization.GradientDescent
-import shapeful.inference.{AffineFlow, normalizingFlow}
-import shapeful.inference.Flow
+import shapeful.inference.{AffineFlow, NormalizingFlow}
 import shapeful.inference.AffineFlow.AffineFlowParams
+import shapeful.inference.NormalizingFlow.Flow
 
 /** Bayesian Inference with Normalizing Flows example.
   *
@@ -96,7 +96,7 @@ object NormalizingFlowExample extends App:
   class TwoAffineFlows[A <: Label, B <: Label, C <: Label](
       af1: AffineFlow[A, B],
       af2: AffineFlow[B, C]
-  ) extends Flow[A, C]:
+  ) extends Flow[A, C, CompositeFlowParams[AffineFlowParams[A, B], AffineFlowParams[B, C]]]:
     type Params = CompositeFlowParams[AffineFlowParams[A, B], AffineFlowParams[B, C]]
 
     def forwardSample(x: Tensor1[A])(params: Params): Tensor1[C] =
@@ -105,11 +105,10 @@ object NormalizingFlowExample extends App:
   val compositeFlow = new TwoAffineFlows(affineFlow1, affineFlow2)
 
   println("6. Creating Normalizing Flow for Variational Inference")
-  val flowLossFunction = normalizingFlow[Sample, LatentParam, ModelParam](
-    priorDist, // Base distribution p(z) - the prior
+  val nf = new NormalizingFlow(priorDist, compositeFlow)
+  val flowLossFunction = nf.elbo(
     numSamples, // Number of samples for Monte Carlo estimation
-    posteriorLogProb, // Target log probability log p(θ|data)
-    compositeFlow
+    posteriorLogProb // Target log probability log p(θ|data)
   )
 
   println("The flow will learn f: z ~ p(z) → θ ≈ p(θ|data)")

@@ -444,7 +444,7 @@ class TensorTests extends FunSuite:
 
     // Split along batch dimension - should get 3 tensors of shape (4,)
     val splits = tensor.split[Batch]
-    
+
     assertEquals(splits.length, 3)
     splits.foreach { split =>
       assertEquals(split.shape.dims, Seq(4))
@@ -454,14 +454,14 @@ class TensorTests extends FunSuite:
     val expected1 = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
     val expected2 = Tensor1[Feature](Seq(5.0f, 6.0f, 7.0f, 8.0f))
     val expected3 = Tensor1[Feature](Seq(9.0f, 10.0f, 11.0f, 12.0f))
-    
+
     assert(splits(0).tensorEquals(expected1))
     assert(splits(1).tensorEquals(expected2))
     assert(splits(2).tensorEquals(expected3))
 
     // Test splitting along feature dimension - should get 4 tensors of shape (3,)
     val featureSplits = tensor.split[Feature]
-    
+
     assertEquals(featureSplits.length, 4)
     featureSplits.foreach { split =>
       assertEquals(split.shape.dims, Seq(3))
@@ -472,7 +472,7 @@ class TensorTests extends FunSuite:
     val expectedF2 = Tensor1[Batch](Seq(2.0f, 6.0f, 10.0f))
     val expectedF3 = Tensor1[Batch](Seq(3.0f, 7.0f, 11.0f))
     val expectedF4 = Tensor1[Batch](Seq(4.0f, 8.0f, 12.0f))
-    
+
     assert(featureSplits(0).tensorEquals(expectedF1))
     assert(featureSplits(1).tensorEquals(expectedF2))
     assert(featureSplits(2).tensorEquals(expectedF3))
@@ -488,7 +488,7 @@ class TensorTests extends FunSuite:
 
     // Split along batch dimension - should get 2 tensors of shape (2, 3)
     val batchSplits = tensor.split[Batch]
-    
+
     assertEquals(batchSplits.length, 2)
     batchSplits.foreach { split =>
       assertEquals(split.shape.dims, Seq(2, 3))
@@ -496,7 +496,7 @@ class TensorTests extends FunSuite:
 
     // Split along height dimension - should get 2 tensors of shape (2, 3)
     val heightSplits = tensor.split[Height]
-    
+
     assertEquals(heightSplits.length, 2)
     heightSplits.foreach { split =>
       assertEquals(split.shape.dims, Seq(2, 3))
@@ -504,7 +504,7 @@ class TensorTests extends FunSuite:
 
     // Split along width dimension - should get 3 tensors of shape (2, 2)
     val widthSplits = tensor.split[Width]
-    
+
     assertEquals(widthSplits.length, 3)
     widthSplits.foreach { split =>
       assertEquals(split.shape.dims, Seq(2, 2))

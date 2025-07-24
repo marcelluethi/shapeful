@@ -27,3 +27,10 @@ class MVNormal[L <: Label](mu: Tensor1[L], cov: Tensor2[L, L]):
     val z = Normal(Tensor.zeros(shape), Tensor.ones(shape)).sample()
     val x = Lmat.matmul(z).transpose // L * z
     x.vmap[VmapAxis = Sample] { z => z + mu }
+
+object MVNormal:
+
+  def standardNormal[L <: Label](shape: Shape1[L]): MVNormal[L] =
+    val mu = Tensor1[L](Seq.fill(shape.size)(0.0f))
+    val cov = Tensor.eye(Shape2[L, L](shape.size, shape.size))
+    new MVNormal(mu, cov)

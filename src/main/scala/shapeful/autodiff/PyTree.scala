@@ -30,7 +30,6 @@ object ToPyTree:
       val dtype = JaxDType.fromJaxDtype(p.as[Jax.PyDynamic].dtype)
       new Tensor[T](shape, p.as[Jax.PyDynamic], dtype)
 
-
   // Tuple instances - these should have lower priority than specific case classes
   given tupleInstance[A, B](using ta: ToPyTree[A], tb: ToPyTree[B]): ToPyTree[(A, B)] with
     def toPyTree(t: (A, B)): Jax.PyAny =

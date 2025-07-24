@@ -105,6 +105,28 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
     new Tensor(resultShape, vmap_val, dtype)
 
+
+  inline def split[VmapAxis <: Label]: Seq[Tensor[TupleHelpers.Remove[VmapAxis, T]]] = 
+    type InnerAxes = TupleHelpers.Remove[VmapAxis, T]
+    val vmapAxisIndex = TupleHelpers.indexOf[VmapAxis, T]
+    val vmapAxisSize = shape.dims(vmapAxisIndex)
+    
+    // Use JAX's split function to split along the axis
+    val splitArrays = Jax.jnp.split(jaxValue, vmapAxisSize, axis = vmapAxisIndex)
+    
+    // Calculate inner shape (removing the split dimension)
+    val allDims = shape.dims
+    val innerDims = allDims.zipWithIndex.filter(_._2 != vmapAxisIndex).map(_._1)
+    val innerShapeTuple = TupleHelpers.createTupleFromSeq[InnerAxes](innerDims)
+    val innerShape = Shape[InnerAxes](innerShapeTuple)
+    
+    // Convert each split array to a tensor and squeeze out the split dimension
+    (0 until vmapAxisSize).map { i =>
+      val splitArray = splitArrays.__getitem__(i)
+      val squeezedArray = Jax.jnp.squeeze(splitArray, axis = vmapAxisIndex)
+      new Tensor[InnerAxes](innerShape, squeezedArray, dtype)
+    }.toSeq
+
   /** Reshape the tensor to a new shape.
     */
   def reshape[NewT <: Tuple](newShape: Shape[NewT]): Tensor[NewT] =
@@ -288,6 +310,13 @@ object Tensor:
     val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
+  def eye[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
+    require(shape.dims.size == 2 && shape.dims(0) == shape.dims(1),
+      "Shape must be square for eye tensor")
+    val jaxValues = Jax.jnp.eye(shape.dims(0), dtype =  JaxDType.jaxDtype(dtype))
+    new Tensor[T](shape, jaxValues, dtype)
+
+
   def randn[T <: Tuple](
       shape: Shape[T],
       dtype: DType = DType.Float32,
@@ -295,7 +324,7 @@ object Tensor:
   ): Tensor[T] =
     // Use JAX's random normal distribution
     val jaxValues = Jax.jrandom.normal(
-      Jax.jrandom.key(0), // Use a fixed key for reproducibility
+      Jax.jrandom.key(key), 
       shape.dims.toPythonProxy,
       dtype = JaxDType.jaxDtype(dtype)
     )

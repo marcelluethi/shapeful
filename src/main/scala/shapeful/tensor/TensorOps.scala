@@ -123,6 +123,19 @@ object TensorOps:
       val result = Jax.jnp.tanh(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
+    def relu: Tensor[T] =
+      val result = Jax.jnp.maximum(t.jaxValue, Jax.jnp.zeros(t.jaxValue.shape))
+      new Tensor[T](t.shape, result, t.dtype)
+
+    def clamp(min: Float, max: Float): Tensor[T] =
+      require(min <= max, s"clamp: min ($min) must be <= max ($max)")
+      val result = Jax.jnp.clip(t.jaxValue, min, max)
+      new Tensor[T](t.shape, result, t.dtype)
+
+    def clamp(min: Tensor0, max: Tensor0): Tensor[T] =
+      val result = Jax.jnp.clip(t.jaxValue, min.jaxValue, max.jaxValue)
+      new Tensor[T](t.shape, result, t.dtype)
+
     // Comparison operations
     def <(other: Tensor[T]): Tensor[T] =
       val result = Jax.jnp.less(t.jaxValue, other.jaxValue)

@@ -443,7 +443,7 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Split along batch dimension - should get 3 tensors of shape (4,)
-    val splits = tensor.split[Batch]
+    val splits = tensor.unstack[Batch]
 
     assertEquals(splits.length, 3)
     splits.foreach { split =>
@@ -460,7 +460,7 @@ class TensorTests extends FunSuite:
     assert(splits(2).tensorEquals(expected3))
 
     // Test splitting along feature dimension - should get 4 tensors of shape (3,)
-    val featureSplits = tensor.split[Feature]
+    val featureSplits = tensor.unstack[Feature]
 
     assertEquals(featureSplits.length, 4)
     featureSplits.foreach { split =>
@@ -487,7 +487,7 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Split along batch dimension - should get 2 tensors of shape (2, 3)
-    val batchSplits = tensor.split[Batch]
+    val batchSplits = tensor.unstack[Batch]
 
     assertEquals(batchSplits.length, 2)
     batchSplits.foreach { split =>
@@ -495,7 +495,7 @@ class TensorTests extends FunSuite:
     }
 
     // Split along height dimension - should get 2 tensors of shape (2, 3)
-    val heightSplits = tensor.split[Height]
+    val heightSplits = tensor.unstack[Height]
 
     assertEquals(heightSplits.length, 2)
     heightSplits.foreach { split =>
@@ -503,11 +503,137 @@ class TensorTests extends FunSuite:
     }
 
     // Split along width dimension - should get 3 tensors of shape (2, 2)
-    val widthSplits = tensor.split[Width]
+    val widthSplits = tensor.unstack[Width]
 
     assertEquals(widthSplits.length, 3)
     widthSplits.foreach { split =>
       assertEquals(split.shape.dims, Seq(2, 2))
+    }
+  }
+
+  test("splitAt operation on Tensor1") {
+    import shapeful.tensor.TensorSlicing.*
+
+    // Test splitting a 1D tensor
+    val tensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f))
+
+    // Split at index 3
+    val (first, second) = tensor.splitAt[Feature](3)
+
+    assertEquals(first.shape.dims, Seq(3))
+    assertEquals(second.shape.dims, Seq(3))
+
+    // Check values
+    val expectedFirst = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
+    val expectedSecond = Tensor1[Feature](Seq(4.0f, 5.0f, 6.0f))
+
+    assert(first.tensorEquals(expectedFirst))
+    assert(second.tensorEquals(expectedSecond))
+
+    // Split at beginning
+    val (empty, all) = tensor.splitAt[Feature](0)
+    assertEquals(empty.shape.dims, Seq(0))
+    assertEquals(all.shape.dims, Seq(6))
+
+    // Split at end
+    val (allButEnd, endEmpty) = tensor.splitAt[Feature](6)
+    assertEquals(allButEnd.shape.dims, Seq(6))
+    assertEquals(endEmpty.shape.dims, Seq(0))
+    assert(allButEnd.tensorEquals(tensor))
+  }
+
+  test("splitAt operation on Tensor2") {
+    import shapeful.tensor.TensorSlicing.*
+
+    // Test splitting a 2D tensor along different axes
+    val shape = Shape2[Batch, Feature](3, 4)
+    val values = (1 to 12).map(_.toFloat)
+    val tensor = Tensor(shape, values)
+
+    // Split along batch dimension
+    val (batch1, batch2) = tensor.splitAt[Batch](2)
+
+    assertEquals(batch1.shape.dims, Seq(2, 4))
+    assertEquals(batch2.shape.dims, Seq(1, 4))
+
+    // Check that batch1 contains first 2 rows
+    val expectedBatch1 = Tensor2[Batch, Feature](
+      Seq(
+        Seq(1.0f, 2.0f, 3.0f, 4.0f),
+        Seq(5.0f, 6.0f, 7.0f, 8.0f)
+      )
+    )
+    assert(batch1.tensorEquals(expectedBatch1))
+
+    // Check that batch2 contains last row
+    val expectedBatch2 = Tensor2[Batch, Feature](
+      Seq(
+        Seq(9.0f, 10.0f, 11.0f, 12.0f)
+      )
+    )
+    assert(batch2.tensorEquals(expectedBatch2))
+
+    // Split along feature dimension
+    val (features1, features2) = tensor.splitAt[Feature](2)
+
+    assertEquals(features1.shape.dims, Seq(3, 2))
+    assertEquals(features2.shape.dims, Seq(3, 2))
+
+    // Check that features1 contains first 2 columns
+    val expectedFeatures1 = Tensor2[Batch, Feature](
+      Seq(
+        Seq(1.0f, 2.0f),
+        Seq(5.0f, 6.0f),
+        Seq(9.0f, 10.0f)
+      )
+    )
+    assert(features1.tensorEquals(expectedFeatures1))
+  }
+
+  test("splitAt operation on Tensor3") {
+    import shapeful.tensor.TensorSlicing.*
+
+    // Test splitting a 3D tensor
+    type Depth = "depth"
+    val shape = Shape3[Batch, Height, Width](2, 2, 3)
+    val values = (1 to 12).map(_.toFloat)
+    val tensor = Tensor(shape, values)
+
+    // Split along width dimension
+    val (left, right) = tensor.splitAt[Width](2)
+
+    assertEquals(left.shape.dims, Seq(2, 2, 2))
+    assertEquals(right.shape.dims, Seq(2, 2, 1))
+
+    // Split along height dimension
+    val (top, bottom) = tensor.splitAt[Height](1)
+
+    assertEquals(top.shape.dims, Seq(2, 1, 3))
+    assertEquals(bottom.shape.dims, Seq(2, 1, 3))
+
+    // Split along batch dimension
+    val (firstBatch, secondBatch) = tensor.splitAt[Batch](1)
+
+    assertEquals(firstBatch.shape.dims, Seq(1, 2, 3))
+    assertEquals(secondBatch.shape.dims, Seq(1, 2, 3))
+  }
+
+  test("splitAt bounds checking") {
+    import shapeful.tensor.TensorSlicing.*
+
+    val tensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
+
+    // Valid bounds
+    val (first, second) = tensor.splitAt[Feature](2)
+    assertEquals(first.shape.dims(0) + second.shape.dims(0), 4)
+
+    // Test boundary conditions
+    intercept[IllegalArgumentException] {
+      tensor.splitAt[Feature](-1)
+    }
+
+    intercept[IllegalArgumentException] {
+      tensor.splitAt[Feature](5) // Beyond tensor size
     }
   }
 

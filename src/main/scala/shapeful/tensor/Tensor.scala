@@ -105,7 +105,7 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
     new Tensor(resultShape, vmap_val, dtype)
 
-  inline def split[VmapAxis <: Label]: Seq[Tensor[TupleHelpers.Remove[VmapAxis, T]]] =
+  inline def unstack[VmapAxis <: Label]: Seq[Tensor[TupleHelpers.Remove[VmapAxis, T]]] =
     type InnerAxes = TupleHelpers.Remove[VmapAxis, T]
     val vmapAxisIndex = TupleHelpers.indexOf[VmapAxis, T]
     val vmapAxisSize = shape.dims(vmapAxisIndex)

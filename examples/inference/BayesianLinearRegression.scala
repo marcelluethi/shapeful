@@ -1,4 +1,4 @@
-package examples.plotting
+package examples.inference
 
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
@@ -7,18 +7,17 @@ import shapeful.autodiff.*
 import shapeful.optimization.GradientDescent
 import shapeful.plotting.SeabornPlots
 import shapeful.distributions.MVNormal
-import shapeful.inference.AffineFlow
-import examples.advanced.CustomPyTree.Output
-import shapeful.inference.FromTensor1
+import shapeful.inference.{NormalizingFlow, FromTensor1}
+import shapeful.inference.flows.Flow
+import shapeful.inference.flows.IdentityFlow
+import shapeful.inference.flows.AffineCouplingFlow
+import shapeful.jax.Jax.PyAny
 
 object BayesianLinearRegression extends App:
-
-    // Configure matplotlib for X11 display
-    SeabornPlots.setupX11Display()
     
     type Feature = "feature"
     type Sample = "sample"
-    type Latent = "Latent"
+    type Latent = "latent"
 
     val trueWeight = Tensor0(3.0f)
     val trueBias = Tensor0(-1.0f)
@@ -48,9 +47,9 @@ object BayesianLinearRegression extends App:
             )
 
     // define the model 
-    val priorW = Normal[EmptyTuple](Tensor0(2.0f), Tensor0(10.0f))
-    val priorB = Normal[EmptyTuple](Tensor0(1.0f), Tensor0(10.0f))
-    val priorSigma = Normal[EmptyTuple](Tensor0(0.1f), Tensor0(10.0f))
+    val priorW = Normal(Tensor0(2.0f), Tensor0(10.0f))
+    val priorB = Normal(Tensor0(1.0f), Tensor0(10.0f))
+    val priorSigma = Normal(Tensor0(0.1f), Tensor0(10.0f))
     
     def prior(params : ModelParams) = 
         priorB.logpdf(params.bias) + priorW.logpdf(params.weight) + priorSigma.logpdf(params.logSigma)
@@ -67,27 +66,71 @@ object BayesianLinearRegression extends App:
         
 
     val baseDistribution = MVNormal.standardNormal[Latent](Shape1(3)) // 3D latent space for weight, bias, logSigma
-    val flow = AffineFlow[Latent, Output]()
+    
+    // Set up composite affine coupling flow with 3 layers
+    val hidden_dim = 32
+    val input_dim = 3
+    
+    // Alternating mask patterns for better mixing
+    val mask1 = Tensor1[Latent](Seq(1.0f, 0.0f, 1.0f)) // Transform bias, condition on weight & logSigma
+    val mask2 = Tensor1[Latent](Seq(0.0f, 1.0f, 0.0f)) // Transform weight & logSigma, condition on bias
+    val mask3 = Tensor1[Latent](Seq(1.0f, 0.0f, 1.0f)) // Transform bias again with updated conditioning
+    
+    // Create 3 coupling flows
+    val flow1 = new AffineCouplingFlow[Latent](hidden_dim)
+    val flow2 = new AffineCouplingFlow[Latent](hidden_dim)
+    val flow3 = new AffineCouplingFlow[Latent](hidden_dim)
+    
+    // Initialize parameters for each flow
+    val flow1Params = AffineCouplingFlow.initParams(input_dim, hidden_dim, mask1)
+    val flow2Params = AffineCouplingFlow.initParams(input_dim, hidden_dim, mask2)
+    val flow3Params = AffineCouplingFlow.initParams(input_dim, hidden_dim, mask3)
+    
+    // Create composite parameter structure
+    case class CompositeFlowParams(
+        flow1: AffineCouplingFlow.Params[Latent],
+        flow2: AffineCouplingFlow.Params[Latent],
+        flow3: AffineCouplingFlow.Params[Latent]
+    ) derives TensorTree, ToPyTree
+    
+    // Composite flow that applies flows in sequence
+    class CompositeFlow extends Flow[Latent, Latent, CompositeFlowParams]:
+        def forwardSample(x: Tensor1[Latent])(params: CompositeFlowParams): Tensor1[Latent] =
+            val x1 = flow1.forwardSample(x)(params.flow1)
+            val x2 = flow2.forwardSample(x1)(params.flow2)
+            val x3 = flow3.forwardSample(x2)(params.flow3)
+            x3
+        
+        override def logDetJacobian(x: Tensor1[Latent])(params: CompositeFlowParams): Tensor0 =
+            val x1 = flow1.forwardSample(x)(params.flow1)
+            val x2 = flow2.forwardSample(x1)(params.flow2)
+            
+            val logDet1 = flow1.logDetJacobian(x)(params.flow1)
+            val logDet2 = flow2.logDetJacobian(x1)(params.flow2)
+            val logDet3 = flow3.logDetJacobian(x2)(params.flow3)
 
-    val nf = inference.NormalizingFlow(baseDistribution, flow)
+            val totalLogDet = logDet1 + logDet2 + logDet3
+            totalLogDet.clamp(-15.0f, 15.0f) 
+
+    val flow = new CompositeFlow()
+    val flowParams = CompositeFlowParams(flow1Params, flow2Params, flow3Params)
+
+    val nf = NormalizingFlow(baseDistribution, flow)
     val elbo = nf.elbo(1000, posterior(X, y))
    
-    // inference with corrected learning rate
-    val optimizer = GradientDescent(-1.5e-4)  
+    // inference with smaller learning rate for composite flow stability
+    val optimizer = GradientDescent(-2e-5f)  // Reduced from -1e-4f
     val grad = Autodiff.grad(elbo)
 
-    val initialParams = AffineFlow.AffineFlowParams[Latent, Output](
-      weight = Tensor.eye(Shape2(3, 3)),
-      bias = Tensor.zeros(Shape1(3))
-    )
+    val initialParams = flowParams
 
     // Collect optimization trajectory
     val trajectory = optimizer.optimize(grad, initialParams)
-        .take(750)
+        .take(1500)  // Increased from 750 for composite flow
         .zipWithIndex
         .map { case (params, iter) =>
             if (iter % 100 == 0) then
-                println(s"Iteration $iter: loss =${elbo(params).toFloat}")
+                println(s"Iteration $iter: loss = ${elbo(params).toFloat}")
             params
         }
         .toSeq

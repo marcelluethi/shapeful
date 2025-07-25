@@ -3,7 +3,6 @@ package shapeful.autodiff
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.jax.Jax
-import shapeful.inference.AffineFlow
 
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters

@@ -29,3 +29,7 @@ class GradientDescent(lr: Float):
 
       paramTree.zipMap(gradients, params, [T <: Tuple] => (g, p) => p - (g * Tensor0(lr)))
     }
+
+  def step[Params](df: Params => Params, params: Params)(using paramTree: TensorTree[Params]) =
+    val gradients = df(params)
+    paramTree.zipMap(gradients, params, [T <: Tuple] => (g, p) => p - (g * Tensor0(lr)))

@@ -23,8 +23,7 @@ class Normal[S <: Tuple](mu: Tensor[S], sigma: Tensor[S]):
     val term1 = log2Pi * Tensor0(-0.5f)
     val term2 = logSigma * Tensor0(-1.0f)
     val xsubmu = x - mu
-    val term3 = xsubmu.pow(Tensor0(2f)) / (variance) * (Tensor0(-0.5f))
-
+    val term3 = (xsubmu.pow(Tensor0(2f)) / variance) * Tensor0(-0.5f)  // Fixed!
     (term2 + term3) + term1
 
   /** Generate samples from the normal distribution
@@ -35,3 +34,5 @@ class Normal[S <: Tuple](mu: Tensor[S], sigma: Tensor[S]):
   def sample(): Tensor[S] =
     val z = Tensor.randn(mu.shape)
     mu + sigma * z
+
+

@@ -9,6 +9,8 @@ class MVNormal[L <: Label](mu: Tensor1[L], cov: Tensor2[L, L]):
 
   private val Lmat = Linalg.cholesky(cov) // Cholesky decomposition of the covariance matrix
 
+  def shape: Shape1[L] = mu.shape
+
   def logpdf(x: Tensor1[L]): Tensor0 =
     val d = mu.shape.dim[L]
     val logdet = cov.det.log

@@ -43,7 +43,10 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
 
       val targetLogProb = transformedSamples.vmap[VmapAxis = Samples](t => posteriorLogProb(fromTensor.convert(t)))
 
-      (targetLogProb - baseLogProb + safeLogdet).mean
+      val logProbs = (targetLogProb - baseLogProb + safeLogdet)
+      // val clampedLogProbs = logProbs.clamp(-1000f, 1000f) // Prevent extreme values
+      // clampedLogProbs.mean
+      logProbs.mean
 
   def generate[ModelParam](numSamples: Int)(params: FlowParam)(using
       fromTensor: FromTensor1[Output, ModelParam]

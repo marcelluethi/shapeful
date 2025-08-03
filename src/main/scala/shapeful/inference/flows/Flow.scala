@@ -21,5 +21,8 @@ trait Flow[From <: Label, To <: Label, P]:
     val jac = jacFn(x)
     val logdet = jac.det.abs.log
 
-    // cap to limit numerical instabilities
-    logdet.clamp(-10.0f, 10.0f)
+    val dim = x.shape.dim[From]
+    val maxReasonableLogDet = math.log(1e8).toFloat * dim
+    val minReasonableLogDet = math.log(1e-8).toFloat * dim
+
+    logdet.clamp(minReasonableLogDet, maxReasonableLogDet)

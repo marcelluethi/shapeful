@@ -40,8 +40,7 @@ object ToPyTree:
       val b = tb.fromPyTree(pyTuple.bracketAccess(1))
       (a, b)
 
-
- // Add this instance for Seq support
+  // Add this instance for Seq support
   given seqInstance[T](using elemInstance: ToPyTree[T]): ToPyTree[Seq[T]] with
     def toPyTree(seq: Seq[T]): Jax.PyAny =
       val pyElements = seq.map(elemInstance.toPyTree)

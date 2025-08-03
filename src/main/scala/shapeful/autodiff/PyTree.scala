@@ -40,11 +40,25 @@ object ToPyTree:
       val b = tb.fromPyTree(pyTuple.bracketAccess(1))
       (a, b)
 
+
+ // Add this instance for Seq support
+  given seqInstance[T](using elemInstance: ToPyTree[T]): ToPyTree[Seq[T]] with
+    def toPyTree(seq: Seq[T]): Jax.PyAny =
+      val pyElements = seq.map(elemInstance.toPyTree)
+      py.Dynamic.global.tuple(pyElements.toPythonProxy)
+
+    def fromPyTree(p: Jax.PyAny): Seq[T] =
+      val pyTuple = p.as[py.Dynamic]
+      val length = pyTuple.as[py.Dynamic].__len__().as[Int]
+      (0 until length).map { i =>
+        elemInstance.fromPyTree(pyTuple.bracketAccess(i))
+      }.toSeq
+
   inline given derived[P <: Product](using m: Mirror.ProductOf[P]): ToPyTree[P] =
     new ToPyTree[P]:
       def toPyTree(p: P): Jax.PyAny =
-        val productElems = p.productIterator.toList
-        val pyTreeElems = productElems.map(convertElementToPyTree)
+        val productElems = Tuple.fromProductTyped(p)
+        val pyTreeElems = convertFieldsAtCompileTime[m.MirroredElemTypes](productElems)
         py.Dynamic.global.tuple(pyTreeElems.toPythonProxy)
 
       def fromPyTree(pyTree: Jax.PyAny): P =
@@ -82,28 +96,30 @@ object ToPyTree:
         // For complex types (case classes), try to find ToPyTree instance
         compiletime.summonInline[ToPyTree[T]].fromPyTree(pyElem)
 
-  // Convert any element to PyTree recursively - delegates to proper instances
-  private def convertElementToPyTree(elem: Any): Jax.PyAny =
-    elem match
-      case tensor: Tensor[?] =>
-        tensor.jaxValue
-      case product: Product =>
-        // Delegate to proper ToPyTree instance using reflection
-        convertProductToPyTree(product)
-      case str: String =>
-        py.Dynamic.global.str(str)
-      case int: Int =>
-        py.Dynamic.global.int(int)
-      case float: Float =>
-        py.Dynamic.global.float(float)
-      case double: Double =>
-        py.Dynamic.global.float(double)
-      case other =>
-        throw new IllegalArgumentException(s"Cannot convert $other to PyTree")
+  // Compile-time field conversion
+  inline def convertFieldsAtCompileTime[Types <: Tuple](fields: Types): List[Jax.PyAny] =
+    inline erasedValue[Types] match
+      case _: EmptyTuple =>
+        Nil
+      case _: (head *: tail) =>
+        val headElem = fields.asInstanceOf[head *: tail].head
+        val tailElems = fields.asInstanceOf[head *: tail].tail
+        val headPy = convertSingleField[head](headElem)
+        val tailPy = convertFieldsAtCompileTime[tail](tailElems)
+        headPy :: tailPy
 
-  // Helper to convert Product types generically
-  private def convertProductToPyTree(product: Product): Jax.PyAny =
-    // Generic product conversion - always recursive
-    val nestedElems = product.productIterator.toList
-    val nestedPyElems = nestedElems.map(convertElementToPyTree)
-    py.Dynamic.global.tuple(nestedPyElems.toPythonProxy)
+  inline def convertSingleField[T](elem: T): Jax.PyAny =
+    inline erasedValue[T] match
+      case _: Tensor[?] =>
+        elem.asInstanceOf[Tensor[?]].jaxValue
+      case _: String =>
+        py.Dynamic.global.str(elem.asInstanceOf[String])
+      case _: Int =>
+        py.Dynamic.global.int(elem.asInstanceOf[Int])
+      case _: Float =>
+        py.Dynamic.global.float(elem.asInstanceOf[Float])
+      case _: Double =>
+        py.Dynamic.global.float(elem.asInstanceOf[Double])
+      case _ =>
+        // Use compile-time instance lookup
+        compiletime.summonInline[ToPyTree[T]].toPyTree(elem)

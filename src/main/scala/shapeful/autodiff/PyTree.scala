@@ -40,19 +40,6 @@ object ToPyTree:
       val b = tb.fromPyTree(pyTuple.bracketAccess(1))
       (a, b)
 
-  // Add this instance for Seq support
-  given seqInstance[T](using elemInstance: ToPyTree[T]): ToPyTree[Seq[T]] with
-    def toPyTree(seq: Seq[T]): Jax.PyAny =
-      val pyElements = seq.map(elemInstance.toPyTree)
-      py.Dynamic.global.tuple(pyElements.toPythonProxy)
-
-    def fromPyTree(p: Jax.PyAny): Seq[T] =
-      val pyTuple = p.as[py.Dynamic]
-      val length = pyTuple.as[py.Dynamic].__len__().as[Int]
-      (0 until length).map { i =>
-        elemInstance.fromPyTree(pyTuple.bracketAccess(i))
-      }.toSeq
-
   inline given derived[P <: Product](using m: Mirror.ProductOf[P]): ToPyTree[P] =
     new ToPyTree[P]:
       def toPyTree(p: P): Jax.PyAny =

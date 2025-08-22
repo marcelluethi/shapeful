@@ -134,8 +134,9 @@ class MVNormalTests extends FunSuite:
     val mu = Tensor1[Dim](Seq(0.0f))
     val cov = Tensor2[Dim, Dim](Seq(Seq(1.0f)))
     val mvn = MVNormal(mu, cov)
+    val key = shapeful.random.Random.Key(42)
 
-    val sample = mvn.sample()
+    val sample = mvn.sample(key)
 
     assertEquals(sample.shape.dims, Seq(1))
     assertEquals(sample.dtype, DType.Float32)
@@ -150,8 +151,9 @@ class MVNormalTests extends FunSuite:
       )
     )
     val mvn = MVNormal(mu, cov)
+    val key = shapeful.random.Random.Key(123)
 
-    val sample = mvn.sample()
+    val sample = mvn.sample(key)
 
     assertEquals(sample.shape.dims, Seq(2))
     assertEquals(sample.dtype, DType.Float32)
@@ -166,9 +168,10 @@ class MVNormalTests extends FunSuite:
       )
     )
     val mvn = MVNormal(mu, cov)
+    val key = shapeful.random.Random.Key(456)
 
     val n = 5
-    val samples = mvn.sample[Samples](n)
+    val samples = mvn.sample[Samples](n, key)
 
     assertEquals(samples.shape.dims, Seq(n, 2))
     assertEquals(samples.dtype, DType.Float32)
@@ -292,9 +295,10 @@ class MVNormalTests extends FunSuite:
       )
     )
     val mvn = MVNormal(mu, cov)
+    val key = shapeful.random.Random.Key(789)
 
     // Test sample generation
-    val sample = mvn.sample()
+    val sample = mvn.sample(key)
     assertEquals(sample.shape.dims, Seq(3))
 
     // Test logpdf at mean

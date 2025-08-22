@@ -72,8 +72,9 @@ class LinearLayerTests extends FunSuite:
   test("Xavier initialization produces reasonable parameter ranges") {
     val inputDim = 100
     val outputDim = 50
+    val key = shapeful.random.Random.Key(42)
 
-    val params = Linear.xavier[InputDim, OutputDim](inputDim, outputDim)
+    val params = Linear.xavier[InputDim, OutputDim](inputDim, outputDim, key)
 
     // Check weight dimensions
     assertEquals(params.weight.shape.dims, Seq(inputDim, outputDim))
@@ -90,7 +91,8 @@ class LinearLayerTests extends FunSuite:
 
     // Check that weights are not all the same (basic randomness check)
     // We'll create two different parameter sets and ensure they're different
-    val params2 = Linear.xavier[InputDim, OutputDim](inputDim, outputDim)
+    val key2 = shapeful.random.Random.Key(123)
+    val params2 = Linear.xavier[InputDim, OutputDim](inputDim, outputDim, key2)
     assert(
       !params.weight.tensorEquals(params2.weight),
       "Weights should be randomly initialized (different instances should be different)"
@@ -100,8 +102,9 @@ class LinearLayerTests extends FunSuite:
   test("He initialization produces reasonable parameter ranges") {
     val inputDim = 100
     val outputDim = 50
+    val key = shapeful.random.Random.Key(456)
 
-    val params = Linear.he[InputDim, OutputDim](inputDim, outputDim)
+    val params = Linear.he[InputDim, OutputDim](inputDim, outputDim, key)
 
     // Check weight dimensions
     assertEquals(params.weight.shape.dims, Seq(inputDim, outputDim))
@@ -118,7 +121,8 @@ class LinearLayerTests extends FunSuite:
 
     // Check that weights are not all the same (basic randomness check)
     // We'll create two different parameter sets and ensure they're different
-    val params2 = Linear.he[InputDim, OutputDim](inputDim, outputDim)
+    val key2 = shapeful.random.Random.Key(789)
+    val params2 = Linear.he[InputDim, OutputDim](inputDim, outputDim, key2)
     assert(
       !params.weight.tensorEquals(params2.weight),
       "Weights should be randomly initialized (different instances should be different)"

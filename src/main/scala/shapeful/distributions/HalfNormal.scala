@@ -34,9 +34,9 @@ class HalfNormal[S <: Tuple](sigma: Tensor[S]):
     * @return
     *   Samples from the half-normal distribution (non-negative)
     */
-  def sample(): Tensor[S] =
+  def sample(key: shapeful.random.Random.Key): Tensor[S] =
     // Sample from Normal(0, σ) and take absolute value
-    normal.sample().abs
+    normal.sample(key).abs
 
 object HalfNormal:
 

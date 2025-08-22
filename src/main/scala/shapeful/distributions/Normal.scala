@@ -31,6 +31,6 @@ class Normal[S <: Tuple](mu: Tensor[S], sigma: Tensor[S]):
     * @return
     *   Samples from the normal distribution
     */
-  def sample(): Tensor[S] =
-    val z = Tensor.randn(mu.shape)
+  def sample(key: shapeful.random.Random.Key): Tensor[S] =
+    val z = Tensor.randn(mu.shape, key)
     mu + sigma * z

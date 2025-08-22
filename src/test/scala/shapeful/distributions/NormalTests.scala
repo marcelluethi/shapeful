@@ -116,8 +116,9 @@ class NormalTests extends FunSuite:
     val mu = Tensor.zeros(shape)
     val sigma = Tensor.ones(shape)
     val normal = Normal(mu, sigma)
+    val key = shapeful.random.Random.Key(42)
 
-    val sample = normal.sample()
+    val sample = normal.sample(key)
 
     assertEquals(sample.shape, shape)
     assertEquals(sample.dtype, DType.Float32)
@@ -127,8 +128,9 @@ class NormalTests extends FunSuite:
     val mu = Tensor0(0.0f)
     val sigma = Tensor0(1.0f)
     val normal = Normal(mu, sigma)
+    val key = shapeful.random.Random.Key(123)
 
-    val sample = normal.sample()
+    val sample = normal.sample(key)
 
     // Should be a scalar tensor
     assertEquals(sample.shape.dims.length, 0)

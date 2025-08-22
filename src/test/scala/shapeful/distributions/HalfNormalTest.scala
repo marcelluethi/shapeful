@@ -61,8 +61,9 @@ class HalfNormalTests extends FunSuite:
     val shape = Shape2[Batch, Feature](2, 3)
     val sigma = Tensor.ones(shape)
     val halfNormal = HalfNormal(sigma)
+    val key = shapeful.random.Random.Key(42)
 
-    val sample = halfNormal.sample()
+    val sample = halfNormal.sample(key)
 
     assertEquals(sample.shape, shape)
     assertEquals(sample.dtype, DType.Float32)
@@ -71,8 +72,9 @@ class HalfNormalTests extends FunSuite:
   test("sample generation with scalar sigma") {
     val sigma = Tensor0(1.0f)
     val halfNormal = HalfNormal(sigma)
+    val key = shapeful.random.Random.Key(123)
 
-    val sample = halfNormal.sample()
+    val sample = halfNormal.sample(key)
 
     // Should be a scalar tensor
     assertEquals(sample.shape.dims.length, 0)
@@ -82,10 +84,12 @@ class HalfNormalTests extends FunSuite:
   test("samples are non-negative") {
     val sigma = Tensor0(1.0f)
     val halfNormal = HalfNormal(sigma)
+    val mainKey = shapeful.random.Random.Key(456)
 
     // Generate multiple samples to test non-negativity
-    for _ <- 1 to 10 do
-      val sample = halfNormal.sample()
+    val keys = mainKey.split(10)
+    for i <- 1 to 10 do
+      val sample = halfNormal.sample(keys(i - 1))
       assert(sample.toFloat >= 0.0f, s"Sample ${sample.toFloat} should be non-negative")
   }
 

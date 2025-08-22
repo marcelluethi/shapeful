@@ -24,21 +24,23 @@ object Linear:
   // Convenience method for common initialization
   def xavier[InDim <: Label, OutDim <: Label](
       input_dim: Int,
-      output_dim: Int
+      output_dim: Int,
+      key: shapeful.random.Random.Key
   ): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / (input_dim + output_dim)).toFloat
     Params(
-      weight = Tensor.randn(Shape2[InDim, OutDim](input_dim, output_dim)) * Tensor0(scale),
+      weight = Tensor.randn(Shape2[InDim, OutDim](input_dim, output_dim), key) * Tensor0(scale),
       bias = Tensor.zeros(Shape1[OutDim](output_dim))
     )
 
   // He initialization for ReLU activation functions
   def he[InDim <: Label, OutDim <: Label](
       input_dim: Int,
-      output_dim: Int
+      output_dim: Int,
+      key: shapeful.random.Random.Key
   ): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / input_dim).toFloat
     Params(
-      weight = Tensor.randn(Shape2[InDim, OutDim](input_dim, output_dim)) * Tensor0(scale),
+      weight = Tensor.randn(Shape2[InDim, OutDim](input_dim, output_dim), key) * Tensor0(scale),
       bias = Tensor.zeros(Shape1[OutDim](output_dim))
     )

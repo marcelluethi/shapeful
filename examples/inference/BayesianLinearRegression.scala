@@ -16,9 +16,13 @@ import shapeful.inference.flows.AffineCouplingFlow.initParams
 import shapeful.distributions.HalfNormal
 import examples.advanced.CustomPyTree.Output
 import examples.advanced.CustomPyTree.Hidden
+import shapeful.random.Random
 
 
 object BayesianLinearRegression extends App:
+    
+    // Create a random key for reproducible randomness
+    val key = Random.Key(42)
     
     type Feature = "feature"
     type Sample = "sample"
@@ -30,8 +34,9 @@ object BayesianLinearRegression extends App:
     val numSamples = 100
 
     // 1. Create synthetic dataset
+    val (key1, key2) = key.split2()
     val X = Tensor1[Sample](Range(0, 100, 1).map(_.toFloat / 100f).toSeq)
-    val noise = Normal(Tensor.zeros(X.shape), Tensor.ones(X.shape) * trueSigma).sample()
+    val noise = Normal(Tensor.zeros(X.shape), Tensor.ones(X.shape) * trueSigma).sample(key1)
     val y = X.vmap[VmapAxis=Sample](sample => 
         trueWeight * sample + trueBias
     ) + noise
@@ -84,9 +89,10 @@ object BayesianLinearRegression extends App:
     ) derives TensorTree, ToPyTree
     object CompositeParams:
         def initialParams(): CompositeParams = 
+            val (initKey1, initKey2) = key2.split2()
             CompositeParams(
-                flow1Params = AffineCouplingFlow.initParams[Latent](mask = mask1, hidden_dim = 3),
-                flow2Params = AffineCouplingFlow.initParams[Latent](mask = mask2, hidden_dim = 3)
+                flow1Params = AffineCouplingFlow.initParams[Latent](mask = mask1, hidden_dim = 3, key = initKey1),
+                flow2Params = AffineCouplingFlow.initParams[Latent](mask = mask2, hidden_dim = 3, key = initKey2)
             )
 
     // make a composite flow 
@@ -102,7 +108,8 @@ object BayesianLinearRegression extends App:
     // val initialParams = IdentityFlow.initialParams
 
     val nf = NormalizingFlow(baseDistribution, flow)
-    val elbo = nf.elbo(100, posterior(X, y))
+    val (elboKey, optimizerKey) = key2.split2()
+    val elbo = nf.elbo(100, posterior(X, y), key = elboKey)
     val grad = Autodiff.grad(elbo)
 
 
@@ -126,7 +133,8 @@ object BayesianLinearRegression extends App:
 
                 
                 // Debug: compute individual components before clamping
-                val baseSamples = baseDistribution.sample["Sample"](10)
+                val (baseKey, _) = optimizerKey.split2()
+                val baseSamples = baseDistribution.sample["Sample"](10, key = baseKey)
                 val transformedSamples = flow.forward(baseSamples)(params)
                 val logdet = baseSamples.vmap[VmapAxis = "Sample"] { sample =>
                     flow.logDetJacobian(sample)(params)
@@ -158,7 +166,8 @@ object BayesianLinearRegression extends App:
     
     val lastParams = trajectory.take(500).toSeq.last
 
-    val sampledModelparams = nf.generate(1000)(lastParams)
+    val (generateKey, _) = optimizerKey.split2()
+    val sampledModelparams = nf.generate(1000, key = generateKey)(lastParams)
     val meanWeight = sampledModelparams.foldLeft(Tensor0(0f))(
         (acc, e) => acc + e.weight
       ) / Tensor0(sampledModelparams.size)

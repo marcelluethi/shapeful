@@ -23,13 +23,14 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
 
   def elbo[ModelParam](
       numSamples: Int,
-      posteriorLogProb: ModelParam => Tensor0
+      posteriorLogProb: ModelParam => Tensor0,
+      key: shapeful.random.Random.Key
   )(using fromTensor: FromTensor1[Output, ModelParam]): FlowParam => Tensor0 =
 
     type Samples = "Sample" // internal label for the samples
 
     params =>
-      val baseSamples = baseDist.sample[Samples](numSamples)
+      val baseSamples = baseDist.sample[Samples](numSamples, key)
 
       // Transform all samples using the flow
       val transformedSamples = flow.forward(baseSamples)(params)
@@ -48,10 +49,10 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
       // clampedLogProbs.mean
       logProbs.mean
 
-  def generate[ModelParam](numSamples: Int)(params: FlowParam)(using
+  def generate[ModelParam](numSamples: Int, key: shapeful.random.Random.Key)(params: FlowParam)(using
       fromTensor: FromTensor1[Output, ModelParam]
   ): Seq[ModelParam] =
     type Samples = "Sample" // internal label for the samples
-    val baseSamples = baseDist.sample[Samples](numSamples)
+    val baseSamples = baseDist.sample[Samples](numSamples, key)
     val forwardedSamples = flow.forward(baseSamples)(params)
     forwardedSamples.unstack[VmapAxis = Samples].map(t => fromTensor.convert(t))

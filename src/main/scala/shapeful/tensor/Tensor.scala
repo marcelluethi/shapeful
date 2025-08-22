@@ -7,6 +7,7 @@ import shapeful.jax.Jax
 import shapeful.jax.JaxDType
 import shapeful.Label
 import shapeful.tensor.TupleHelpers.ToIntTuple
+import shapeful.random.Random
 import me.shadaj.scalapy.py.SeqConverters
 
 class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val dtype: DType = DType.Float32):
@@ -314,18 +315,31 @@ object Tensor:
     val jaxValues = Jax.jnp.eye(shape.dims(0), dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
+  /** Generate random tensor from standard normal distribution N(0, 1) */
   def randn[T <: Tuple](
       shape: Shape[T],
-      dtype: DType = DType.Float32,
-      key: Int = scala.util.Random().nextInt()
+      key: Random.Key,
+      dtype: DType = DType.Float32
   ): Tensor[T] =
-    // Use JAX's random normal distribution
-    val jaxValues = Jax.jrandom.normal(
-      Jax.jrandom.key(key),
-      shape.dims.toPythonProxy,
-      dtype = JaxDType.jaxDtype(dtype)
-    )
-    new Tensor[T](shape, jaxValues, dtype)
+    Random.normal(shape, key, dtype)
+
+  /** Generate random tensor from uniform distribution [0, 1) */
+  def rand[T <: Tuple](
+      shape: Shape[T],
+      key: Random.Key,
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    Random.uniform(shape, key, dtype)
+
+  /** Generate random tensor from uniform distribution [minval, maxval) */
+  def randUniform[T <: Tuple](
+      shape: Shape[T],
+      minval: Float,
+      maxval: Float,
+      key: Random.Key,
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    Random.uniform(shape, minval, maxval, key, dtype)
 
   def stack[NewAxis <: Label, T <: Tuple](
       tensors: Seq[Tensor[T]],

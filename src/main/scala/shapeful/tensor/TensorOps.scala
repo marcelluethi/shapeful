@@ -123,6 +123,11 @@ object TensorOps:
       val result = Jax.jnp.tanh(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
+    def sigmoid: Tensor[T] =
+      val ones = Tensor.ones(t.shape) 
+      val minust = t * Tensor0(-1.0f)
+      ones / (ones + (minust).exp)
+
     def relu: Tensor[T] =
       val result = Jax.jnp.maximum(t.jaxValue, Jax.jnp.zeros(t.jaxValue.shape))
       new Tensor[T](t.shape, result, t.dtype)

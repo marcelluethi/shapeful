@@ -355,6 +355,24 @@ object Tensor:
     val shape = Shape[Tuple.Concat[Tuple1[NewAxis], T]](newShapeTuple)
     new Tensor(shape, stacked, dtype)
 
+  inline def concat[ConcatAxis <: Label, T <: Tuple](
+      tensors: Seq[Tensor[T]],
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    require(tensors.nonEmpty, "Cannot concatenate empty sequence")
+
+    // Use JAX concatenate directly
+    val jaxValues = tensors.map(_.jaxValue).toPythonProxy
+    val axis = TupleHelpers.indexOf[ConcatAxis, T]
+    val concatenated = Jax.jnp.concatenate(jaxValues, axis = axis)
+
+    // Get the actual shape directly from JAX result
+    val resultDims = concatenated.shape.as[Seq[Int]]
+    val newShapeTuple = TupleHelpers.createTupleFromSeq[T](resultDims)
+    val shape = Shape[T](newShapeTuple)
+
+    new Tensor(shape, concatenated, dtype)
+
 object Tensor0:
   import Tensor.{Tensor0, Tensor1}
 

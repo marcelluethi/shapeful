@@ -124,7 +124,7 @@ object TensorOps:
       new Tensor[T](t.shape, result, t.dtype)
 
     def sigmoid: Tensor[T] =
-      val ones = Tensor.ones(t.shape) 
+      val ones = Tensor.ones(t.shape)
       val minust = t * Tensor0(-1.0f)
       ones / (ones + (minust).exp)
 

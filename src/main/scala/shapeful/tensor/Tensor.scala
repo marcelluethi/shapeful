@@ -2,7 +2,6 @@ package shapeful.tensor
 
 import scala.language.experimental.namedTypeArguments
 import scala.annotation.targetName
-
 import shapeful.jax.Jax
 import shapeful.jax.JaxDType
 import shapeful.Label
@@ -126,6 +125,19 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
       val squeezedArray = Jax.jnp.squeeze(splitArray, axis = vmapAxisIndex)
       new Tensor[InnerAxes](innerShape, squeezedArray, dtype)
     }.toSeq
+
+  def stack[NewAxis <: Label](
+      otherTensor: Tensor[T],
+      dtype: DType = DType.Float32
+  ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
+
+    Tensor.stack[NewAxis = NewAxis](this, Seq(otherTensor))
+
+  inline def concat[ConcatAxis <: Label](
+      otherTensor: Tensor[T],
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    Tensor.concat[T, ConcatAxis](this, Seq(otherTensor))
 
   /** Reshape the tensor to a new shape.
     */
@@ -310,11 +322,6 @@ object Tensor:
     val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
-  def eye[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
-    require(shape.dims.size == 2 && shape.dims(0) == shape.dims(1), "Shape must be square for eye tensor")
-    val jaxValues = Jax.jnp.eye(shape.dims(0), dtype = JaxDType.jaxDtype(dtype))
-    new Tensor[T](shape, jaxValues, dtype)
-
   /** Generate random tensor from standard normal distribution N(0, 1) */
   def randn[T <: Tuple](
       shape: Shape[T],
@@ -341,27 +348,30 @@ object Tensor:
   ): Tensor[T] =
     Random.uniform(shape, minval, maxval, key, dtype)
 
-  def stack[NewAxis <: Label, T <: Tuple](
-      tensors: Seq[Tensor[T]],
-      dtype: DType = DType.Float32
+  /** stack a sequence of tensors, onto a given tensor
+    */
+  def stack[T <: Tuple, NewAxis <: Label](
+      tensor: Tensor[T],
+      tensorsToStack: Seq[Tensor[T]]
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
-    require(tensors.nonEmpty, "Cannot stack empty sequence")
+    val tensors = tensor +: tensorsToStack
     val refShape = tensors.head.shape
-
     val jaxValues = tensors.map(_.jaxValue).toPythonProxy
     val stacked = Jax.jnp.stack(jaxValues)
     val newShapeSeq = Seq(tensors.length) ++ refShape.dims
     val newShapeTuple = TupleHelpers.createTupleFromSeq[Tuple.Concat[Tuple1[NewAxis], T]](newShapeSeq)
     val shape = Shape[Tuple.Concat[Tuple1[NewAxis], T]](newShapeTuple)
-    new Tensor(shape, stacked, dtype)
+    new Tensor(shape, stacked, tensor.dtype)
 
-  inline def concat[ConcatAxis <: Label, T <: Tuple](
-      tensors: Seq[Tensor[T]],
-      dtype: DType = DType.Float32
+  /** Concat tensor with given sequence of tenor
+    */
+  inline def concat[T <: Tuple, ConcatAxis <: Label](
+      tensor: Tensor[T],
+      tensorsToConcat: Seq[Tensor[T]]
   ): Tensor[T] =
-    require(tensors.nonEmpty, "Cannot concatenate empty sequence")
 
     // Use JAX concatenate directly
+    val tensors = tensor +: tensorsToConcat
     val jaxValues = tensors.map(_.jaxValue).toPythonProxy
     val axis = TupleHelpers.indexOf[ConcatAxis, T]
     val concatenated = Jax.jnp.concatenate(jaxValues, axis = axis)
@@ -371,7 +381,7 @@ object Tensor:
     val newShapeTuple = TupleHelpers.createTupleFromSeq[T](resultDims)
     val shape = Shape[T](newShapeTuple)
 
-    new Tensor(shape, concatenated, dtype)
+    new Tensor(shape, concatenated, tensor.dtype)
 
 object Tensor0:
   import Tensor.{Tensor0, Tensor1}
@@ -382,10 +392,6 @@ object Tensor0:
       case v: Int     => new Tensor[EmptyTuple](Shape.empty, Jax.jnp.array(v), DType.Int32)
       case v: Boolean => new Tensor[EmptyTuple](Shape.empty, Jax.jnp.array(v), DType.Bool)
 
-  def stack[NewAxis <: Label](
-      tensors: Seq[Tensor0]
-  ): Tensor1[NewAxis] = Tensor.stack[NewAxis, EmptyTuple](tensors)
-
 object Tensor1:
   import Tensor.{Tensor1, Tensor2}
 
@@ -395,13 +401,10 @@ object Tensor1:
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
-  def stack[NewAxis <: Label, L <: Label](
-      tensors: Seq[Tensor1[L]]
-  ): Tensor2[NewAxis, L] = Tensor.stack[NewAxis, Tuple1[L]](tensors)
-
 object Tensor2:
 
-  import Tensor.{Tensor2, Tensor3}
+  import Tensor.{Tensor1, Tensor2, Tensor3}
+  import Shape.{Shape1, Shape2, Shape3}
 
   def apply[L1 <: Label, L2 <: Label](values: Seq[Seq[Float]], dtype: DType = DType.Float32): Tensor[(L1, L2)] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
@@ -419,9 +422,14 @@ object Tensor2:
 
     new Tensor(shape, jaxValues, dtype)
 
-  def stack[NewAxis <: Label, L1 <: Label, L2 <: Label](
-      tensors: Seq[Tensor2[L1, L2]]
-  ): Tensor3[NewAxis, L1, L2] = Tensor.stack[NewAxis, Tuple2[L1, L2]](tensors)
+  def eye[L <: Label](shape: Shape1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
+    val jaxValues = Jax.jnp.eye(shape.size, dtype = JaxDType.jaxDtype(dtype))
+    new Tensor2[L, L](Shape2(shape.size, shape.size), jaxValues, dtype)
+
+  def fromDiag[L <: Label](diag: Tensor1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
+    val size = diag.shape.size
+    val jaxValues = Jax.jnp.diag(diag.jaxValue)
+    new Tensor2[L, L](Shape2(size, size), jaxValues, dtype)
 
 object Tensor3:
   def apply[L1 <: Label, L2 <: Label, L3 <: Label](

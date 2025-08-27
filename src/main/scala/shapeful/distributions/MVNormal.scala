@@ -34,5 +34,5 @@ object MVNormal:
 
   def standardNormal[L <: Label](shape: Shape1[L]): MVNormal[L] =
     val mu = Tensor1[L](Seq.fill(shape.size)(0.0f))
-    val cov = Tensor.eye(Shape2[L, L](shape.size, shape.size))
+    val cov = Tensor2.eye[L](Shape1(shape.size))
     new MVNormal(mu, cov)

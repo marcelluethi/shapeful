@@ -422,7 +422,7 @@ class TensorTests extends FunSuite:
     val t1 = Tensor0(1.0f)
     val t2 = Tensor0(2.0f)
     val t3 = Tensor0(3.0f)
-    val stacked = Tensor0.stack[NewAxis = Feature](Seq(t1, t2, t3))
+    val stacked = Tensor.stack[NewAxis = Feature](t1, Seq(t2, t3))
     val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
     assertEquals(stacked.shape.dims, Seq(3))
     assert(stacked.tensorEquals(expected))
@@ -430,7 +430,7 @@ class TensorTests extends FunSuite:
     // Stack two vectors into a matrix
     val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
     val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
-    val stacked2 = Tensor1.stack[NewAxis = Batch](Seq(v1, v2))
+    val stacked2 = Tensor.stack[NewAxis = Batch](v1, Seq(v2))
     val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     assertEquals(stacked2.shape.dims, Seq(2, 2))
     assert(stacked2.tensorEquals(expected2))
@@ -440,7 +440,7 @@ class TensorTests extends FunSuite:
     // Concatenate two vectors along the feature dimension
     val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
     val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
-    val concatenated = Tensor.concat[Feature, Tuple1[Feature]](Seq(v1, v2), axis = 0)
+    val concatenated = v1.concat[Feature](v2)
     val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
     assertEquals(concatenated.shape.dims, Seq(4))
     assert(concatenated.tensorEquals(expected))
@@ -448,7 +448,7 @@ class TensorTests extends FunSuite:
     // Concatenate two matrices along the batch dimension
     val m1 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     val m2 = Tensor2[Batch, Feature](Seq(Seq(5.0f, 6.0f)))
-    val concatenated2 = Tensor.concat[Batch, (Batch, Feature)](Seq(m1, m2), axis = 0)
+    val concatenated2 = m1.concat[Batch](m2)
     val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f), Seq(5.0f, 6.0f)))
     assertEquals(concatenated2.shape.dims, Seq(3, 2))
     assert(concatenated2.tensorEquals(expected2))
@@ -456,7 +456,7 @@ class TensorTests extends FunSuite:
     // Concatenate two matrices along the feature dimension
     val m3 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     val m4 = Tensor2[Batch, Feature](Seq(Seq(5.0f, 6.0f), Seq(7.0f, 8.0f)))
-    val concatenated3 = Tensor.concat[Feature, (Batch, Feature)](Seq(m3, m4), axis = 1)
+    val concatenated3 = m3.concat[Feature](m4)
     val expected3 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f, 5.0f, 6.0f), Seq(3.0f, 4.0f, 7.0f, 8.0f)))
     assertEquals(concatenated3.shape.dims, Seq(2, 4))
     assert(concatenated3.tensorEquals(expected3))

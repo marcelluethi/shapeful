@@ -13,4 +13,4 @@ object Activation:
     def apply(x: Tensor[T]): Tensor[T] = x.relu
 
   case class Sigmoid[T <: Tuple]() extends Activation[T]:
-    def apply(x: Tensor[T]): Tensor[T] = x.sigmoid 
+    def apply(x: Tensor[T]): Tensor[T] = x.sigmoid

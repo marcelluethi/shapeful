@@ -60,6 +60,26 @@ class TensorTests extends FunSuite:
     assertEquals(tensor.shape.dim[Width], 3)
   }
 
+  test("Tensor2 identity matrix creation") {
+    type Label = "aLabel"
+    val expectedShape = Shape2[Label, Label](2, 2)
+    val expectedTensor = Tensor(expectedShape, Seq(1f, 0f, 0f, 1f))
+    val tensor = Tensor2.eye[Label](Shape1(2))
+
+    assertEquals(tensor.shape, expectedShape)
+    assert(tensor.tensorEquals(expectedTensor))
+  }
+
+  test("Tensor2  matrix creation from diag") {
+    type Label = "aLabel"
+    val expectedShape = Shape2[Label, Label](2, 2)
+    val expectedTensor = Tensor(expectedShape, Seq(3f, 0f, 0f, 2f))
+    val tensor = Tensor2.fromDiag[Label](Tensor1[Label](Seq(3f, 2f)))
+
+    assertEquals(tensor.shape, expectedShape)
+    assert(tensor.tensorEquals(expectedTensor))
+  }
+
   test("zeros and ones creation") {
     val shape = Shape2[Height, Width](2, 3)
 

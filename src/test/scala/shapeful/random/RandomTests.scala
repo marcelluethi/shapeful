@@ -233,4 +233,26 @@ class RandomTests extends FunSuite:
     assert(variance > tolerance, "Complex samples should have variance (be different)")
   }
 
+  test("type-safe permutation preserves elements along labeled axis") {
+    val shape = Shape2[Sample, Feature](3, 4)
+    val values = (1 to 12).map(_.toFloat)
+    val tensor = Tensor(shape, values)
+    val key = Random.Key(123)
+
+    // Permute along Feature axis
+    val permuted = Random.permutation[Sample *: Feature *: EmptyTuple, Feature](tensor, key)
+
+    // Convert both tensors to sequences and sort to verify same elements
+    val originalSeq = values.sorted
+    val permutedValues = (0 until 12).map { i =>
+      val row = i / 4
+      val col = i % 4
+      permuted.at((row, col)).get.toFloat
+    }
+    val permutedSeq = permutedValues.sorted
+
+    assertEquals(permutedSeq.toSeq, originalSeq.toSeq, "Permuted tensor should contain the same elements")
+    assertEquals(permuted.shape.dims, Seq(3, 4), "Shape should be preserved")
+  }
+
 end RandomTests

@@ -145,17 +145,27 @@ object Random:
     new Tensor[T](shape, jaxValues, dtype)
 
   /** Randomly permute a tensor along an axis */
-  def permutation[T <: Tuple](
+  private def permutation[T <: Tuple](
       tensor: Tensor[T],
       key: Key,
-      axis: Int = 0
+      axis: Int
   ): Tensor[T] =
-    val jaxValues = Jax.jrandom.permutation(
-      key.jaxKey,
-      tensor.jaxValue,
-      axis = axis
-    )
-    new Tensor[T](tensor.shape, jaxValues, tensor.dtype)
+    // JAX permutation requires at least 1-dimensional tensors
+    if tensor.shape.rank == 0 then tensor // Return scalar tensors unchanged
+    else
+      val jaxValues = Jax.jrandom.permutation(
+        key.jaxKey,
+        tensor.jaxValue,
+        axis = axis
+      )
+      new Tensor[T](tensor.shape, jaxValues, tensor.dtype)
+
+  inline def permutation[T <: Tuple, PermutationAxis <: Label](
+      tensor: Tensor[T],
+      key: Key
+  ): Tensor[T] =
+    val axisIndex = TupleHelpers.indexOf[PermutationAxis, T]
+    permutation(tensor, key, axisIndex)
 
   /** Randomly sample indices without replacement */
   def choice[T <: Tuple](

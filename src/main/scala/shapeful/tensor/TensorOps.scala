@@ -3,6 +3,7 @@ package shapeful.tensor
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.jax.Jax
+import shapeful.tensor.TupleHelpers
 import scala.annotation.targetName
 import scala.util.NotGiven
 
@@ -130,6 +131,12 @@ object TensorOps:
 
     def relu: Tensor[T] =
       val result = Jax.jnp.maximum(t.jaxValue, Jax.jnp.zeros(t.jaxValue.shape))
+      new Tensor[T](t.shape, result, t.dtype)
+
+    // Softmax along a specific labeled axis
+    inline def softmax[SoftmaxAxis <: Label]: Tensor[T] =
+      val axisIndex = TupleHelpers.indexOf[SoftmaxAxis, T]
+      val result = Jax.jnn.softmax(t.jaxValue, axis = axisIndex)
       new Tensor[T](t.shape, result, t.dtype)
 
     def clamp(min: Float, max: Float): Tensor[T] =

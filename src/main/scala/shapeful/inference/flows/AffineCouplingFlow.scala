@@ -26,7 +26,7 @@ class AffineCouplingFlow[Dim <: Label](mask: Tensor1[Dim]) extends Flow[Dim, Dim
     val shiftLayer = new Linear["Hidden", "Shift"]()
 
     def forward(params: NetworkParams): Tensor1["Input"] => Tensor1["Shift"] =
-      hiddenLayer(params.shiftHiddenLayer).andThen(Activation.ReLu()).andThen(shiftLayer(params.shiftOutputLayer))
+      hiddenLayer(params.shiftHiddenLayer).andThen(Activation.relu).andThen(shiftLayer(params.shiftOutputLayer))
 
   def forwardSample(x: Tensor1[Dim])(params: Params): Tensor1[Dim] =
     val input_dim = mask.shape.dim[Dim] // Infer input_dim from mask

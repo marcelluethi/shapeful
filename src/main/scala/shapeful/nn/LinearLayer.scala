@@ -5,14 +5,12 @@ import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.autodiff.{TensorTree, ToPyTree}
 import shapeful.nn.Layer1D
+import shapeful.nn.Layer.LayerDim
 
-class Linear[In <: Label, Out <: Label]() extends Layer1D[In, Out, Linear.Params[In, Out]]:
+class Linear[In <: Label, Out <: Label]:
 
-  override def forward(params: Linear.Params[In, Out]): Function1[Tensor1[In], Tensor1[Out]] =
-    input =>
-      val weight = params.weight
-      val bias = params.bias
-      input.matmul(weight) + bias
+  def apply(params: Linear.Params[In, Out])(input: Tensor1[In]): Tensor1[Out] =
+    input.matmul(params.weight) + params.bias
 
 object Linear:
   case class Params[InDim <: Label, OutDim <: Label](
@@ -23,24 +21,20 @@ object Linear:
 
   // Convenience method for common initialization
   def xavier[InDim <: Label, OutDim <: Label](
-      input_dim: Int,
-      output_dim: Int,
       key: shapeful.random.Random.Key
-  ): Linear.Params[InDim, OutDim] =
-    val scale = math.sqrt(2.0 / (input_dim + output_dim)).toFloat
+  )(using inDim: LayerDim[InDim], outDim: LayerDim[OutDim]): Linear.Params[InDim, OutDim] =
+    val scale = math.sqrt(2.0 / (inDim.dim + outDim.dim)).toFloat
     Params(
-      weight = Tensor.randn(Shape2[InDim, OutDim](input_dim, output_dim), key) * Tensor0(scale),
-      bias = Tensor.zeros(Shape1[OutDim](output_dim))
+      weight = Tensor.randn(Shape2[InDim, OutDim](inDim.dim, outDim.dim), key) * Tensor0(scale),
+      bias = Tensor.zeros(Shape1[OutDim](outDim.dim))
     )
 
   // He initialization for ReLU activation functions
   def he[InDim <: Label, OutDim <: Label](
-      input_dim: Int,
-      output_dim: Int,
       key: shapeful.random.Random.Key
-  ): Linear.Params[InDim, OutDim] =
-    val scale = math.sqrt(2.0 / input_dim).toFloat
+  )(using inDim: LayerDim[InDim], outDim: LayerDim[OutDim]): Linear.Params[InDim, OutDim] =
+    val scale = math.sqrt(2.0 / inDim.dim).toFloat
     Params(
-      weight = Tensor.randn(Shape2[InDim, OutDim](input_dim, output_dim), key) * Tensor0(scale),
-      bias = Tensor.zeros(Shape1[OutDim](output_dim))
+      weight = Tensor.randn(Shape2[InDim, OutDim](inDim.dim, outDim.dim), key) * Tensor0(scale),
+      bias = Tensor.zeros(Shape1[OutDim](outDim.dim))
     )

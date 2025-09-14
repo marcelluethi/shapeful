@@ -108,6 +108,10 @@ object TensorOps:
       val result = Jax.jnp.abs(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)
 
+    def sign: Tensor[T] =
+      val result = Jax.jnp.sign(t.jaxValue)
+      new Tensor[T](t.shape, result, t.dtype)
+
     def sqrt: Tensor[T] =
       val result = Jax.jnp.sqrt(t.jaxValue)
       new Tensor[T](t.shape, result, t.dtype)

@@ -1,8 +1,10 @@
-package examples.mnist
+package examples.datautils
 
 import scala.language.experimental.namedTypeArguments
+import scala.annotation.experimental
 import shapeful.*
 import shapeful.jax.Jax
+import examples.datautils.DataLoader
 import java.io.{FileInputStream, DataInputStream, BufferedInputStream}
 import java.nio.file.{Files, Paths}
 import scala.util.{Try, Success, Failure}
@@ -23,6 +25,7 @@ object MNISTLoader {
   /**
    * Lazy MNIST dataset that loads images on demand
    */
+  @experimental
   case class MNISTDataset(
     imageFile: String,
     labelFile: String,
@@ -31,10 +34,14 @@ object MNISTLoader {
     rows: Int = 28,
     cols: Int = 28,
     maxImages: Int = Int.MaxValue  // Maximum number of images to use
-  ) {
+  ) extends DataLoader[Tensor2[Height, Width], Int] {
     // Effective number of images (limited by maxImages)
     val effectiveNumImages: Int = math.min(numImages, maxImages)
     val effectiveNumLabels: Int = math.min(numLabels, maxImages)
+    
+    // DataLoader trait implementation
+    def size: Int = effectiveNumImages
+    def apply(index: Int): (Tensor2[Height, Width], Int) = (getImage(index), getLabel(index))
     
     // Cache for loaded images/labels to avoid re-reading
     private val imageCache = scala.collection.mutable.Map[Int, Tensor2[Height, Width]]()

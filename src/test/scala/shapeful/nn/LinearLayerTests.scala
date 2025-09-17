@@ -4,6 +4,7 @@ import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import shapeful.*
 import shapeful.tensor.Shape.*
+import shapeful.nn.Layer.LayerDim
 
 class LinearLayerTests extends FunSuite:
 
@@ -45,7 +46,7 @@ class LinearLayerTests extends FunSuite:
     )
 
     // Apply forward pass
-    val forward = layer.forward(params)
+    val forward = layer(params)
     val output = forward(input)
 
     // Expected output: [1, 2, 3] * [[1, 2], [0.5, -1], [0, 1.5]] + [0.1, -0.2]
@@ -71,10 +72,12 @@ class LinearLayerTests extends FunSuite:
 
   test("Xavier initialization produces reasonable parameter ranges") {
     val inputDim = 100
+    given LayerDim[InputDim] = LayerDim(inputDim)
     val outputDim = 50
+    given LayerDim[OutputDim] = LayerDim(outputDim)
     val key = shapeful.random.Random.Key(42)
 
-    val params = Linear.xavier[InputDim, OutputDim](inputDim, outputDim, key)
+    val params = Linear.xavier[InputDim, OutputDim](key)
 
     // Check weight dimensions
     assertEquals(params.weight.shape.dims, Seq(inputDim, outputDim))
@@ -92,7 +95,7 @@ class LinearLayerTests extends FunSuite:
     // Check that weights are not all the same (basic randomness check)
     // We'll create two different parameter sets and ensure they're different
     val key2 = shapeful.random.Random.Key(123)
-    val params2 = Linear.xavier[InputDim, OutputDim](inputDim, outputDim, key2)
+    val params2 = Linear.xavier[InputDim, OutputDim](key2)
     assert(
       !params.weight.tensorEquals(params2.weight),
       "Weights should be randomly initialized (different instances should be different)"
@@ -102,9 +105,11 @@ class LinearLayerTests extends FunSuite:
   test("He initialization produces reasonable parameter ranges") {
     val inputDim = 100
     val outputDim = 50
+    given LayerDim[InputDim] = LayerDim(inputDim)
+    given LayerDim[OutputDim] = LayerDim(outputDim)
     val key = shapeful.random.Random.Key(456)
 
-    val params = Linear.he[InputDim, OutputDim](inputDim, outputDim, key)
+    val params = Linear.he[InputDim, OutputDim](key)
 
     // Check weight dimensions
     assertEquals(params.weight.shape.dims, Seq(inputDim, outputDim))
@@ -122,7 +127,7 @@ class LinearLayerTests extends FunSuite:
     // Check that weights are not all the same (basic randomness check)
     // We'll create two different parameter sets and ensure they're different
     val key2 = shapeful.random.Random.Key(789)
-    val params2 = Linear.he[InputDim, OutputDim](inputDim, outputDim, key2)
+    val params2 = Linear.he[InputDim, OutputDim](key2)
     assert(
       !params.weight.tensorEquals(params2.weight),
       "Weights should be randomly initialized (different instances should be different)"

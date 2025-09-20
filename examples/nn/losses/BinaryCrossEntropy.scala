@@ -4,10 +4,10 @@ import scala.language.experimental.namedTypeArguments
 import shapeful.*
 
 object BinaryCrossEntropy:
-  
+
   def apply[Output <: Label](
-    logits: Tensor1[Output], 
-    targets: Tensor1[Output]
+      logits: Tensor1[Output],
+      targets: Tensor1[Output]
   ): Tensor0 =
-    val logProbs = logits - logits.exp.sum.log  
+    val logProbs = logits - logits.exp.sum.log
     (targets * logProbs * Tensor0(-1f)).sum

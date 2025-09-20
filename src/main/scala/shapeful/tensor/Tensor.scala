@@ -395,7 +395,15 @@ object Tensor0:
 object Tensor1:
   import Tensor.{Tensor1, Tensor2}
 
+  @targetName("fromFloatSeq")
   def apply[L <: Label](values: Seq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
+    require(values.nonEmpty, "Cannot create tensor from empty sequence")
+    val shape = Shape1[L](values.length)
+    val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
+    new Tensor(shape, jaxValues, dtype)
+
+  @targetName("fromInts")
+  def fromInts[L <: Label](values: Seq[Int], dtype: DType = DType.Int32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
     val shape = Shape1[L](values.length)
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))

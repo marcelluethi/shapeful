@@ -21,6 +21,13 @@ object Jax:
     sys.path.append("./src/python")
     sys.path.append("../")
 
+  def clearCaches(): Unit =
+    // Using ScalaPy to call Python JAX
+    py.module("jax").clear_caches()
+
+  def gc(): Unit =
+    py.module("gc").collect()
+
   // Lazy module imports with error handling
   lazy val jax =
     configurePythonPath

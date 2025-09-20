@@ -3,21 +3,20 @@ package examples.basic
 import scala.language.experimental.namedTypeArguments
 import shapeful.*
 
-/**
- * Getting started with Shapeful tensors.
- * 
- * This example demonstrates:
- * - Creating tensors with different shapes
- * - Working with labeled dimensions  
- * - Basic tensor inspection
- */
+/** Getting started with Shapeful tensors.
+  *
+  * This example demonstrates:
+  *   - Creating tensors with different shapes
+  *   - Working with labeled dimensions
+  *   - Basic tensor inspection
+  */
 object GettingStarted extends App:
 
   println("=== Shapeful Tensor Library - Getting Started ===\n")
 
   // Define some semantic labels for our tensor dimensions
   type Batch = "batch"
-  type Feature = "feature" 
+  type Feature = "feature"
   type Height = "height"
   type Width = "width"
 
@@ -39,51 +38,57 @@ object GettingStarted extends App:
 
   // 3. Creating matrix tensors (2D)
   println("3. Matrix Tensors (2D)")
-  val matrix = Tensor2[Batch, Feature](Seq(
-    Seq(1.0f, 2.0f, 3.0f),
-    Seq(4.0f, 5.0f, 6.0f),
-    Seq(7.0f, 8.0f, 9.0f)
-  ))
+  val matrix = Tensor2[Batch, Feature](
+    Seq(
+      Seq(1.0f, 2.0f, 3.0f),
+      Seq(4.0f, 5.0f, 6.0f),
+      Seq(7.0f, 8.0f, 9.0f)
+    )
+  )
   println(s"Matrix tensor: $matrix")
   println(s"Shape: ${matrix.shape.dims} (${matrix.shape.dim[Batch]} batches, ${matrix.shape.dim[Feature]} features)")
   println()
 
-  // 4. Creating 3D tensors 
+  // 4. Creating 3D tensors
   println("4. 3D Tensors")
-  val tensor3d = Tensor3[Batch, Height, Width](Seq(
+  val tensor3d = Tensor3[Batch, Height, Width](
     Seq(
-      Seq(1.0f, 2.0f),
-      Seq(3.0f, 4.0f)
-    ),
-    Seq(
-      Seq(5.0f, 6.0f), 
-      Seq(7.0f, 8.0f)
+      Seq(
+        Seq(1.0f, 2.0f),
+        Seq(3.0f, 4.0f)
+      ),
+      Seq(
+        Seq(5.0f, 6.0f),
+        Seq(7.0f, 8.0f)
+      )
     )
-  ))
+  )
   println(s"3D tensor: $tensor3d")
-  println(s"Shape: ${tensor3d.shape.dims} (${tensor3d.shape.dim[Batch]} × ${tensor3d.shape.dim[Height]} × ${tensor3d.shape.dim[Width]})")
+  println(
+    s"Shape: ${tensor3d.shape.dims} (${tensor3d.shape.dim[Batch]} × ${tensor3d.shape.dim[Height]} × ${tensor3d.shape.dim[Width]})"
+  )
   println()
 
   // 5. Special tensor creation methods
   println("5. Special Tensor Creation")
-  
+
   val zeros = Tensor.zeros(Shape1[Feature](4))
   println(s"Zeros: $zeros")
-  
+
   val ones = Tensor.ones(Shape1[Feature](3))
   println(s"Ones: $ones")
-  
+
   println()
 
   // 6. Working with different data types
   println("6. Data Types")
   val floatTensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
   println(s"Float32 tensor: $floatTensor (${floatTensor.dtype})")
-  
+
   // Convert to different dtype
   val doubleTensor = floatTensor.asType(DType.Float64)
   println(s"Float64 tensor: $doubleTensor (${doubleTensor.dtype})")
-  
+
   val intTensor = floatTensor.asType(DType.Int32)
   println(s"Int32 tensor: $intTensor (${intTensor.dtype})")
   println()

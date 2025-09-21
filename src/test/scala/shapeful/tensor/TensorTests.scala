@@ -442,18 +442,18 @@ class TensorTests extends FunSuite:
     val t1 = Tensor0(1.0f)
     val t2 = Tensor0(2.0f)
     val t3 = Tensor0(3.0f)
-    val stacked = Tensor.stack[NewAxis = Feature](t1, Seq(t2, t3))
+    val stacked = Tensor.stack[EmptyTuple, Feature](t1, Seq(t2, t3))
     val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
     assertEquals(stacked.shape.dims, Seq(3))
-    assert(stacked.tensorEquals(expected))
+    assert(stacked.tensorEquals(expected), "Stacked tensor should equal expected")
 
     // Stack two vectors into a matrix
     val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
     val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
-    val stacked2 = Tensor.stack[NewAxis = Batch](v1, Seq(v2))
+    val stacked2 = Tensor.stack[Tuple1[Feature], Batch](v1, Seq(v2))
     val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     assertEquals(stacked2.shape.dims, Seq(2, 2))
-    assert(stacked2.tensorEquals(expected2))
+    assert(stacked2.tensorEquals(expected2), "Second stacked tensor should equal expected")
   }
 
   test("concat operation") {
@@ -681,6 +681,94 @@ class TensorTests extends FunSuite:
     intercept[IllegalArgumentException] {
       tensor.splitAt[Feature](5) // Beyond tensor size
     }
+  }
+
+  test("toDevice method with CPU") {
+    val shape = Shape2[Height, Width](2, 3)
+    val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
+    val originalTensor = Tensor(shape, values)
+
+    val cpuTensor = originalTensor.toDevice(Device.CPU)
+
+    // Verify it returns a new tensor instance
+    assert(cpuTensor ne originalTensor)
+
+    // Verify shape and dtype are preserved
+    assertEquals(cpuTensor.shape.dims, originalTensor.shape.dims)
+    assertEquals(cpuTensor.dtype, originalTensor.dtype)
+
+    // Verify the tensor values are preserved
+    assert(cpuTensor.tensorEquals(originalTensor))
+
+    // Verify the device is CPU (check device platform)
+    val deviceStr = shapeful.jax.Jax.device_get(cpuTensor.jaxValue).platform.as[String]
+    assertEquals(deviceStr, "cpu")
+  }
+
+  test("toDevice method returns different instances for same device") {
+    val shape = Shape1[Feature](4)
+    val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
+    val originalTensor = Tensor(shape, values)
+
+    val cpuTensor1 = originalTensor.toDevice(Device.CPU)
+    val cpuTensor2 = originalTensor.toDevice(Device.CPU)
+
+    // Should return different instances even for same device
+    assert(cpuTensor1 ne cpuTensor2)
+    assert(cpuTensor1 ne originalTensor)
+
+    // But should have same values
+    assert(cpuTensor1.tensorEquals(cpuTensor2))
+    assert(cpuTensor1.tensorEquals(originalTensor))
+  }
+
+  test("toDevice preserves tensor properties across different dtypes") {
+    val shape = Shape1[Feature](3)
+
+    // Test with Float32
+    val floatTensor = Tensor(shape, Seq(1.0f, 2.0f, 3.0f), DType.Float32)
+    val floatCpuTensor = floatTensor.toDevice(Device.CPU)
+    assertEquals(floatCpuTensor.dtype, DType.Float32)
+    assertEquals(floatCpuTensor.shape.dims, shape.dims)
+    assert(floatCpuTensor.tensorEquals(floatTensor))
+
+    // Test with scalar tensors of different types
+    val intScalar = Tensor0(42)
+    val intCpuScalar = intScalar.toDevice(Device.CPU)
+    assertEquals(intCpuScalar.dtype, DType.Int32)
+    assert(intCpuScalar.tensorEquals(intScalar))
+
+    val boolScalar = Tensor0(true)
+    val boolCpuScalar = boolScalar.toDevice(Device.CPU)
+    assertEquals(boolCpuScalar.dtype, DType.Bool)
+    assert(boolCpuScalar.tensorEquals(boolScalar))
+  }
+
+  test("toDevice with GPU when available") {
+    val shape = Shape1[Feature](4)
+    val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
+    val originalTensor = Tensor(shape, values)
+
+    try
+      val gpuTensor = originalTensor.toDevice(Device.GPU)
+
+      // Verify it returns a new tensor instance
+      assert(gpuTensor ne originalTensor)
+
+      // Verify shape and dtype are preserved
+      assertEquals(gpuTensor.shape.dims, originalTensor.shape.dims)
+      assertEquals(gpuTensor.dtype, originalTensor.dtype)
+
+      // Verify the tensor values are preserved
+      assert(gpuTensor.tensorEquals(originalTensor))
+
+      // Verify the device is GPU (check device platform)
+      val deviceStr = shapeful.jax.Jax.device_get(gpuTensor.jaxValue).platform.as[String]
+      assertEquals(deviceStr, "gpu")
+    catch
+      case _: Exception =>
+        // GPU not available, skip this test
+        println("GPU not available, skipping GPU test")
   }
 
 end TensorTests

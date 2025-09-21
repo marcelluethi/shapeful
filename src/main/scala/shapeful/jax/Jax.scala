@@ -25,6 +25,18 @@ object Jax:
     // Using ScalaPy to call Python JAX
     py.module("jax").clear_caches()
 
+  def devices(deviceType: String): Seq[py.Dynamic] =
+    val jaxModule = py.module("jax")
+    val devices = jaxModule.devices(deviceType)
+    devices.as[Seq[py.Dynamic]]
+
+  def device_put(x: py.Dynamic, device: PyDynamic): PyDynamic =
+    val jaxModule = py.module("jax")
+    jaxModule.device_put(x, device = device).as[PyDynamic]
+
+  def device_get(x: py.Dynamic): PyDynamic =
+    x.device.as[PyDynamic]
+
   def gc(): Unit =
     py.module("gc").collect()
 
@@ -56,6 +68,16 @@ object Jax:
       case e: Exception =>
         throw new RuntimeException(
           s"Failed to import JAX Neural Network module. Make sure JAX is installed: ${e.getMessage}",
+          e
+        )
+
+  lazy val np =
+    configurePythonPath
+    try py.module("numpy")
+    catch
+      case e: Exception =>
+        throw new RuntimeException(
+          s"Failed to import NumPy. Make sure NumPy is installed in your Python environment: ${e.getMessage}",
           e
         )
 

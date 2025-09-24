@@ -5,7 +5,6 @@ import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.autodiff.{TensorTree, ToPyTree}
 import shapeful.nn.Layer1D
-import shapeful.nn.Layer.LayerDim
 
 class Linear[In <: Label, Out <: Label]:
 
@@ -22,7 +21,7 @@ object Linear:
   // Convenience method for common initialization
   def xavier[InDim <: Label, OutDim <: Label](
       key: shapeful.random.Random.Key
-  )(using inDim: LayerDim[InDim], outDim: LayerDim[OutDim]): Linear.Params[InDim, OutDim] =
+  )(using inDim: Dim[InDim], outDim: Dim[OutDim]): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / (inDim.dim + outDim.dim)).toFloat
     Params(
       weight = Tensor.randn(Shape2[InDim, OutDim](inDim.dim, outDim.dim), key) * Tensor0(scale),
@@ -32,7 +31,7 @@ object Linear:
   // He initialization for ReLU activation functions
   def he[InDim <: Label, OutDim <: Label](
       key: shapeful.random.Random.Key
-  )(using inDim: LayerDim[InDim], outDim: LayerDim[OutDim]): Linear.Params[InDim, OutDim] =
+  )(using inDim: Dim[InDim], outDim: Dim[OutDim]): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / inDim.dim).toFloat
     Params(
       weight = Tensor.randn(Shape2[InDim, OutDim](inDim.dim, outDim.dim), key) * Tensor0(scale),

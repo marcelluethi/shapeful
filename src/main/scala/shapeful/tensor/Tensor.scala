@@ -449,7 +449,6 @@ object Tensor1:
     val shape = Shape1[L1](values.length)
     val jaxValues = Jax.jnp
       .array(values.toArray.toPythonCopy, dtype = JaxDType.jaxDtype(dtype))
-      .reshape(shape.dims(0), shape.dims(1))
 
     new Tensor(shape, jaxValues, dtype)
 

@@ -6,6 +6,15 @@ package object shapeful:
 
   type Label = Singleton
 
+  trait Dim[L <: Label]:
+    def dim: Int
+
+  object Dim:
+    def apply[L <: Label](dim: Int): Dim[L] =
+      val outerDim = dim
+      new Dim[L]:
+        def dim: Int = outerDim
+
   export tensor.{Shape, Shape0, Shape1, Shape2, Shape3}
   export tensor.Shape.{Shape0, Shape1, Shape2, Shape3}
   export tensor.Tensor

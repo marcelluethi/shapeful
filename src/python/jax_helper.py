@@ -104,3 +104,39 @@ def jacrev(f):
         return f(x)
     
     return jax_jacrev(python_wrapper)
+
+def jit(f):
+    """
+    Just-in-time compiles a function for faster execution.
+    
+    The first call will be slower due to compilation, but subsequent calls
+    with the same shapes will be much faster.
+    """
+    from jax import jit as jax_jit
+    def python_wrapper(*args):
+        return f(*args)
+    
+    return jax_jit(python_wrapper)
+
+def jit_fn(f):
+    """
+    Universal JIT wrapper that works with any function.
+    Simply wraps the function in a Python wrapper and JIT compiles it.
+    
+    This is the simplest and most flexible approach - works with:
+    - Regular functions
+    - vmap'ed functions
+    - grad functions
+    - Any combination
+    
+    Args:
+        f: Any function to JIT compile
+    
+    Returns:
+        JIT-compiled version of the function
+    """
+    from jax import jit as jax_jit
+    def python_wrapper(*args, **kwargs):
+        return f(*args, **kwargs)
+    
+    return jax_jit(python_wrapper)

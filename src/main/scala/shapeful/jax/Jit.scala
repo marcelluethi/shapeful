@@ -93,6 +93,40 @@ object Jit:
   ): Tensor[InT] => Tensor[OutT] =
     apply[Tensor[InT], OutT](f)
 
+  /** Convenience method to JIT compile a function that takes a single tensor.
+    * Alias for `function` method for consistency with function2.
+    *
+    * @example
+    *   {{{
+    *   val jitted = Jit.function1[("Batch", "Feature"), ("Batch",)](t => t.sum(axis = 1))
+    *   val result = jitted(tensor)
+    *   }}}
+    */
+  def function1[InT <: Tuple, OutT <: Tuple](
+      f: Tensor[InT] => Tensor[OutT]
+  ): Tensor[InT] => Tensor[OutT] =
+    apply[Tensor[InT], OutT](f)
+
+  /** Convenience method to JIT compile a function that takes two tensors.
+    * This is useful for operations like computing accuracy, losses, or other
+    * metrics that compare two tensors (e.g., predictions vs targets).
+    *
+    * @example
+    *   {{{
+    *   val jittedAccuracy = Jit.function2[(Sample, Output), (Sample, Output), EmptyTuple](
+    *     (predictions, targets) => computeAccuracy(predictions, targets)
+    *   )
+    *   val accuracy = jittedAccuracy(preds, targets)
+    *   }}}
+    */
+  def function2[In1T <: Tuple, In2T <: Tuple, OutT <: Tuple](
+      f: (Tensor[In1T], Tensor[In2T]) => Tensor[OutT]
+  ): (Tensor[In1T], Tensor[In2T]) => Tensor[OutT] =
+    val jittedTuple = apply[(Tensor[In1T], Tensor[In2T]), OutT] { case (t1, t2) =>
+      f(t1, t2)
+    }
+    (input1: Tensor[In1T], input2: Tensor[In2T]) => jittedTuple((input1, input2))
+
   /** Convenience method to JIT compile a function that takes parameters and a tensor. This is useful for neural network
     * forward passes and similar operations.
     *

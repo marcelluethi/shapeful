@@ -416,6 +416,92 @@ object Tensor:
   ): Tensor[T] =
     concat(tensor, ArraySeq.from(tensorsToConcat))
 
+  /** JIT compile a function that works with tensors. This is useful when you want to JIT a function before applying it,
+    * or when working with multiple tensors.
+    *
+    * @example
+    *   {{{ // JIT a function and reuse it val jittedOp = Tensor.jitFunction[T, OutT](t => t.relu.softmax) val result1 =
+    *   jittedOp(tensor1) val result2 = jittedOp(tensor2)
+    *
+    * // JIT a vmap operation val jittedVmap = Tensor.jitFunction[("Batch", "Feature"), ("Batch",)]( t =>
+    * t.vmap[VmapAxis = "Batch"](x => x.dot(x)) ) }}}
+    */
+  def jitFunction[InT <: Tuple, OutT <: Tuple](
+      f: Tensor[InT] => Tensor[OutT]
+  ): Tensor[InT] => Tensor[OutT] =
+
+    // Create a mutable reference to store shape info from first call
+    var cachedInShape: Option[Shape[InT]] = None
+    var cachedDtype: Option[DType] = None
+
+    val fpy = (jxpr: Jax.PyDynamic) =>
+      // Use cached shape/dtype from first call
+      val inShape = cachedInShape.getOrElse(
+        throw new IllegalStateException("Shape not initialized")
+      )
+      val dt = cachedDtype.getOrElse(DType.Float32)
+
+      val tensor = new Tensor[InT](inShape, jxpr, dt)
+      val result = f(tensor)
+      result.jaxValue
+
+    val jitted = Jax.jax_helper.jit_fn(fpy)
+
+    // Return a function that applies the JIT'ed operation
+    (input: Tensor[InT]) =>
+      // Cache shape and dtype on first call
+      if cachedInShape.isEmpty then
+        cachedInShape = Some(input.shape)
+        cachedDtype = Some(input.dtype)
+
+      val resultJax = jitted(input.jaxValue)
+
+      val resultDims = resultJax.shape.as[Seq[Int]]
+      val resultTuple = TupleHelpers.createTupleFromSeq[OutT](resultDims)
+      val resultShape = Shape[OutT](resultTuple)
+
+      new Tensor(resultShape, resultJax, input.dtype)
+
+  /** JIT compile a two-argument function
+    *
+    * @example
+    *   {{{ // JIT a two-argument function val jittedAdd = Tensor.jitFunction2[T1, T2, OutT]((a, b) => a.add(b)) val
+    *   result = jittedAdd(tensor1, tensor2) }}}
+    */
+  def jitFunction2[In1T <: Tuple, In2T <: Tuple, OutT <: Tuple](
+      f: (Tensor[In1T], Tensor[In2T]) => Tensor[OutT]
+  ): (Tensor[In1T], Tensor[In2T]) => Tensor[OutT] =
+
+    var cachedShape1: Option[Shape[In1T]] = None
+    var cachedShape2: Option[Shape[In2T]] = None
+    var cachedDtype: Option[DType] = None
+
+    val fpy = (jxpr1: Jax.PyDynamic, jxpr2: Jax.PyDynamic) =>
+      val shape1 = cachedShape1.getOrElse(throw new IllegalStateException("Shape1 not initialized"))
+      val shape2 = cachedShape2.getOrElse(throw new IllegalStateException("Shape2 not initialized"))
+      val dt = cachedDtype.getOrElse(DType.Float32)
+
+      val tensor1 = new Tensor[In1T](shape1, jxpr1, dt)
+      val tensor2 = new Tensor[In2T](shape2, jxpr2, dt)
+      val result = f(tensor1, tensor2)
+      result.jaxValue
+
+    val jitted = Jax.jax_helper.jit_fn(fpy)
+
+    (input1: Tensor[In1T], input2: Tensor[In2T]) =>
+      if cachedShape1.isEmpty then
+        cachedShape1 = Some(input1.shape)
+        cachedShape2 = Some(input2.shape)
+        cachedDtype = Some(input1.dtype)
+
+      val resultJax = jitted(input1.jaxValue, input2.jaxValue)
+
+      val resultDims = resultJax.shape.as[Seq[Int]]
+      val resultTuple = TupleHelpers.createTupleFromSeq[OutT](resultDims)
+      val resultShape = Shape[OutT](resultTuple)
+
+      new Tensor(resultShape, resultJax, input1.dtype)
+
 object Tensor0:
   import Tensor.{Tensor0, Tensor1}
 

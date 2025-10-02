@@ -4,7 +4,6 @@ import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import shapeful.*
 import shapeful.tensor.Shape.*
-import shapeful.nn.Layer.LayerDim
 
 class LinearLayerTests extends FunSuite:
 
@@ -72,9 +71,9 @@ class LinearLayerTests extends FunSuite:
 
   test("Xavier initialization produces reasonable parameter ranges") {
     val inputDim = 100
-    given LayerDim[InputDim] = LayerDim(inputDim)
+    given Dim[InputDim] = Dim(inputDim)
     val outputDim = 50
-    given LayerDim[OutputDim] = LayerDim(outputDim)
+    given Dim[OutputDim] = Dim(outputDim)
     val key = shapeful.random.Random.Key(42)
 
     val params = Linear.xavier[InputDim, OutputDim](key)
@@ -105,8 +104,8 @@ class LinearLayerTests extends FunSuite:
   test("He initialization produces reasonable parameter ranges") {
     val inputDim = 100
     val outputDim = 50
-    given LayerDim[InputDim] = LayerDim(inputDim)
-    given LayerDim[OutputDim] = LayerDim(outputDim)
+    given Dim[InputDim] = Dim(inputDim)
+    given Dim[OutputDim] = Dim(outputDim)
     val key = shapeful.random.Random.Key(456)
 
     val params = Linear.he[InputDim, OutputDim](key)

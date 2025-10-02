@@ -3,6 +3,8 @@ package examples.datautils
 import scala.language.experimental.namedTypeArguments
 import scala.annotation.experimental
 import shapeful.*
+import shapeful.tensor.Device
+import shapeful.tensor.TensorIndexing.*
 import shapeful.jax.Jax
 import examples.datautils.DataLoader
 import java.io.{FileInputStream, DataInputStream, BufferedInputStream}
@@ -10,6 +12,8 @@ import scala.util.{Try, Success, Failure}
 import me.shadaj.scalapy.py.SeqConverters
 import scala.concurrent.{Future, ExecutionContext}
 import java.util.concurrent.Executors
+import scala.collection.immutable.ArraySeq
+import examples.Utils
 
 /** Simple MNIST data loader that loads all data into memory arrays.
   *
@@ -22,54 +26,86 @@ object MNISTLoader:
   // Type labels for MNIST image dimensions
   type Height = "height"
   type Width = "width"
+  type Sample = "Sample"
+  type Label = "Label"
 
   /** MNIST dataset that loads all data into memory arrays
     */
   @experimental
   case class MNISTDataset(
-      imagePixels: Array[Array[Array[Float]]], // Pre-loaded pixel data [imageIndex][row][col]
-      labels: Array[Int], // Pre-loaded labels
-      rows: Int = 28,
-      cols: Int = 28
-  ) extends DataLoader[Tensor2[Height, Width], Int]:
+      imagePixels: Tensor3[Sample, Height, Width], // Pre-loaded pixel data [imageIndex][flattenedPixels]
+      labels: Tensor1[Label] // Pre-loaded labels
+  ) extends DataLoader[(Height, Width), Tuple1[Label]]:
 
     // DataLoader trait implementation - only required methods
-    def size: Int = imagePixels.length
+    def size: Int = imagePixels.shape.dim[Sample]
 
-    def apply(index: Int): (Tensor2[Height, Width], Int) = 
-      (getImage(index), getLabel(index))
+    def apply(index: Int): (Tensor[(Height, Width)], Tensor[Tuple1[Label]]) =
+      (getImage(index), getLabelTensor(index))
 
-    def getBatch(indices: Seq[Int]): (Vector[Tensor2[Height, Width]], Vector[Int]) =
-      val images = indices.map(getImage).toVector
-      val batchLabels = indices.map(getLabel).toVector
-      (images, batchLabels)
+    // PERFORMANCE OPTIMIZATION: Override getBatchByIndices to use vectorized JAX indexing
+    // This performs 1 JAX operation instead of N individual slices, providing massive speedup!
+    override def getBatchByIndices[BatchSample <: shapeful.Label](
+        indices: Seq[Int]
+    ): (Tensor[BatchSample *: (Height, Width)], Tensor[BatchSample *: Tuple1[Label]]) =
+      require(indices.nonEmpty, "Indices cannot be empty")
 
-    /** Convert pre-loaded pixel data to 2D Tensor
-      */
-    private def getImage(index: Int): Tensor2[Height, Width] =
-      if index < 0 || index >= size then
-        throw new IndexOutOfBoundsException(s"Image index $index out of bounds [0, $size)")
-      
-      val pixelRows = imagePixels(index).map(_.toSeq).toSeq
-      Tensor2[Height, Width](pixelRows, DType.Float32)
+      // Use JAX advanced indexing to get all images and labels at once
+      val indexArray = Jax.jnp.array(indices.toPythonProxy)
+      val batchedImagesJax = Jax.jnp.take(imagePixels.jaxValue, indexArray, axis = 0)
+      val batchedLabelsJax = Jax.jnp.take(labels.jaxValue, indexArray, axis = 0)
 
-    /** Get pre-loaded label
-      */
-    private def getLabel(index: Int): Int =
+      // Build shape for batched images: (batchSize, height, width)
+      val imageShape = Shape[BatchSample *: (Height, Width)](
+        shapeful.tensor.TupleHelpers.createTupleFromSeq(
+          Seq(indices.size, imagePixels.shape.dim[Height], imagePixels.shape.dim[Width])
+        )
+      )
+
+      // Build shape for batched labels: (batchSize, 1)
+      val labelShape = Shape[BatchSample *: Tuple1[Label]](
+        shapeful.tensor.TupleHelpers.createTupleFromSeq(Seq(indices.size, 1))
+      )
+
+      // Reshape labels to ensure they have the right shape (batchSize, 1)
+      val reshapedLabelsJax = Jax.jnp.reshape(batchedLabelsJax, Seq(indices.size, 1).toPythonProxy)
+
+      (
+        new Tensor(imageShape, batchedImagesJax, DType.Float32),
+        new Tensor(labelShape, reshapedLabelsJax, DType.Int32)
+      )
+
+    private def getLabelTensor(index: Int): Tensor[Tuple1[Label]] =
       if index < 0 || index >= size then
         throw new IndexOutOfBoundsException(s"Label index $index out of bounds [0, $size)")
-      
-      labels(index)
+
+      // Extract single label and keep as integer
+      val labelTensor = labels.at(Tuple1(index)).get
+      val labelValue = labelTensor.jaxValue.item().as[Int]
+      Tensor1.fromInts[Label](ArraySeq(labelValue), DType.Int32)
+
+    /** Extract a 2D image tensor from the 3D tensor
+      */
+    private def getImage(index: Int): Tensor[(Height, Width)] =
+      if index < 0 || index >= size then
+        throw new IndexOutOfBoundsException(s"Image index $index out of bounds [0, $size)")
+      else
+        // Extract the image at the given index from the Tensor3
+        // Slice to get a 1x28x28 tensor, then remove the first dimension
+        val sliced = imagePixels.slice[Sample](index, index + 1)
+        // Remove the first dimension by reshaping to 2D
+        val shape2D = Shape2[Height, Width](imagePixels.shape.dim[Height], imagePixels.shape.dim[Width])
+        sliced.reshape(shape2D)
 
   /** Read 32-bit big-endian integer from DataInputStream
     */
   private def readInt(dis: DataInputStream): Int =
     dis.readInt()
 
-  /** Load MNIST images from IDX3 format file into memory arrays
-    * Format: magic(4), numImages(4), rows(4), cols(4), pixels...
+  /** Load MNIST images from IDX3 format file into memory as Tensor3 Format: magic(4), numImages(4), rows(4), cols(4),
+    * pixels...
     */
-  private def loadImagePixels(filename: String): Try[Array[Array[Array[Float]]]] = Try {
+  private def loadImagePixels(filename: String): Try[Tensor3[Sample, Height, Width]] = Try {
     val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
     try
       val magic = readInt(dis)
@@ -80,29 +116,23 @@ object MNISTLoader:
       val rows = readInt(dis)
       val cols = readInt(dis)
 
-      println(s"Loading $numImages images of size ${rows}x${cols} from $filename into memory")
+      println(s"Loading $numImages images of size ${rows}x${cols} from $filename into memory as Tensor3")
 
-      val imagePixels = Array.ofDim[Array[Array[Float]]](numImages)
-
-      for i <- 0 until numImages do
-        val pixelRows = Array.ofDim[Array[Float]](rows)
-        for row <- 0 until rows do
-          val rowPixels = Array.ofDim[Float](cols)
-          for col <- 0 until cols do
-            // Read unsigned byte and normalize to [0, 1]
-            val pixel = dis.readUnsignedByte()
-            rowPixels(col) = pixel / 255.0f
-          pixelRows(row) = rowPixels
-        imagePixels(i) = pixelRows
-
-      imagePixels
+      // Read all pixel data at once
+      val totalPixels = numImages * rows * cols
+      val pixelBytes = new Array[Byte](totalPixels)
+      dis.readFully(pixelBytes)
+      // Convert bytes to floats with vectorized operation
+      val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
+      val shape = Shape3[Sample, Height, Width](numImages, rows, cols)
+      val tensor = Tensor3.fromArray[Sample, Height, Width](shape, ArraySeq.unsafeWrapArray(allPixels), DType.Float32)
+      tensor.toDevice(Device.CPU)
     finally dis.close()
   }
 
-  /** Load MNIST labels from IDX1 format file into memory array
-    * Format: magic(4), numLabels(4), labels...
+  /** Load MNIST labels from IDX1 format file into memory as Tensor1 Format: magic(4), numLabels(4), labels...
     */
-  private def loadLabelsArray(filename: String): Try[Array[Int]] = Try {
+  private def loadLabelsArray(filename: String): Try[Tensor1[Label]] = Try {
     val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
     try
       val magic = readInt(dis)
@@ -110,12 +140,14 @@ object MNISTLoader:
         throw new IllegalArgumentException(s"Invalid magic number for labels: $magic (expected 2049)")
 
       val numLabels = readInt(dis)
-      println(s"Loading $numLabels labels from $filename into memory")
+      println(s"Loading $numLabels labels from $filename into memory as Tensor1")
 
       val labels = Array.ofDim[Int](numLabels)
-      for i <- 0 until numLabels do labels(i) = dis.readUnsignedByte()
+      for i <- 0.until(numLabels) do labels(i) = dis.readUnsignedByte()
 
-      labels
+      // Create Tensor1 from labels - specify the label type correctly
+      val tensor = Tensor1.fromInts[Label](ArraySeq.unsafeWrapArray(labels), DType.Int32)
+      tensor.toDevice(Device.CPU)
     finally dis.close()
   }
 
@@ -126,9 +158,11 @@ object MNISTLoader:
       imagePixels <- loadImagePixels(imagesFile)
       labels <- loadLabelsArray(labelsFile)
     yield
-      if imagePixels.length != labels.length then
-        throw new IllegalArgumentException(s"Mismatch: ${imagePixels.length} images vs ${labels.length} labels")
-      println(s"Created in-memory MNIST dataset with ${imagePixels.length} images")
+      val numImages = imagePixels.shape.dim[Sample]
+      val numLabels = labels.shape.size
+      if numImages != numLabels then
+        throw new IllegalArgumentException(s"Mismatch: $numImages images vs $numLabels labels")
+      println(s"Created in-memory MNIST dataset with $numImages images")
       MNISTDataset(imagePixels, labels)
 
   /** Create training dataset (loads all data into memory)

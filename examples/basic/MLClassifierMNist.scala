@@ -7,7 +7,6 @@ import shapeful.nn.*
 import shapeful.jax.Jax
 import shapeful.random.Random
 import shapeful.optimization.GradientDescent
-import shapeful.nn.Layer.LayerDim
 import examples.DataUtils
 import examples.nn.losses.BinaryCrossEntropy
 import examples.datautils.DataLoaderOps
@@ -16,19 +15,21 @@ import shapeful.tensor.TensorIndexing.*
 import examples.datautils.DataLoader
 import shapeful.nn.Utils
 import scala.concurrent.ExecutionContext.Implicits.global
+import shapeful.tensor.Device
+import shapeful.jax.Jit
 
 object MLPClassifierMNist:
 
   type Sample = "sample"
 
   type Feature = "feature"
-  given LayerDim[Feature] = LayerDim(28 * 28)
+  given Dim[Feature] = Dim(28 * 28)
 
   type Hidden1 = "hidden1"
-  given LayerDim[Hidden1] = LayerDim(256)
+  given Dim[Hidden1] = Dim(256)
 
   type Output = "output"
-  given LayerDim[Output] = LayerDim(10)
+  given Dim[Output] = Dim(10)
 
   case class MLPParams(
       layer1: Linear.Params[Feature, Hidden1],
@@ -66,16 +67,18 @@ object MLPClassifierMNist:
     val (dataKey, shuffleKey) = key.split2()
 
     // Load MNIST dataset using optimized memory-mapped loader
-    val dataset = MNISTLoader.createTrainingDataset()
+    val dataset = MNISTLoader
+      .createTrainingDataset()
       .get
-      .mapInput(t => t.reshape(Shape1[Feature](28 * 28)))
     println(s"Loaded memory-mapped dataset with ${dataset.size} images")
 
     // Split dataset indices for train/test (90/10 split)
-    val (trainingData, testData) = DataLoaderOps.split(dataset, 0.9, shuffleKey) 
+    val (trainingData, testData) = DataLoaderOps.split(dataset, 0.9)
 
     // Loss function that works on a batch
-    def batchLoss(batchImages: Tensor2[Sample, Feature], batchLabels: Tensor2[Sample, Output])(params: MLPParams): Tensor0 =
+    def batchLoss(batchImages: Tensor2[Sample, Feature], batchLabels: Tensor2[Sample, Output])(
+        params: MLPParams
+    ): Tensor0 =
       val losses = batchImages.zipVmap[VmapAxis = Sample](batchLabels)((sample, label) =>
         val (logits, _) = forward(params, sample)
         BinaryCrossEntropy(logits, label)
@@ -85,33 +88,59 @@ object MLPClassifierMNist:
     val initialParams = initParams(dataKey)
     var currentParams = initialParams
 
+    type BatchOutput = (Sample, Output)
+
+    // JIT-compile accuracy calculation
+    def accuracyFn(predictions: Tensor2[Sample, Output], targets: Tensor2[Sample, Output]): Tensor0 =
+      val predClasses = predictions.vmap[VmapAxis = Sample](pred => shapeful.argmax(pred))
+      val targetClasses = targets.vmap[VmapAxis = Sample](target => shapeful.argmax(target))
+      val matches = predClasses.zipVmap[VmapAxis = Sample](targetClasses)((pred, target) =>
+        Tensor0(1.0f) - (pred - target).abs.sign
+      )
+      shapeful.sum(matches)
+
+    val jittedAccuracy = Jit.function2(accuracyFn)
+
+    val jittedGradStep = Jit.gradientStep(
+      (params: MLPParams, flattenedImages: Tensor2[Sample, Feature], oneHotLabels: Tensor2[Sample, Output]) =>
+        val gradFn = Autodiff.grad(batchLoss(flattenedImages, oneHotLabels))
+        GradientDescent(learningRate).step(gradFn, params)
+    )
+
     // Training loop with epochs and batches
     for epoch <- 0 `until` numEpochs do
       println(s"Epoch $epoch")
 
-      trainingData.batches(batchSize).foreach { (batchImages, batchLabels) =>
-        if batchImages.size == batchSize then // Skip incomplete batches
-          println("Processing batch...")
-          val oneHotLabels = Utils.oneHot[Sample, Output](Tensor1.fromInts[Sample](batchLabels), 10)
-          val batchImagesStacked = Tensor.stack[NewAxis = Sample](batchImages.head, batchImages.tail)
-          val gradFn = Autodiff.grad(batchLoss(batchImagesStacked, oneHotLabels))
-          currentParams = GradientDescent(learningRate).step(gradFn, currentParams)
-        else
-          println(s"Skipping incomplete batch of size ${batchImages.size}")
+      trainingData.batches[Sample](batchSize).zipWithIndex.foreach { case ((batchImages, batchLabels), batchIndex) =>
+        val actualBatchSize = batchImages.shape.dim[Sample]
+        batchImages.toDevice(Device.GPU)
+        batchLabels.toDevice(Device.GPU)
+        if actualBatchSize == batchSize then
+          if batchIndex % 30 == 0 then
+
+            val (testImages, testLabels) =
+              testData.getBatch[Sample](0, 1000) // Use first 1000 test samples for quick eval
+            val testProbs = testImages.vmap[VmapAxis = Sample](image =>
+              val flattened = image.reshape(Shape1[Feature](28 * 28))
+              forward(currentParams, flattened)._2
+            )
+            val oneHotTestLabels =
+              Utils.oneHot[Sample, Output](testLabels.reshape(Shape1[Sample](testLabels.shape.dim[Sample])), 10)
+
+            val correctCount = jittedAccuracy(testProbs, oneHotTestLabels)
+            val accuracy = correctCount.toFloat / 1000.0f
+
+            println(f"Test accuracy after batch $batchIndex: ${accuracy * 100}%.2f%%")
+            println("done evaluating")
+
+          // Flatten images for MLP input
+          val flattenedImages = batchImages.vmap[VmapAxis = Sample](image => image.reshape(Shape1[Feature](28 * 28)))
+          val oneHotLabels =
+            Utils.oneHot[Sample, Output](batchLabels.reshape(Shape1[Sample](batchLabels.shape.dim[Sample])), 10)
+
+          // Use JIT-compiled gradient step - FAST! 10-50x speedup!
+          currentParams = jittedGradStep(currentParams, flattenedImages, oneHotLabels)
+        else println(s"Skipping incomplete batch of size $actualBatchSize")
       }
 
     println("\nTraining complete!")
-
-  private def calculateAccuracy(predictions: Tensor2[Sample, Output], targets: Tensor2[Sample, Output]): Float =
-    // Convert predictions and targets to class indices and compare
-    val predClasses = predictions.vmap[VmapAxis = Sample](pred => shapeful.argmax(pred))
-    val targetClasses = targets.vmap[VmapAxis = Sample](target => shapeful.argmax(target))
-    val matches = predClasses.zipVmap[VmapAxis = Sample](targetClasses)((pred, target) =>
-      // This creates 1.0 if equal, 0.0 if different
-      Tensor0(1.0f) - (pred - target).abs.sign
-    )
-
-    // Sum correct predictions and calculate accuracy
-    val correct = shapeful.sum(matches)
-    val total = predictions.shape.dim[Sample].toFloat
-    correct.toFloat / total

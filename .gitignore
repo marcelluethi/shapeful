@@ -6,9 +6,12 @@ project/project/project/target/*
 .bloop
 .vscode
 .metals
+metals.sbt
 data
 playground
 *.log   
 project/project/**
 *.pyc
 examples/target/
+examples/*/.scala-build
+ide-*.json

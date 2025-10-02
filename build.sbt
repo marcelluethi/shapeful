@@ -25,7 +25,8 @@ lazy val examples = (project in file("examples"))
     // Examples use the same Scala version and dependencies as main project
     libraryDependencies ++= Seq(
       "dev.scalapy" %% "scalapy-core" % "0.5.3",
-      "ch.unibas.cs.gravis" %% "scaltair" % "0.3-SNAPSHOT"
+      "ch.unibas.cs.gravis" %% "scaltair" % "0.3-SNAPSHOT",
+      "io.github.quafadas" %% "scautable" % "0.0.28"
     ),
     fork := true,
     envVars := Map("PYTHONPATH" -> (baseDirectory.value.getParentFile / "src" / "python").getAbsolutePath),

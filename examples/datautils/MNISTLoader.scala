@@ -104,43 +104,54 @@ object MNISTLoader:
 
   /** Load MNIST images from IDX3 format file into memory as Tensor3 Format: magic(4), numImages(4), rows(4), cols(4),
     * pixels...
+    * @param filename
+    *   Path to the MNIST image file
+    * @param maxImages
+    *   Maximum number of images to load (None means load all)
     */
-  private def loadImagePixels(filename: String): Try[Tensor3[Sample, Height, Width]] = Try {
-    val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
-    try
-      val magic = readInt(dis)
-      if magic != 2051 then
-        throw new IllegalArgumentException(s"Invalid magic number for images: $magic (expected 2051)")
+  private def loadImagePixels(filename: String, maxImages: Option[Int] = None): Try[Tensor3[Sample, Height, Width]] =
+    Try {
+      val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
+      try
+        val magic = readInt(dis)
+        if magic != 2051 then
+          throw new IllegalArgumentException(s"Invalid magic number for images: $magic (expected 2051)")
 
-      val numImages = readInt(dis)
-      val rows = readInt(dis)
-      val cols = readInt(dis)
+        val totalImages = readInt(dis)
+        val rows = readInt(dis)
+        val cols = readInt(dis)
 
-      println(s"Loading $numImages images of size ${rows}x${cols} from $filename into memory as Tensor3")
+        val numImages = maxImages.map(max => math.min(max, totalImages)).getOrElse(totalImages)
+        println(s"Loading $numImages of $totalImages images (${rows}x${cols}) from $filename into memory as Tensor3")
 
-      // Read all pixel data at once
-      val totalPixels = numImages * rows * cols
-      val pixelBytes = new Array[Byte](totalPixels)
-      dis.readFully(pixelBytes)
-      // Convert bytes to floats with vectorized operation
-      val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
-      val shape = Shape3[Sample, Height, Width](numImages, rows, cols)
-      val tensor = Tensor3.fromArray[Sample, Height, Width](shape, ArraySeq.unsafeWrapArray(allPixels), DType.Float32)
-      tensor.toDevice(Device.CPU)
-    finally dis.close()
-  }
+        // Read all pixel data at once
+        val totalPixels = numImages * rows * cols
+        val pixelBytes = new Array[Byte](totalPixels)
+        dis.readFully(pixelBytes)
+        // Convert bytes to floats with vectorized operation
+        val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
+        val shape = Shape3[Sample, Height, Width](numImages, rows, cols)
+        val tensor = Tensor3.fromArray[Sample, Height, Width](shape, ArraySeq.unsafeWrapArray(allPixels), DType.Float32)
+        tensor.toDevice(Device.CPU)
+      finally dis.close()
+    }
 
   /** Load MNIST labels from IDX1 format file into memory as Tensor1 Format: magic(4), numLabels(4), labels...
+    * @param filename
+    *   Path to the MNIST labels file
+    * @param maxLabels
+    *   Maximum number of labels to load (None means load all)
     */
-  private def loadLabelsArray(filename: String): Try[Tensor1[Label]] = Try {
+  private def loadLabelsArray(filename: String, maxLabels: Option[Int] = None): Try[Tensor1[Label]] = Try {
     val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
     try
       val magic = readInt(dis)
       if magic != 2049 then
         throw new IllegalArgumentException(s"Invalid magic number for labels: $magic (expected 2049)")
 
-      val numLabels = readInt(dis)
-      println(s"Loading $numLabels labels from $filename into memory as Tensor1")
+      val totalLabels = readInt(dis)
+      val numLabels = maxLabels.map(max => math.min(max, totalLabels)).getOrElse(totalLabels)
+      println(s"Loading $numLabels of $totalLabels labels from $filename into memory as Tensor1")
 
       val labels = Array.ofDim[Int](numLabels)
       for i <- 0.until(numLabels) do labels(i) = dis.readUnsignedByte()
@@ -152,11 +163,17 @@ object MNISTLoader:
   }
 
   /** Create MNIST dataset by loading all data into memory
+    * @param imagesFile
+    *   Path to the MNIST images file
+    * @param labelsFile
+    *   Path to the MNIST labels file
+    * @param maxSamples
+    *   Maximum number of samples to load (None means load all)
     */
-  def createDataset(imagesFile: String, labelsFile: String): Try[MNISTDataset] =
+  def createDataset(imagesFile: String, labelsFile: String, maxSamples: Option[Int] = None): Try[MNISTDataset] =
     for
-      imagePixels <- loadImagePixels(imagesFile)
-      labels <- loadLabelsArray(labelsFile)
+      imagePixels <- loadImagePixels(imagesFile, maxSamples)
+      labels <- loadLabelsArray(labelsFile, maxSamples)
     yield
       val numImages = imagePixels.shape.dim[Sample]
       val numLabels = labels.shape.size
@@ -166,15 +183,23 @@ object MNISTLoader:
       MNISTDataset(imagePixels, labels)
 
   /** Create training dataset (loads all data into memory)
+    * @param dataDir
+    *   Directory containing the MNIST data files
+    * @param maxSamples
+    *   Maximum number of samples to load (None means load all 60000)
     */
-  def createTrainingDataset(dataDir: String = "data"): Try[MNISTDataset] =
+  def createTrainingDataset(dataDir: String = "data", maxSamples: Option[Int] = None): Try[MNISTDataset] =
     val imagesFile = s"$dataDir/train-images-idx3-ubyte"
     val labelsFile = s"$dataDir/train-labels-idx1-ubyte"
-    createDataset(imagesFile, labelsFile)
+    createDataset(imagesFile, labelsFile, maxSamples)
 
   /** Create test dataset (loads all data into memory)
+    * @param dataDir
+    *   Directory containing the MNIST data files
+    * @param maxSamples
+    *   Maximum number of samples to load (None means load all 10000)
     */
-  def createTestDataset(dataDir: String = "data"): Try[MNISTDataset] =
+  def createTestDataset(dataDir: String = "data", maxSamples: Option[Int] = None): Try[MNISTDataset] =
     val imagesFile = s"$dataDir/t10k-images-idx3-ubyte"
     val labelsFile = s"$dataDir/t10k-labels-idx1-ubyte"
-    createDataset(imagesFile, labelsFile)
+    createDataset(imagesFile, labelsFile, maxSamples)

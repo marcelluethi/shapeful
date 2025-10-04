@@ -243,7 +243,7 @@ object VariationalAutoEncoderMNIST:
           // Generate random epsilon samples OUTSIDE JIT
           val (batchKey, nextKey) = rngKey.split2()
           rngKey = nextKey
-          val batchEps = Tensor.randn(Shape2[Sample, Latent](batchSize, 20), key = batchKey)
+          val batchEps = Tensor.randn(batchKey, Shape2[Sample, Latent](batchSize, 20))
 
           // Apply JIT-compiled gradient step (forward + backward + update in one compiled function)
           currentParams = jittedGradStep(currentParams, flattenedImages, batchEps)
@@ -275,7 +275,7 @@ object VariationalAutoEncoderMNIST:
       val flattenedImage = testImage2D.reshape(Shape1[Feature](784))
 
       val testKey = Random.Key(999 + idx)
-      val eps = Tensor.randn(Shape1[Latent](20), key = testKey)
+      val eps = Tensor.randn(testKey, Shape1[Latent](20))
       val (reconstructed, mean, logvar) = forward(currentParams, flattenedImage, eps)
 
       // Save original and reconstructed images
@@ -293,7 +293,7 @@ object VariationalAutoEncoderMNIST:
     for i <- 0 until 5 do
       val keys = genKey.split2()
       genKey = keys._2
-      val priorSample = Tensor.randn(Shape1[Latent](20), key = keys._1)
+      val priorSample = Tensor.randn(keys._1, Shape1[Latent](20))
       val generated = decode(currentParams, priorSample)
       saveTensorAsPNG(generated, s"$outputDir/generated_$i.png")
 

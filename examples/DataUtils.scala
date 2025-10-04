@@ -24,16 +24,21 @@ object DataUtils:
 
     // Generate first moon (upper crescent)
     val moon1Angles =
-      Tensor.randUniform(Shape1[Sample](samplesPerMoon), minval = 0.0f, maxval = math.Pi.toFloat, key = key1)
+      Tensor.randUniform(
+        key1,
+        Shape1[Sample](samplesPerMoon),
+        minval = Tensor0(0.0f),
+        maxval = Tensor0(math.Pi.toFloat)
+      )
     val moon1X = moon1Angles.cos
     val moon1Y = moon1Angles.sin
 
     // Generate second moon (lower crescent, shifted and rotated)
     val moon2Angles = Tensor.randUniform(
+      key2,
       Shape1[Sample](samplesPerMoon + remainingSamples),
-      minval = 0.0f,
-      maxval = math.Pi.toFloat,
-      key = key2
+      minval = Tensor0(0.0f),
+      maxval = Tensor0(math.Pi.toFloat)
     )
     val moon2X = moon2Angles.cos + Tensor0(1.0f) // Shift right by 1
     val moon2Y = moon2Angles.sin - Tensor0(0.5f) // Shift down by 0.5, then negate for lower crescent
@@ -41,12 +46,12 @@ object DataUtils:
 
     // Add some noise for realism
     val noiseScale = 0.1f
-    val noise1X = Tensor.randn(Shape1[Sample](samplesPerMoon), key = noiseKeys(0)) * Tensor0(noiseScale)
-    val noise1Y = Tensor.randn(Shape1[Sample](samplesPerMoon), key = noiseKeys(1)) * Tensor0(noiseScale)
+    val noise1X = Tensor.randn(noiseKeys(0), Shape1[Sample](samplesPerMoon)) * Tensor0(noiseScale)
+    val noise1Y = Tensor.randn(noiseKeys(1), Shape1[Sample](samplesPerMoon)) * Tensor0(noiseScale)
     val noise2X =
-      Tensor.randn(Shape1[Sample](samplesPerMoon + remainingSamples), key = noiseKeys(2)) * Tensor0(noiseScale)
+      Tensor.randn(noiseKeys(2), Shape1[Sample](samplesPerMoon + remainingSamples)) * Tensor0(noiseScale)
     val noise2Y =
-      Tensor.randn(Shape1[Sample](samplesPerMoon + remainingSamples), key = noiseKeys(3)) * Tensor0(noiseScale)
+      Tensor.randn(noiseKeys(3), Shape1[Sample](samplesPerMoon + remainingSamples)) * Tensor0(noiseScale)
 
     // Combine coordinates with noise using stack operation
     // Stack X and Y coordinates to create 2D points for each moon
@@ -60,7 +65,7 @@ object DataUtils:
       .concat(Tensor.ones(Shape1[ClassLabel](samplesPerMoon)))
 
     // Permute both X and y consistently along the Sample axis
-    val permutedX = Random.permutation[PermutationAxis = Sample](X, permutationKey)
-    val permutedY = Random.permutation[PermutationAxis = ClassLabel](y, permutationKey)
+    val permutedX = Random.permutation[PermutationAxis = Sample](permutationKey, X)
+    val permutedY = Random.permutation[PermutationAxis = ClassLabel](permutationKey, y)
 
     (permutedX, permutedY)

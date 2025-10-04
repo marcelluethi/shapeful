@@ -93,8 +93,8 @@ object Jit:
   ): Tensor[InT] => Tensor[OutT] =
     apply[Tensor[InT], OutT](f)
 
-  /** Convenience method to JIT compile a function that takes a single tensor.
-    * Alias for `function` method for consistency with function2.
+  /** Convenience method to JIT compile a function that takes a single tensor. Alias for `function` method for
+    * consistency with function2.
     *
     * @example
     *   {{{
@@ -107,9 +107,8 @@ object Jit:
   ): Tensor[InT] => Tensor[OutT] =
     apply[Tensor[InT], OutT](f)
 
-  /** Convenience method to JIT compile a function that takes two tensors.
-    * This is useful for operations like computing accuracy, losses, or other
-    * metrics that compare two tensors (e.g., predictions vs targets).
+  /** Convenience method to JIT compile a function that takes two tensors. This is useful for operations like computing
+    * accuracy, losses, or other metrics that compare two tensors (e.g., predictions vs targets).
     *
     * @example
     *   {{{

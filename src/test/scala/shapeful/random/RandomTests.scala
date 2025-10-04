@@ -47,8 +47,8 @@ class RandomTests extends FunSuite:
     val key = Random.Key(42)
 
     // Same key should produce same random numbers
-    val rand1 = Random.uniform(Shape0, key)
-    val rand2 = Random.uniform(Shape0, key)
+    val rand1 = Random.uniform(key, Shape0)
+    val rand2 = Random.uniform(key, Shape0)
 
     assertApproxEqual(rand1.toFloat, rand2.toFloat, 1e-7f)
   }
@@ -57,8 +57,8 @@ class RandomTests extends FunSuite:
     val key1 = Random.Key(42)
     val key2 = Random.Key(123)
 
-    val rand1 = Random.uniform(Shape0, key1)
-    val rand2 = Random.uniform(Shape0, key2)
+    val rand1 = Random.uniform(key1, Shape0)
+    val rand2 = Random.uniform(key2, Shape0)
 
     // Different keys should (very likely) produce different numbers
     assert(abs(rand1.toFloat - rand2.toFloat) > tolerance, "Different keys should produce different random numbers")
@@ -69,7 +69,7 @@ class RandomTests extends FunSuite:
     val numSamples = 5
 
     // Test vmapSample with scalar output
-    val scalarSamples = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(Shape0, key))
+    val scalarSamples = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(key, Shape0))
 
     // Check output shape - should be (Sample,)
     assert(scalarSamples.shape.dims.length == 1, "vmapSample output should have Sample dimension")
@@ -91,7 +91,7 @@ class RandomTests extends FunSuite:
 
     // Test vmapSample with vector output
     val vectorSamples =
-      Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(Shape1[Feature](featureSize), key))
+      Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(key, Shape1[Feature](featureSize)))
 
     // Check output shape - should be (Sample, Feature)
     assert(vectorSamples.shape.dims.length == 2, "vmapSample output should have Sample and Feature dimensions")
@@ -109,9 +109,9 @@ class RandomTests extends FunSuite:
     val numSamples = 4
 
     // Generate samples twice with same key
-    val samples1 = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(Shape0, key))
+    val samples1 = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(key, Shape0))
 
-    val samples2 = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(Shape0, key))
+    val samples2 = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(key, Shape0))
 
     // Should be identical
     assert(samples1.approxEquals(samples2, tolerance), "vmapSample should be deterministic with same base key")
@@ -122,9 +122,9 @@ class RandomTests extends FunSuite:
     val baseKey2 = Random.Key(987)
     val numSamples = 3
 
-    val samples1 = Random.vmapSample(baseKey1, numSamples, (key: Random.Key) => Random.uniform(Shape0, key))
+    val samples1 = Random.vmapSample(baseKey1, numSamples, (key: Random.Key) => Random.uniform(key, Shape0))
 
-    val samples2 = Random.vmapSample(baseKey2, numSamples, (key: Random.Key) => Random.uniform(Shape0, key))
+    val samples2 = Random.vmapSample(baseKey2, numSamples, (key: Random.Key) => Random.uniform(key, Shape0))
 
     // Should be different (very high probability)
     assert(
@@ -141,7 +141,7 @@ class RandomTests extends FunSuite:
     val uniformSamples = Random.vmapSample(
       baseKey,
       numSamples,
-      (key: Random.Key) => Random.uniform(Shape0, key) // Uniform in [0, 1)
+      (key: Random.Key) => Random.uniform(key, Shape0) // Uniform in [0, 1)
     )
 
     val mean = uniformSamples.mean.toFloat
@@ -159,7 +159,7 @@ class RandomTests extends FunSuite:
     val numSamples = 100
 
     // Generate normal samples using Box-Muller transform
-    val normalSamples = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.normal(Shape0, key))
+    val normalSamples = Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.normal(key, Shape0))
 
     // Check basic properties of normal samples
     val mean = normalSamples.mean.toFloat
@@ -182,14 +182,14 @@ class RandomTests extends FunSuite:
     val vmapResults = Random.vmapSample(
       baseKey,
       numSamples,
-      (key: Random.Key) => Random.uniform(Shape1[Feature](100), key) // Larger tensors for meaningful timing
+      (key: Random.Key) => Random.uniform(key, Shape1[Feature](100)) // Larger tensors for meaningful timing
     )
     val vmapTime = System.nanoTime() - startVmap
 
     // Time sequential approach
     val startSeq = System.nanoTime()
     val keys = baseKey.split(numSamples)
-    val seqResults = keys.map(key => Random.uniform(Shape1[Feature](100), key))
+    val seqResults = keys.map(key => Random.uniform(key, Shape1[Feature](100)))
     val seqTime = System.nanoTime() - startSeq
 
     // Verify results are equivalent (same keys should produce same results)
@@ -215,9 +215,9 @@ class RandomTests extends FunSuite:
       numSamples,
       (key: Random.Key) =>
         val keys = key.split(3)
-        val x1 = Random.uniform(Shape0, keys(0))
-        val x2 = Random.normal(Shape0, keys(1))
-        val x3 = Random.uniform(Shape0, keys(2)) * Tensor0(10.0f)
+        val x1 = Random.uniform(keys(0), Shape0)
+        val x2 = Random.normal(keys(1), Shape0)
+        val x3 = Random.uniform(keys(2), Shape0) * Tensor0(10.0f)
 
         // Return a computed result
         x1 * x2 + x3.sin
@@ -240,7 +240,7 @@ class RandomTests extends FunSuite:
     val key = Random.Key(123)
 
     // Permute along Feature axis
-    val permuted = Random.permutation[Sample *: Feature *: EmptyTuple, Feature](tensor, key)
+    val permuted = Random.permutation[Sample *: Feature *: EmptyTuple, Feature](key, tensor)
 
     // Convert both tensors to sequences and sort to verify same elements
     val originalSeq = values.sorted

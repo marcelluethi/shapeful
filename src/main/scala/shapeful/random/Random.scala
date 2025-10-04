@@ -42,10 +42,12 @@ object Random:
 
   /** Generate random samples from various distributions */
 
-  /** Standard normal distribution N(0, 1) */
+  /** Normal distribution with specified mean and standard deviation */
   def normal[T <: Tuple](
-      shape: Shape[T],
       key: Key,
+      shape: Shape[T],
+      mean: Tensor0 = Tensor0(0f),
+      std: Tensor0 = Tensor0(1f),
       dtype: DType = DType.Float32
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.normal(
@@ -53,23 +55,13 @@ object Random:
       shape.dims.toPythonProxy,
       dtype = JaxDType.jaxDtype(dtype)
     )
-    new Tensor[T](shape, jaxValues, dtype)
-
-  /** Normal distribution with specified mean and standard deviation */
-  def normal[T <: Tuple](
-      shape: Shape[T],
-      mean: Tensor0,
-      std: Tensor0,
-      key: Key,
-      dtype: DType
-  ): Tensor[T] =
-    val standardNormal = normal(shape, key, dtype)
+    val standardNormal = new Tensor[T](shape, jaxValues, dtype)
     standardNormal * std + mean
 
   /** Uniform distribution in [0, 1) */
   def uniform[T <: Tuple](
-      shape: Shape[T],
       key: Key,
+      shape: Shape[T],
       dtype: DType = DType.Float32
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.uniform(
@@ -81,20 +73,20 @@ object Random:
 
   /** Uniform distribution in [minval, maxval) */
   def uniform[T <: Tuple](
+      key: Key,
       shape: Shape[T],
       minval: Tensor0,
       maxval: Tensor0,
-      key: Key,
       dtype: DType
   ): Tensor[T] =
-    val u = uniform(shape, key, dtype)
+    val u = uniform(key, shape, dtype)
     u * (maxval - minval) + minval
 
   /** Bernoulli distribution (boolean outcomes) */
   def bernoulli[T <: Tuple](
+      key: Key,
       shape: Shape[T],
-      p: Tensor0,
-      key: Key
+      p: Tensor0
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.bernoulli(
       key.jaxKey,
@@ -105,8 +97,8 @@ object Random:
 
   /** Categorical distribution (sample integers from 0 to num_classes-1) */
   def categorical[T <: Tuple](
-      logits: Tensor[T],
       key: Key,
+      logits: Tensor[T],
       axis: Int = -1
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.categorical(
@@ -118,9 +110,9 @@ object Random:
 
   /** Sample from Gamma distribution */
   def gamma[T <: Tuple](
+      key: Key,
       shape: Shape[T],
       alpha: Tensor0,
-      key: Key,
       dtype: DType = DType.Float32
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.gamma(
@@ -133,8 +125,8 @@ object Random:
 
   /** Sample from Exponential distribution */
   def exponential[T <: Tuple](
-      shape: Shape[T],
       key: Key,
+      shape: Shape[T],
       dtype: DType = DType.Float32
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.exponential(
@@ -146,8 +138,8 @@ object Random:
 
   /** Randomly permute a tensor along an axis */
   private def permutation[T <: Tuple](
-      tensor: Tensor[T],
       key: Key,
+      tensor: Tensor[T],
       axis: Int
   ): Tensor[T] =
     // JAX permutation requires at least 1-dimensional tensors
@@ -161,18 +153,18 @@ object Random:
       new Tensor[T](tensor.shape, jaxValues, tensor.dtype)
 
   inline def permutation[T <: Tuple, PermutationAxis <: Label](
-      tensor: Tensor[T],
-      key: Key
+      key: Key,
+      tensor: Tensor[T]
   ): Tensor[T] =
     val axisIndex = TupleHelpers.indexOf[PermutationAxis, T]
-    permutation(tensor, key, axisIndex)
+    permutation(key, tensor, axisIndex)
 
   /** Randomly sample indices without replacement */
   def choice[T <: Tuple](
+      key: Key,
       shape: Shape[T],
       a: Int,
-      replace: Boolean = true,
-      key: Key
+      replace: Boolean = true
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.choice(
       key.jaxKey,

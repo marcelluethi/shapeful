@@ -343,29 +343,29 @@ object Tensor:
 
   /** Generate random tensor from standard normal distribution N(0, 1) */
   def randn[T <: Tuple](
-      shape: Shape[T],
       key: Random.Key,
+      shape: Shape[T],
       dtype: DType = DType.Float32
   ): Tensor[T] =
-    Random.normal(shape, key, dtype)
+    Random.normal(key, shape, dtype = dtype)
 
   /** Generate random tensor from uniform distribution [0, 1) */
   def rand[T <: Tuple](
-      shape: Shape[T],
       key: Random.Key,
+      shape: Shape[T],
       dtype: DType = DType.Float32
   ): Tensor[T] =
-    Random.uniform(shape, key, dtype)
+    Random.uniform(key, shape, dtype)
 
   /** Generate random tensor from uniform distribution [minval, maxval) */
   def randUniform[T <: Tuple](
+      key: Random.Key,
       shape: Shape[T],
       minval: Tensor0,
       maxval: Tensor0,
-      key: Random.Key,
       dtype: DType = DType.Float32
   ): Tensor[T] =
-    Random.uniform(shape, minval, maxval, key, dtype)
+    Random.uniform(key, shape, minval, maxval, dtype)
 
   /** stack a sequence of tensors, onto a given tensor
     */

@@ -24,7 +24,7 @@ object Linear:
   )(using inDim: Dim[InDim], outDim: Dim[OutDim]): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / (inDim.dim + outDim.dim)).toFloat
     Params(
-      weight = Tensor.randn(Shape2[InDim, OutDim](inDim.dim, outDim.dim), key) * Tensor0(scale),
+      weight = Tensor.randn(key, Shape2[InDim, OutDim](inDim.dim, outDim.dim)) * Tensor0(scale),
       bias = Tensor.zeros(Shape1[OutDim](outDim.dim))
     )
 
@@ -34,6 +34,6 @@ object Linear:
   )(using inDim: Dim[InDim], outDim: Dim[OutDim]): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / inDim.dim).toFloat
     Params(
-      weight = Tensor.randn(Shape2[InDim, OutDim](inDim.dim, outDim.dim), key) * Tensor0(scale),
+      weight = Tensor.randn(key, Shape2[InDim, OutDim](inDim.dim, outDim.dim)) * Tensor0(scale),
       bias = Tensor.zeros(Shape1[OutDim](outDim.dim))
     )

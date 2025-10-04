@@ -58,13 +58,13 @@ object Random:
   /** Normal distribution with specified mean and standard deviation */
   def normal[T <: Tuple](
       shape: Shape[T],
-      mean: Float,
-      std: Float,
+      mean: Tensor0,
+      std: Tensor0,
       key: Key,
       dtype: DType
   ): Tensor[T] =
     val standardNormal = normal(shape, key, dtype)
-    standardNormal * Tensor0(std) + Tensor0(mean)
+    standardNormal * std + mean
 
   /** Uniform distribution in [0, 1) */
   def uniform[T <: Tuple](
@@ -82,23 +82,23 @@ object Random:
   /** Uniform distribution in [minval, maxval) */
   def uniform[T <: Tuple](
       shape: Shape[T],
-      minval: Float,
-      maxval: Float,
+      minval: Tensor0,
+      maxval: Tensor0,
       key: Key,
       dtype: DType
   ): Tensor[T] =
     val u = uniform(shape, key, dtype)
-    u * Tensor0(maxval - minval) + Tensor0(minval)
+    u * (maxval - minval) + minval
 
   /** Bernoulli distribution (boolean outcomes) */
   def bernoulli[T <: Tuple](
       shape: Shape[T],
-      p: Float,
+      p: Tensor0,
       key: Key
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.bernoulli(
       key.jaxKey,
-      p,
+      p.jaxValue,
       shape.dims.toPythonProxy
     )
     new Tensor[T](shape, jaxValues, DType.Bool)
@@ -119,13 +119,13 @@ object Random:
   /** Sample from Gamma distribution */
   def gamma[T <: Tuple](
       shape: Shape[T],
-      alpha: Float,
+      alpha: Tensor0,
       key: Key,
       dtype: DType = DType.Float32
   ): Tensor[T] =
     val jaxValues = Jax.jrandom.gamma(
       key.jaxKey,
-      alpha,
+      alpha.jaxValue,
       shape.dims.toPythonProxy,
       dtype = JaxDType.jaxDtype(dtype)
     )

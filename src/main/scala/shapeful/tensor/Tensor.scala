@@ -360,8 +360,8 @@ object Tensor:
   /** Generate random tensor from uniform distribution [minval, maxval) */
   def randUniform[T <: Tuple](
       shape: Shape[T],
-      minval: Float,
-      maxval: Float,
+      minval: Tensor0,
+      maxval: Tensor0,
       key: Random.Key,
       dtype: DType = DType.Float32
   ): Tensor[T] =

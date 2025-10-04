@@ -6,7 +6,7 @@ project/project/project/target/*
 .bloop
 .vscode
 .metals
-metals.sbt
+**/metals.sbt
 data
 playground
 *.log   
@@ -15,3 +15,4 @@ project/project/**
 examples/target/
 examples/*/.scala-build
 ide-*.json
+examples/vae_output

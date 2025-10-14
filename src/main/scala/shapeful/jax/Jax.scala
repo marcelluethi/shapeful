@@ -103,10 +103,10 @@ object Jax:
 
   lazy val scipy_stats =
     configurePythonPath
-    try py.module("scipy.stats")
+    try py.module("jax.scipy.stats")
     catch
       case e: Exception =>
         throw new RuntimeException(
-          s"Failed to import scipy.stats module. Make sure SciPy is installed: ${e.getMessage}",
+          s"Failed to import jax.scipy.stats module. Make sure SciPy is installed: ${e.getMessage}",
           e
         )

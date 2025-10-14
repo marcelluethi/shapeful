@@ -12,6 +12,9 @@ import me.shadaj.scalapy.py.SeqConverters
   *   - Random keys must be explicitly managed
   *   - Keys are split to generate independent random streams
   *   - This ensures reproducibility and parallelizability
+  *
+  * This object provides low-level sampling primitives using JAX.
+  * For statistical modeling, prefer using distribution classes in shapeful.distributions.
   */
 object Random:
 
@@ -40,7 +43,11 @@ object Random:
     /** Create a random key from Scala's random */
     def random(): Key = Key(scala.util.Random.nextInt())
 
-  /** Generate random samples from various distributions */
+  /** Generate random samples from various distributions.
+    * 
+    * These are low-level JAX primitives. For statistical modeling with logpdf support,
+    * use the distribution classes in shapeful.distributions instead.
+    */
 
   /** Normal distribution with specified mean and standard deviation */
   def normal[T <: Tuple](
@@ -79,8 +86,14 @@ object Random:
       maxval: Tensor0,
       dtype: DType
   ): Tensor[T] =
-    val u = uniform(key, shape, dtype)
-    u * (maxval - minval) + minval
+    val jaxValues = Jax.jrandom.uniform(
+      key.jaxKey,
+      shape.dims.toPythonProxy,
+      minval = minval.jaxValue,
+      maxval = maxval.jaxValue,
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    new Tensor[T](shape, jaxValues, dtype)
 
   /** Bernoulli distribution (boolean outcomes) */
   def bernoulli[T <: Tuple](
@@ -113,28 +126,95 @@ object Random:
       key: Key,
       shape: Shape[T],
       alpha: Tensor0,
+      beta: Tensor0 = Tensor0(1f),
       dtype: DType = DType.Float32
   ): Tensor[T] =
-    val jaxValues = Jax.jrandom.gamma(
+    val sample_value = Jax.jrandom.gamma(
       key.jaxKey,
       alpha.jaxValue,
       shape.dims.toPythonProxy,
       dtype = JaxDType.jaxDtype(dtype)
     )
-    new Tensor[T](shape, jaxValues, dtype)
+    val scale = Tensor0(1.0f) / beta
+    new Tensor[T](shape, sample_value, dtype) * scale
 
   /** Sample from Exponential distribution */
   def exponential[T <: Tuple](
       key: Key,
       shape: Shape[T],
+      rate: Tensor0 = Tensor0(1f),
       dtype: DType = DType.Float32
   ): Tensor[T] =
-    val jaxValues = Jax.jrandom.exponential(
+    val exp_sample = Jax.jrandom.exponential(
       key.jaxKey,
       shape.dims.toPythonProxy,
       dtype = JaxDType.jaxDtype(dtype)
     )
-    new Tensor[T](shape, jaxValues, dtype)
+    new Tensor[T](shape, exp_sample, dtype) / rate
+  
+  /** Sample from Cauchy distribution */
+  def cauchy[T <: Tuple](
+      key: Key,
+      shape: Shape[T],
+      loc: Tensor0 = Tensor0(0f),
+      scale: Tensor0 = Tensor0(1f),
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    val cauchy_sample = Jax.jrandom.cauchy(
+      key.jaxKey,
+      shape.dims.toPythonProxy,
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    new Tensor[T](shape, cauchy_sample, dtype) * scale + loc
+  
+  /** Sample from Beta distribution */
+  def beta[T <: Tuple](
+      key: Key,
+      shape: Shape[T],
+      alpha: Tensor0,
+      beta: Tensor0,
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    val sample_value = Jax.jrandom.beta(
+      key.jaxKey,
+      a = alpha.jaxValue,
+      b = beta.jaxValue,
+      shape = shape.dims.toPythonProxy,
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    new Tensor[T](shape, sample_value, dtype)
+  
+  /** Sample from Poisson distribution */
+  def poisson[T <: Tuple](
+      key: Key,
+      shape: Shape[T],
+      rate: Tensor0,
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    val sample_value = Jax.jrandom.poisson(
+      key.jaxKey,
+      lam = rate.jaxValue,
+      shape = shape.dims.toPythonProxy,
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    new Tensor[T](shape, sample_value, dtype)
+  
+  /** Sample from Binomial distribution */
+  def binomial[T <: Tuple](
+      key: Key,
+      shape: Shape[T],
+      n: Tensor0,
+      p: Tensor0,
+      dtype: DType = DType.Float32
+  ): Tensor[T] =
+    val samples = Jax.jrandom.binomial(
+      key.jaxKey,
+      n = n.jaxValue,
+      p = p.jaxValue,
+      shape = shape.dims.toPythonProxy,
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    new Tensor[T](shape, samples, dtype)
 
   /** Randomly permute a tensor along an axis */
   private def permutation[T <: Tuple](

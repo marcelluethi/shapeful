@@ -86,14 +86,14 @@ class NormalTests extends FunSuite:
     val normal = Normal(mu, sigma)
 
     val x = Tensor(shape, Seq(0.0f, 1.0f, -1.0f), DType.Float32) // All at their respective means
-    val logpdf = normal.logpdf(x)
+    val logpdfElements = normal.logpdfElements(x)
 
     // All should give the same value since they're all at their means with same sigma
     val expected = -0.5f * log(2 * Pi).toFloat
     val expectedTensor = Tensor(shape, Seq(expected, expected, expected), DType.Float32)
 
     // Use tensor equality for comparison
-    assert(logpdf.approxEquals(expectedTensor, tolerance))
+    assert(logpdfElements.approxEquals(expectedTensor, tolerance))
   }
 
   test("logpdf symmetry around mean") {
@@ -188,14 +188,14 @@ class NormalTests extends FunSuite:
     val normal = Normal(mu, sigma)
 
     val x = Tensor.zeros(shape) // All at mean
-    val logpdf = normal.logpdf(x)
+    val logpdfElements = normal.logpdfElements(x)
 
-    assertEquals(logpdf.shape, shape)
+    assertEquals(logpdfElements.shape, shape)
 
     // All values should be the same since all inputs are at their respective means
     val expected = -0.5f * log(2 * Pi).toFloat
     val expectedTensor = Tensor(shape, Seq.fill(4)(expected), DType.Float32)
 
     // Use tensor equality for comparison
-    assert(logpdf.approxEquals(expectedTensor, tolerance))
+    assert(logpdfElements.approxEquals(expectedTensor, tolerance))
   }

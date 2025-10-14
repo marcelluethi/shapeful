@@ -3,51 +3,99 @@ package shapeful.distributions
 import scala.language.experimental.namedTypeArguments
 import math.Pi
 import shapeful.*
+import shapeful.jax.Jax
 
-class HalfNormal[S <: Tuple](sigma: Tensor[S]):
+/** Scalar half-normal distribution (single random variable)
+  * 
+  * Represents a single half-normal random variable (support on [0, ∞))
+  * The distribution of |X| where X ~ Normal(0, σ)
+  * 
+  * @param sigma Scale parameter (must be positive)
+  */
+class ScalarHalfNormal(val sigma: Tensor0) extends ScalarDistribution:
+  type Support = Tensor0
+  
+  /** Log probability density for x >= 0 */
+  def logpdf(x: Tensor0): Tensor0 =
+    val logpdf_value = Jax.scipy_stats.halfnorm.logpdf(
+      x.jaxValue,
+      loc = 0.0,
+      scale = sigma.jaxValue
+    )
+    new Tensor[EmptyTuple](Shape.empty, logpdf_value, x.dtype)
+  
+  /** Sample from half-normal distribution */
+  def sample(key: shapeful.random.Random.Key): Tensor0 =
+    val z = Tensor.randn(key, Shape.empty, DType.Float32)
+    (z * sigma).abs
 
-  // Create a Normal(0, sigma) distribution to use internally
-  private val normal = Normal(Tensor.zeros(sigma.shape), sigma)
+/** Half-Normal distribution
+  * 
+  * The half-normal distribution is the distribution of |X| where X ~ Normal(0, σ).
+  * It only has support on [0, ∞).
+  * 
+  * This is a factorized distribution: each element is an independent half-normal random variable.
+  * 
+  * Uses scipy.stats.halfnorm for efficient computation via JAX.
+  * 
+  * @param sigma Scale parameter (must be positive)
+  */
+class HalfNormal[S <: Tuple](val sigma: Tensor[S]) extends FactorizedDistribution[S]:
 
-  // Precompute constants for efficiency
-  private val log2 = Tensor0(math.log(2).toFloat)
-  private val logSigma = sigma.log
-  private val log2Pi = Tensor0(math.log(2 * Pi).toFloat)
+  def shape: Shape[S] = sigma.shape
 
-  /** Computes the log of the probability density function at x for x >= 0 More numerically stable for very small
-    * probabilities
+  /** Element-wise log probabilities for x >= 0
     *
-    * @param x
-    *   Input tensor (must be non-negative)
-    * @return
-    *   log(PDF) values for each input
+    * Uses scipy.stats.halfnorm.logpdf
+    *
+    * @param x Input tensor (must be non-negative)
+    * @return log(PDF) values for each element
     */
-  def logpdf(x: Tensor[S]): Tensor[S] =
-    // Half-normal log PDF formula for x >= 0:
-    // log(2) + Normal(0, σ).logpdf(x)
-    // This simplifies to: log(2) - 0.5 * log(2π) - log(σ) - 0.5 * (x/σ)^2
-    val normalLogPdf = normal.logpdf(x)
-    normalLogPdf + log2
+  def logpdfElements(x: Tensor[S]): Tensor[S] =
+    val logpdf_values = Jax.scipy_stats.halfnorm.logpdf(
+      x.jaxValue,
+      loc = 0.0,
+      scale = sigma.jaxValue
+    )
+    new Tensor[S](x.shape, logpdf_values, x.dtype)
 
   /** Generate samples from the half-normal distribution
     *
-    * @return
-    *   Samples from the half-normal distribution (non-negative)
+    * @param key Random key for sampling
+    * @return Samples from the half-normal distribution (non-negative)
     */
   def sample(key: shapeful.random.Random.Key): Tensor[S] =
     // Sample from Normal(0, σ) and take absolute value
-    normal.sample(key).abs
+    val z = Tensor.randn(key, sigma.shape, sigma.dtype)
+    (z * sigma).abs
+  
+  /** Mean of the half-normal distribution: σ * sqrt(2/π) */
+  def mean: Tensor[S] =
+    sigma * Tensor0(math.sqrt(2.0 / Pi).toFloat)
+  
+  /** Variance of the half-normal distribution: σ²(1 - 2/π) */
+  def variance: Tensor[S] =
+    val sigmaSq = sigma.pow(Tensor0(2f))
+    sigmaSq * Tensor0((1.0 - 2.0 / Pi).toFloat)
 
 object HalfNormal:
+
+  /** Create a factorized half-normal distribution with custom σ */
+  def apply[S <: Tuple](sigma: Tensor[S]): HalfNormal[S] =
+    new HalfNormal(sigma)
+
+  /** Create a scalar half-normal distribution */
+  def scalar(sigma: Tensor0): ScalarHalfNormal =
+    new ScalarHalfNormal(sigma)
 
   /** Create a standard half-normal distribution with σ = 1 */
   def standard[S <: Tuple](shape: Shape[S]): HalfNormal[S] =
     new HalfNormal(Tensor.ones(shape))
 
-  /** Create a half-normal distribution with custom σ */
-  def apply[S <: Tuple](sigma: Tensor[S]): HalfNormal[S] =
-    new HalfNormal(sigma)
+  /** Create a standard scalar half-normal with σ = 1 */
+  def standardScalar: ScalarHalfNormal =
+    new ScalarHalfNormal(Tensor0(1f))
 
-  /** Create a half-normal distribution with scalar σ */
+  /** Create a half-normal distribution with scalar σ broadcast to given shape */
   def apply[S <: Tuple](sigma: Float, shape: Shape[S]): HalfNormal[S] =
     new HalfNormal(Tensor.ones(shape) * Tensor0(sigma))

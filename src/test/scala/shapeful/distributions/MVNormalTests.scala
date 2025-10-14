@@ -171,7 +171,7 @@ class MVNormalTests extends FunSuite:
     val key = shapeful.random.Random.Key(456)
 
     val n = 5
-    val samples = mvn.sample[Samples](n, key)
+    val samples = mvn.sampleBatch[Samples](n, key)
 
     assertEquals(samples.shape.dims, Seq(n, 2))
     assertEquals(samples.dtype, DType.Float32)
@@ -281,8 +281,9 @@ class MVNormalTests extends FunSuite:
     val logpdf_mv = mvn.logpdf(x_mv)
     val logpdf_uv = normal.logpdf(x_uv)
 
+    // Both should be scalars - MVNormal returns joint probability, Normal returns sum of independent log probs
     // Should give approximately the same result
-    assertApproxEqual(logpdf_mv.toFloat, logpdf_uv.at(Tuple1(0)).get.toFloat, tolerance = 1e-3f)
+    assertApproxEqual(logpdf_mv.toFloat, logpdf_uv.toFloat, tolerance = 1e-3f)
   }
 
   test("3D MVNormal basic functionality") {

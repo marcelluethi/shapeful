@@ -112,9 +112,9 @@ class HalfNormalTests extends FunSuite:
     val halfNormal = HalfNormal(sigma)
 
     val x = Tensor(shape, Seq(0.0f, 1.0f, 2.0f), DType.Float32)
-    val logpdf = halfNormal.logpdf(x)
+    val logpdfElements = halfNormal.logpdfElements(x)
 
     // Check that we get a tensor of the same shape
-    assertEquals(logpdf.shape, shape)
-    assertEquals(logpdf.dtype, DType.Float32)
+    assertEquals(logpdfElements.shape, shape)
+    assertEquals(logpdfElements.dtype, DType.Float32)
   }

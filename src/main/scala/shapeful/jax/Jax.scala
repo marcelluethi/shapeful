@@ -100,3 +100,13 @@ object Jax:
           s"Failed to import jax_helper module. Make sure it exists in the Python path: ${e.getMessage}",
           e
         )
+
+  lazy val scipy_stats =
+    configurePythonPath
+    try py.module("scipy.stats")
+    catch
+      case e: Exception =>
+        throw new RuntimeException(
+          s"Failed to import scipy.stats module. Make sure SciPy is installed: ${e.getMessage}",
+          e
+        )

@@ -30,7 +30,7 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
     type Samples = "Sample" // internal label for the samples
 
     params =>
-      val baseSamples = baseDist.sample[Samples](numSamples, key)
+      val baseSamples = baseDist.sampleBatch[Samples](numSamples, key)
 
       // Transform all samples using the flow
       val transformedSamples = flow.forward(baseSamples)(params)
@@ -53,6 +53,6 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
       fromTensor: FromTensor1[Output, ModelParam]
   ): Seq[ModelParam] =
     type Samples = "Sample" // internal label for the samples
-    val baseSamples = baseDist.sample[Samples](numSamples, key)
+    val baseSamples = baseDist.sampleBatch[Samples](numSamples, key)
     val forwardedSamples = flow.forward(baseSamples)(params)
     forwardedSamples.unstack[VmapAxis = Samples].map(t => fromTensor.convert(t))

@@ -3,13 +3,14 @@ import ai.kien.python.Python
 
 ThisBuild / version := "0.1.0-SNAPSHOT"
 ThisBuild / scalaVersion := "3.7.0"
+ThisBuild / organization := "ch.contrafactus"
 
 // Add resolver for snapshot dependencies
 ThisBuild / resolvers += "Sonatype OSS Snapshots" at "https://oss.sonatype.org/content/repositories/snapshots"
 
 lazy val root = (project in file("."))
   .settings(
-    name := "MapTensor",
+    name := "shapeful",
     libraryDependencies ++= Seq(
       "dev.scalapy" %% "scalapy-core" % "0.5.3",
       "org.scalameta" %% "munit" % "1.0.0" % Test

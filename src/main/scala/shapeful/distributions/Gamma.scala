@@ -6,15 +6,17 @@ import shapeful.jax.Jax
 import me.shadaj.scalapy.py.SeqConverters
 
 /** Scalar Gamma distribution (single random variable)
-  * 
+  *
   * Continuous distribution on (0, ∞), generalizes exponential distribution.
-  * 
-  * @param alpha Shape parameter α (must be positive)
-  * @param beta Rate parameter β (must be positive)
+  *
+  * @param alpha
+  *   Shape parameter α (must be positive)
+  * @param beta
+  *   Rate parameter β (must be positive)
   */
 class ScalarGamma(val alpha: Tensor0, val beta: Tensor0) extends ScalarDistribution:
   type Support = Tensor0
-  
+
   /** Log probability density function */
   def logpdf(x: Tensor0): Tensor0 =
     val scale = Tensor0(1.0f) / beta
@@ -24,7 +26,7 @@ class ScalarGamma(val alpha: Tensor0, val beta: Tensor0) extends ScalarDistribut
       scale = scale.jaxValue
     )
     new Tensor[EmptyTuple](Shape.empty, logp_value, x.dtype)
-  
+
   /** Sample from Gamma distribution */
   def sample(key: shapeful.random.Random.Key): Tensor0 =
     val sample_value = Jax.jrandom.gamma(
@@ -36,11 +38,13 @@ class ScalarGamma(val alpha: Tensor0, val beta: Tensor0) extends ScalarDistribut
     new Tensor[EmptyTuple](Shape.empty, sample_value, DType.Float32) * scale
 
 /** Gamma distribution
-  * 
+  *
   * Continuous distribution on (0, ∞) with independent elements.
-  * 
-  * @param alpha Shape parameter for each element (must be positive)
-  * @param beta Rate parameter for each element (must be positive)
+  *
+  * @param alpha
+  *   Shape parameter for each element (must be positive)
+  * @param beta
+  *   Rate parameter for each element (must be positive)
   */
 class Gamma[S <: Tuple](val alpha: Tensor[S], val beta: Tensor[S]) extends FactorizedDistribution[S]:
 
@@ -64,10 +68,10 @@ class Gamma[S <: Tuple](val alpha: Tensor[S], val beta: Tensor[S]) extends Facto
       shape = alpha.shape.dims.toPythonProxy
     )
     new Tensor[S](alpha.shape, samples, alpha.dtype) / beta
-  
+
   /** Mean of Gamma: α / β */
   def mean: Tensor[S] = alpha / beta
-  
+
   /** Variance of Gamma: α / β² */
   def variance: Tensor[S] =
     val betaSq = beta.pow(Tensor0(2f))
@@ -86,7 +90,7 @@ object Gamma:
   /** Standard gamma with α = 1 (equivalent to exponential with rate β) */
   def exponential[S <: Tuple](beta: Tensor[S]): Gamma[S] =
     new Gamma(Tensor.ones(beta.shape), beta)
-  
+
   /** Chi-squared distribution with k degrees of freedom */
   def chiSquared[S <: Tuple](k: Tensor[S]): Gamma[S] =
     new Gamma(k * Tensor0(0.5f), Tensor.ones(k.shape) * Tensor0(0.5f))

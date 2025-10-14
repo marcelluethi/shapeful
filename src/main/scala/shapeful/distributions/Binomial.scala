@@ -5,15 +5,17 @@ import shapeful.*
 import shapeful.jax.Jax
 
 /** Scalar Binomial distribution (single random variable)
-  * 
+  *
   * Number of successes in n independent Bernoulli trials.
-  * 
-  * @param n Number of trials (must be positive integer)
-  * @param p Probability of success per trial (must be in [0, 1])
+  *
+  * @param n
+  *   Number of trials (must be positive integer)
+  * @param p
+  *   Probability of success per trial (must be in [0, 1])
   */
 class ScalarBinomial(val n: Tensor0, val p: Tensor0) extends ScalarDistribution:
   type Support = Tensor0
-  
+
   /** Log probability mass function */
   def logpdf(x: Tensor0): Tensor0 =
     val logp_value = Jax.scipy_stats.binom.logpmf(
@@ -22,7 +24,7 @@ class ScalarBinomial(val n: Tensor0, val p: Tensor0) extends ScalarDistribution:
       p = p.jaxValue
     )
     new Tensor[EmptyTuple](Shape.empty, logp_value, x.dtype)
-  
+
   /** Sample from Binomial distribution */
   def sample(key: shapeful.random.Random.Key): Tensor0 =
     val sample_value = Jax.jrandom.binomial(
@@ -33,12 +35,13 @@ class ScalarBinomial(val n: Tensor0, val p: Tensor0) extends ScalarDistribution:
     new Tensor[EmptyTuple](Shape.empty, sample_value, DType.Float32)
 
 /** Binomial distribution
-  * 
-  * Number of successes in n independent Bernoulli trials.
-  * Each element has independent binomial draws.
-  * 
-  * @param n Number of trials for each element
-  * @param p Probability of success per trial for each element
+  *
+  * Number of successes in n independent Bernoulli trials. Each element has independent binomial draws.
+  *
+  * @param n
+  *   Number of trials for each element
+  * @param p
+  *   Probability of success per trial for each element
   */
 class Binomial[S <: Tuple](val n: Tensor[S], val p: Tensor[S]) extends FactorizedDistribution[S]:
 
@@ -62,10 +65,10 @@ class Binomial[S <: Tuple](val n: Tensor[S], val p: Tensor[S]) extends Factorize
       p = p.jaxValue
     )
     new Tensor[S](n.shape, samples, n.dtype)
-  
+
   /** Mean of Binomial: n * p */
   def mean: Tensor[S] = n * p
-  
+
   /** Variance of Binomial: n * p * (1-p) */
   def variance: Tensor[S] =
     n * p * (Tensor.ones(p.shape) - p)

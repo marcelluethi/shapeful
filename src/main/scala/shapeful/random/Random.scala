@@ -13,8 +13,8 @@ import me.shadaj.scalapy.py.SeqConverters
   *   - Keys are split to generate independent random streams
   *   - This ensures reproducibility and parallelizability
   *
-  * This object provides low-level sampling primitives using JAX.
-  * For statistical modeling, prefer using distribution classes in shapeful.distributions.
+  * This object provides low-level sampling primitives using JAX. For statistical modeling, prefer using distribution
+  * classes in shapeful.distributions.
   */
 object Random:
 
@@ -44,9 +44,9 @@ object Random:
     def random(): Key = Key(scala.util.Random.nextInt())
 
   /** Generate random samples from various distributions.
-    * 
-    * These are low-level JAX primitives. For statistical modeling with logpdf support,
-    * use the distribution classes in shapeful.distributions instead.
+    *
+    * These are low-level JAX primitives. For statistical modeling with logpdf support, use the distribution classes in
+    * shapeful.distributions instead.
     */
 
   /** Normal distribution with specified mean and standard deviation */
@@ -151,7 +151,7 @@ object Random:
       dtype = JaxDType.jaxDtype(dtype)
     )
     new Tensor[T](shape, exp_sample, dtype) / rate
-  
+
   /** Sample from Cauchy distribution */
   def cauchy[T <: Tuple](
       key: Key,
@@ -166,7 +166,7 @@ object Random:
       dtype = JaxDType.jaxDtype(dtype)
     )
     new Tensor[T](shape, cauchy_sample, dtype) * scale + loc
-  
+
   /** Sample from Beta distribution */
   def beta[T <: Tuple](
       key: Key,
@@ -183,7 +183,7 @@ object Random:
       dtype = JaxDType.jaxDtype(dtype)
     )
     new Tensor[T](shape, sample_value, dtype)
-  
+
   /** Sample from Poisson distribution */
   def poisson[T <: Tuple](
       key: Key,
@@ -198,7 +198,7 @@ object Random:
       dtype = JaxDType.jaxDtype(dtype)
     )
     new Tensor[T](shape, sample_value, dtype)
-  
+
   /** Sample from Binomial distribution */
   def binomial[T <: Tuple](
       key: Key,

@@ -6,39 +6,44 @@ import shapeful.*
 import shapeful.jax.Jax
 
 /** Scalar half-normal distribution (single random variable)
-  * 
-  * Represents a single half-normal random variable (support on [0, ∞))
-  * The distribution of |X| where X ~ Normal(0, σ)
-  * 
-  * @param sigma Scale parameter (must be positive)
+  *
+  * Represents a single half-normal random variable (support on [0, ∞)) The distribution of |X| where X ~ Normal(0, σ)
+  *
+  * Implements differentiable logpdf using the analytical formula: logpdf(x) = log(2) - log(σ) - 0.5*log(2π) - x²/(2σ²)
+  *
+  * @param sigma
+  *   Scale parameter (must be positive)
   */
 class ScalarHalfNormal(val sigma: Tensor0) extends ScalarDistribution:
   type Support = Tensor0
-  
-  /** Log probability density for x >= 0 */
+
+  /** Log probability density for x >= 0
+    *
+    * Uses analytical formula for differentiability: logpdf(x) = log(2) - log(σ) - 0.5*log(2π) - x²/(2σ²)
+    */
   def logpdf(x: Tensor0): Tensor0 =
-    val logpdf_value = Jax.scipy_stats.halfnorm.logpdf(
-      x.jaxValue,
-      loc = 0.0,
-      scale = sigma.jaxValue
-    )
-    new Tensor[EmptyTuple](Shape.empty, logpdf_value, x.dtype)
-  
+    val log2 = Tensor0(math.log(2.0).toFloat)
+    val log2pi = Tensor0(math.log(2.0 * Pi).toFloat)
+    val xSq = x.pow(Tensor0(2f))
+    val sigmaSq = sigma.pow(Tensor0(2f))
+
+    log2 - sigma.log - log2pi * Tensor0(0.5f) - xSq / (sigmaSq * Tensor0(2f))
+
   /** Sample from half-normal distribution */
   def sample(key: shapeful.random.Random.Key): Tensor0 =
     val z = Tensor.randn(key, Shape.empty, DType.Float32)
     (z * sigma).abs
 
 /** Half-Normal distribution
-  * 
-  * The half-normal distribution is the distribution of |X| where X ~ Normal(0, σ).
-  * It only has support on [0, ∞).
-  * 
+  *
+  * The half-normal distribution is the distribution of |X| where X ~ Normal(0, σ). It only has support on [0, ∞).
+  *
   * This is a factorized distribution: each element is an independent half-normal random variable.
-  * 
-  * Uses scipy.stats.halfnorm for efficient computation via JAX.
-  * 
-  * @param sigma Scale parameter (must be positive)
+  *
+  * Implements differentiable logpdf using the analytical formula: logpdf(x) = log(2) - log(σ) - 0.5*log(2π) - x²/(2σ²)
+  *
+  * @param sigma
+  *   Scale parameter (must be positive)
   */
 class HalfNormal[S <: Tuple](val sigma: Tensor[S]) extends FactorizedDistribution[S]:
 
@@ -46,33 +51,37 @@ class HalfNormal[S <: Tuple](val sigma: Tensor[S]) extends FactorizedDistributio
 
   /** Element-wise log probabilities for x >= 0
     *
-    * Uses scipy.stats.halfnorm.logpdf
+    * Uses analytical formula for differentiability: logpdf(x) = log(2) - log(σ) - 0.5*log(2π) - x²/(2σ²)
     *
-    * @param x Input tensor (must be non-negative)
-    * @return log(PDF) values for each element
+    * @param x
+    *   Input tensor (must be non-negative)
+    * @return
+    *   log(PDF) values for each element
     */
   def logpdfElements(x: Tensor[S]): Tensor[S] =
-    val logpdf_values = Jax.scipy_stats.halfnorm.logpdf(
-      x.jaxValue,
-      loc = 0.0,
-      scale = sigma.jaxValue
-    )
-    new Tensor[S](x.shape, logpdf_values, x.dtype)
+    val log2 = Tensor.ones(x.shape) * Tensor0(math.log(2.0).toFloat)
+    val log2pi = Tensor.ones(x.shape) * Tensor0(math.log(2.0 * Pi).toFloat)
+    val xSq = x.pow(Tensor0(2f))
+    val sigmaSq = sigma.pow(Tensor0(2f))
+
+    log2 - sigma.log - log2pi * Tensor0(0.5f) - xSq / (sigmaSq * Tensor0(2f))
 
   /** Generate samples from the half-normal distribution
     *
-    * @param key Random key for sampling
-    * @return Samples from the half-normal distribution (non-negative)
+    * @param key
+    *   Random key for sampling
+    * @return
+    *   Samples from the half-normal distribution (non-negative)
     */
   def sample(key: shapeful.random.Random.Key): Tensor[S] =
     // Sample from Normal(0, σ) and take absolute value
     val z = Tensor.randn(key, sigma.shape, sigma.dtype)
     (z * sigma).abs
-  
+
   /** Mean of the half-normal distribution: σ * sqrt(2/π) */
   def mean: Tensor[S] =
     sigma * Tensor0(math.sqrt(2.0 / Pi).toFloat)
-  
+
   /** Variance of the half-normal distribution: σ²(1 - 2/π) */
   def variance: Tensor[S] =
     val sigmaSq = sigma.pow(Tensor0(2f))

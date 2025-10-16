@@ -1,6 +1,5 @@
 package examples.autodiff
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.autodiff.*
 import shapeful.optimization.GradientDescent
@@ -52,7 +51,7 @@ object LinearRegression extends App:
 
   def predict(params: ModelParams, x: Tensor2[Sample, Feature]): Tensor1[Sample] =
     // Use vmap to apply dot product across all samples
-    x.vmap[VmapAxis = Sample](sample => sample.dot(params.weight) + params.bias)
+    x.vmap(Axis[Sample], sample => sample.dot(params.weight) + params.bias)
 
   // 4. Loss function (Mean Squared Error)
   def loss(params: ModelParams): Tensor0 =

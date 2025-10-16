@@ -1,6 +1,5 @@
 package shapeful.distributions
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.random.Random
 

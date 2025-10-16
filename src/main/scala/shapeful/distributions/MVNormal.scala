@@ -1,6 +1,5 @@
 package shapeful.distributions
 
-import scala.language.experimental.namedTypeArguments
 import math.Pi
 import shapeful.*
 import shapeful.jax.Jax

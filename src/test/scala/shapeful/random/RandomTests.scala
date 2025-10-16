@@ -1,6 +1,5 @@
 package shapeful.random
 
-import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import shapeful.*
 import shapeful.tensor.Shape.*
@@ -193,7 +192,7 @@ class RandomTests extends FunSuite:
     val seqTime = System.nanoTime() - startSeq
 
     // Verify results are equivalent (same keys should produce same results)
-    val stackedSeq = Tensor.stack[Tuple1[Feature], Feature](seqResults.head, seqResults.tail.toSeq)
+    val stackedSeq = Tensor.stack(Axis[Feature], seqResults*)
     assert(
       vmapResults.approxEquals(stackedSeq, tolerance),
       "vmapSample and sequential sampling should produce equivalent results"
@@ -240,7 +239,7 @@ class RandomTests extends FunSuite:
     val key = Random.Key(123)
 
     // Permute along Feature axis
-    val permuted = Random.permutation[Sample *: Feature *: EmptyTuple, Feature](key, tensor)
+    val permuted = Random.permutation(Axis[Feature], key, tensor)
 
     // Convert both tensors to sequences and sort to verify same elements
     val originalSeq = values.sorted
@@ -249,7 +248,7 @@ class RandomTests extends FunSuite:
       val col = i % 4
       permuted.at((row, col)).get.toFloat
     }
-    val permutedSeq = permutedValues.sorted
+    val permutedSeq = permutedValues.sorted(using Ordering.Float.TotalOrdering)
 
     assertEquals(permutedSeq.toSeq, originalSeq.toSeq, "Permuted tensor should contain the same elements")
     assertEquals(permuted.shape.dims, Seq(3, 4), "Shape should be preserved")

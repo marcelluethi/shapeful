@@ -1,6 +1,5 @@
 package examples.datautils
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.random.Random
 import shapeful.*
 import scala.collection.immutable.{LazyList, ArraySeq}
@@ -36,8 +35,8 @@ trait DataLoader[Features <: Tuple, Target <: Tuple]:
     val (features, targets) = samples.unzip
 
     // Stack into batched tensors
-    val batchedFeatures = Tensor.stack[Features, Sample](features.head, features.tail.to(ArraySeq))
-    val batchedTargets = Tensor.stack[Target, Sample](targets.head, targets.tail.to(ArraySeq))
+    val batchedFeatures = Tensor.stack(Axis[Sample], features*)
+    val batchedTargets = Tensor.stack(Axis[Sample], targets*)
 
     (batchedFeatures, batchedTargets)
 
@@ -68,7 +67,7 @@ private class ShuffledDataLoader[Features <: Tuple, Target <: Tuple](
     // Create a tensor of indices and shuffle using Random.permutation
     type IndexLabel = "Index"
     val indices = Tensor1.fromInts[IndexLabel]((0 until underlying.size).toSeq, DType.Int32)
-    val shuffled = Random.permutation[Tuple1[IndexLabel], IndexLabel](key, indices)
+    val shuffled = Random.permutation(Axis[IndexLabel], key, indices)
     // Convert back to Array[Int]
     (0 until underlying.size).map { i =>
       shuffled.at(Tuple1(i)).get.jaxValue.item().as[Int]

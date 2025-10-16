@@ -1,6 +1,5 @@
 package shapeful.tensor
 
-import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import shapeful.Label
 import shapeful.tensor.Shape.*
@@ -155,11 +154,14 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Map over batch dimension - apply a function to each batch element
-    val vmapped = tensor.vmap[Batch, Tuple1[Feature]] { batchElement =>
-      // batchElement should be Tensor[Tuple1[Feature]] with shape (4,)
-      assertEquals(batchElement.shape.dims, Seq(4))
-      batchElement // Identity function for test
-    }
+    val vmapped = tensor.vmap(
+      Axis[Batch],
+      { batchElement =>
+        // batchElement should be Tensor[Tuple1[Feature]] with shape (4,)
+        assertEquals(batchElement.shape.dims, Seq(4))
+        batchElement // Identity function for test
+      }
+    )
 
     // Result should have shape (Batch, Feature) = (3, 4)
     assertEquals(vmapped.shape.dims, Seq(3, 4))
@@ -173,7 +175,7 @@ class TensorTests extends FunSuite:
     val tensor1 = Tensor(shape, values1)
     val tensor2 = Tensor(shape, values2)
 
-    val result = tensor1.zipVmap[Batch, Tuple2[Batch, Feature], Tuple1[Feature]](tensor2) { (t1, t2) =>
+    val result = tensor1.zipVmap(Axis[Batch], tensor2) { (t1, t2) =>
       // Both should be Tensor[Tuple1[Feature]] with shape (3,)
       assertEquals(t1.shape.dims, Seq(3))
       assertEquals(t2.shape.dims, Seq(3))
@@ -310,10 +312,13 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Map over batch and apply sum reduction to each batch element
-    val vmapped = tensor.vmap[Batch, EmptyTuple] { batchElement =>
-      // Sum all features for each batch element, returning a scalar
-      Tensor0(1)
-    }
+    val vmapped = tensor.vmap(
+      Axis[Batch],
+      { batchElement =>
+        // Sum all features for each batch element, returning a scalar
+        Tensor0(1)
+      }
+    )
 
     // Result should be scalar for each batch element: shape (3,)
     assertEquals(vmapped.shape.dims, Seq(3))
@@ -442,7 +447,7 @@ class TensorTests extends FunSuite:
     val t1 = Tensor0(1.0f)
     val t2 = Tensor0(2.0f)
     val t3 = Tensor0(3.0f)
-    val stacked = Tensor.stack[EmptyTuple, Feature](t1, Seq(t2, t3))
+    val stacked = Tensor.stack(Axis[Feature], t1, t2, t3)
     val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
     assertEquals(stacked.shape.dims, Seq(3))
     assert(stacked.tensorEquals(expected), "Stacked tensor should equal expected")
@@ -450,7 +455,7 @@ class TensorTests extends FunSuite:
     // Stack two vectors into a matrix
     val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
     val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
-    val stacked2 = Tensor.stack[Tuple1[Feature], Batch](v1, Seq(v2))
+    val stacked2 = Tensor.stack(Axis[Batch], v1, v2)
     val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     assertEquals(stacked2.shape.dims, Seq(2, 2))
     assert(stacked2.tensorEquals(expected2), "Second stacked tensor should equal expected")
@@ -460,7 +465,7 @@ class TensorTests extends FunSuite:
     // Concatenate two vectors along the feature dimension
     val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
     val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
-    val concatenated = v1.concat[Feature](v2)
+    val concatenated = v1.concat(Axis[Feature], v2)
     val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
     assertEquals(concatenated.shape.dims, Seq(4))
     assert(concatenated.tensorEquals(expected))
@@ -468,7 +473,7 @@ class TensorTests extends FunSuite:
     // Concatenate two matrices along the batch dimension
     val m1 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     val m2 = Tensor2[Batch, Feature](Seq(Seq(5.0f, 6.0f)))
-    val concatenated2 = m1.concat[Batch](m2)
+    val concatenated2 = m1.concat(Axis[Batch], m2)
     val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f), Seq(5.0f, 6.0f)))
     assertEquals(concatenated2.shape.dims, Seq(3, 2))
     assert(concatenated2.tensorEquals(expected2))
@@ -476,7 +481,7 @@ class TensorTests extends FunSuite:
     // Concatenate two matrices along the feature dimension
     val m3 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     val m4 = Tensor2[Batch, Feature](Seq(Seq(5.0f, 6.0f), Seq(7.0f, 8.0f)))
-    val concatenated3 = m3.concat[Feature](m4)
+    val concatenated3 = m3.concat(Axis[Feature], m4)
     val expected3 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f, 5.0f, 6.0f), Seq(3.0f, 4.0f, 7.0f, 8.0f)))
     assertEquals(concatenated3.shape.dims, Seq(2, 4))
     assert(concatenated3.tensorEquals(expected3))
@@ -489,7 +494,7 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Split along batch dimension - should get 3 tensors of shape (4,)
-    val splits = tensor.unstack[Batch]
+    val splits = tensor.unstack(Axis[Batch])
 
     assertEquals(splits.length, 3)
     splits.foreach { split =>
@@ -506,7 +511,7 @@ class TensorTests extends FunSuite:
     assert(splits(2).tensorEquals(expected3))
 
     // Test splitting along feature dimension - should get 4 tensors of shape (3,)
-    val featureSplits = tensor.unstack[Feature]
+    val featureSplits = tensor.unstack(Axis[Feature])
 
     assertEquals(featureSplits.length, 4)
     featureSplits.foreach { split =>
@@ -533,7 +538,7 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Split along batch dimension - should get 2 tensors of shape (2, 3)
-    val batchSplits = tensor.unstack[Batch]
+    val batchSplits = tensor.unstack(Axis[Batch])
 
     assertEquals(batchSplits.length, 2)
     batchSplits.foreach { split =>
@@ -541,7 +546,7 @@ class TensorTests extends FunSuite:
     }
 
     // Split along height dimension - should get 2 tensors of shape (2, 3)
-    val heightSplits = tensor.unstack[Height]
+    val heightSplits = tensor.unstack(Axis[Height])
 
     assertEquals(heightSplits.length, 2)
     heightSplits.foreach { split =>
@@ -549,7 +554,7 @@ class TensorTests extends FunSuite:
     }
 
     // Split along width dimension - should get 3 tensors of shape (2, 2)
-    val widthSplits = tensor.unstack[Width]
+    val widthSplits = tensor.unstack(Axis[Width])
 
     assertEquals(widthSplits.length, 3)
     widthSplits.foreach { split =>

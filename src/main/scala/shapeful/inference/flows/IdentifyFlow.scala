@@ -1,7 +1,5 @@
 package shapeful.inference.flows
 
-import scala.language.experimental.namedTypeArguments
-
 import shapeful.*
 import shapeful.inference.flows.Flow
 import shapeful.autodiff.TensorTree

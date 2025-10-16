@@ -1,6 +1,5 @@
 package shapeful.distributions
 
-import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import shapeful.*
 import shapeful.tensor.Shape.*

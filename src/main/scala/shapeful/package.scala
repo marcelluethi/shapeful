@@ -1,5 +1,3 @@
-import scala.language.experimental.namedTypeArguments
-
 package object shapeful:
 
   import tensor.*
@@ -21,6 +19,7 @@ package object shapeful:
   export tensor.{Tensor0, Tensor1, Tensor2, Tensor3}
   export tensor.Tensor.{Tensor0, Tensor1, Tensor2, Tensor3}
   export tensor.DType
+  export tensor.Axis
   export linalg.Linalg
 
   // Export all TensorOps extensions

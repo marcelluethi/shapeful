@@ -1,6 +1,5 @@
 package examples.nn.losses
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 
 object BinaryCrossEntropy:

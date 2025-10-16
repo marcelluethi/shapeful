@@ -1,6 +1,5 @@
 package examples.basic
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 
 /** Basic tensor arithmetic operations.

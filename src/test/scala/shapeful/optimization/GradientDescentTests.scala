@@ -1,7 +1,7 @@
 package shapeful.optimization
 
 import munit.FunSuite
-import scala.language.experimental.namedTypeArguments
+
 import shapeful.*
 import shapeful.autodiff.*
 import shapeful.optimization.GradientDescent

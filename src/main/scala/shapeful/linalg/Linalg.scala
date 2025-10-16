@@ -1,6 +1,5 @@
 package shapeful.linalg
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.jax.Jax
 

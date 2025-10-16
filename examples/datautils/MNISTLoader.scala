@@ -1,7 +1,5 @@
 package examples.datautils
 
-import scala.language.experimental.namedTypeArguments
-import scala.annotation.experimental
 import shapeful.*
 import shapeful.tensor.Device
 import shapeful.tensor.TensorIndexing.*
@@ -31,7 +29,7 @@ object MNISTLoader:
 
   /** MNIST dataset that loads all data into memory arrays
     */
-  @experimental
+
   case class MNISTDataset(
       imagePixels: Tensor3[Sample, Height, Width], // Pre-loaded pixel data [imageIndex][flattenedPixels]
       labels: Tensor1[Label] // Pre-loaded labels

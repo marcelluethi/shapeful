@@ -1,6 +1,5 @@
 package shapeful.distributions
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.jax.Jax
 import me.shadaj.scalapy.py.SeqConverters

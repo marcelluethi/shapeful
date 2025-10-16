@@ -1,6 +1,5 @@
 package shapeful.optimization
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.tensor.{Tensor, TensorOps}
 import shapeful.autodiff.TensorTree

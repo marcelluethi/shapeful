@@ -1,6 +1,5 @@
 package shapeful.nn
 
-import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 import shapeful.*
 
@@ -23,7 +22,7 @@ class SoftmaxTests extends FunSuite:
     )
 
     // Apply softmax along the last axis (classes)
-    val softmaxResult = logits.softmax[Classes]
+    val softmaxResult = logits.softmax(Axis[Classes])
 
     // Check that probabilities sum to 1 along classes dimension
     assertEquals(softmaxResult.shape.dims, Seq(2, 3))
@@ -42,7 +41,7 @@ class SoftmaxTests extends FunSuite:
     )
 
     // Test the original Activation class (uses default axis=-1)
-    val result = Activation.softmax[SoftmaxAxis = Classes](logits)
+    val result = Activation.softmax(Axis[Classes], logits)
 
     assertEquals(result.shape.dims, Seq(2, 3))
     assert(result.jaxValue != null, "Activation.Softmax should produce valid output")
@@ -58,8 +57,8 @@ class SoftmaxTests extends FunSuite:
     )
 
     // Test different approaches to softmax computation
-    // 1. Default softmax (last axis)
-    val defaultSoftmax = logits.softmax
+    // 1. Softmax along classes axis (last axis)
+    val defaultSoftmax = logits.softmax(Axis[Classes])
 
     // 2. Using JAX directly with specific axis (this is what the axis-specific version would do)
     import shapeful.jax.Jax

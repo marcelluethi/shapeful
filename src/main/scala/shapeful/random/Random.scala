@@ -1,6 +1,5 @@
 package shapeful.random
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.tensor.*
 import shapeful.jax.{Jax, JaxDType}
@@ -233,6 +232,7 @@ object Random:
       new Tensor[T](tensor.shape, jaxValues, tensor.dtype)
 
   inline def permutation[T <: Tuple, PermutationAxis <: Label](
+      axis: Axis[PermutationAxis],
       key: Key,
       tensor: Tensor[T]
   ): Tensor[T] =

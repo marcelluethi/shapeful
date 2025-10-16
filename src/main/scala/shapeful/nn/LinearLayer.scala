@@ -1,7 +1,5 @@
 package shapeful.nn
 
-import scala.language.experimental.namedTypeArguments
-
 import shapeful.*
 import shapeful.autodiff.{TensorTree, ToPyTree}
 import shapeful.nn.Layer1D

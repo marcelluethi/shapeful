@@ -1,6 +1,5 @@
 package shapeful.tensor
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.jax.Jax
 import shapeful.tensor.TupleHelpers
@@ -138,7 +137,7 @@ object TensorOps:
       new Tensor[T](t.shape, result, t.dtype)
 
     // Softmax along a specific labeled axis
-    inline def softmax[SoftmaxAxis <: Label]: Tensor[T] =
+    inline def softmax[SoftmaxAxis <: Label](axis: Axis[SoftmaxAxis]): Tensor[T] =
       val axisIndex = TupleHelpers.indexOf[SoftmaxAxis, T]
       val result = Jax.jnn.softmax(t.jaxValue, axis = axisIndex)
       new Tensor[T](t.shape, result, t.dtype)

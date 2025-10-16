@@ -1,6 +1,6 @@
 // package examples.vae
 
-// import scala.language.experimental.namedTypeArguments
+//
 // import shapeful.*
 // import shapeful.autodiff.*
 // import shapeful.nn.*

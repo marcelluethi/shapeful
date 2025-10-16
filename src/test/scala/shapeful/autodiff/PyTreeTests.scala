@@ -1,7 +1,5 @@
 package shapeful.autodiff
 
-import scala.language.experimental.namedTypeArguments
-
 import munit.FunSuite
 
 import shapeful.*

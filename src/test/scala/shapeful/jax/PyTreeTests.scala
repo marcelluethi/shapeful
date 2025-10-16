@@ -1,7 +1,5 @@
 package shapeful.jax
 
-import scala.language.experimental.namedTypeArguments
-
 import munit.FunSuite
 
 import shapeful.*

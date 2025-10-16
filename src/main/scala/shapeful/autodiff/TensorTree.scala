@@ -1,6 +1,5 @@
 package shapeful.autodiff
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import scala.deriving.*
 import scala.compiletime.*

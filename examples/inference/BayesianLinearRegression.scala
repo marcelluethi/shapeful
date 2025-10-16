@@ -1,6 +1,5 @@
 package examples.inference
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.distributions.Normal
 import shapeful.autodiff.*
@@ -36,7 +35,7 @@ object BayesianLinearRegression extends App:
   val (key1, key2) = key.split2()
   val X = Tensor1[Sample](Range(0, 100, 1).map(_.toFloat / 100f).toSeq)
   val noise = Normal(Tensor.zeros(X.shape), Tensor.ones(X.shape) * trueSigma).sample(key1)
-  val y = X.vmap[VmapAxis = Sample](sample => trueWeight * sample + trueBias) + noise
+  val y = X.vmap(Axis[Sample], sample => trueWeight * sample + trueBias) + noise
 
   // model params
   case class ModelParams(
@@ -73,7 +72,7 @@ object BayesianLinearRegression extends App:
   def posterior(x: Tensor1[Sample], y: Tensor1[Sample])(params: ModelParams): Tensor0 =
     prior(params) + likelihood(x, y)(params)
 
-  val baseDistribution = MVNormal.standardNormal[Latent](
+  val baseDistribution = MVNormal.standard[Latent](
     Shape1(3)
   ) // Tensor.zeros(Shape1(3)), Tensor.eye(Shape2(3, 3)) * Tensor0(0.1f)) // 3D latent space for weight, bias, logSigma
 
@@ -130,28 +129,33 @@ object BayesianLinearRegression extends App:
 
       // Debug: compute individual components before clamping
       val (baseKey, _) = optimizerKey.split2()
-      val baseSamples = baseDistribution.sample["Sample"](10, key = baseKey)
+      val baseSamples = baseDistribution.sampleBatch["Sample"](10, key = baseKey)
       val transformedSamples = flow.forward(baseSamples)(params)
-      val logdet = baseSamples.vmap[VmapAxis = "Sample"] { sample =>
-        flow.logDetJacobian(sample)(params)
-      }
+      val logdet = baseSamples.vmap(
+        Axis["Sample"],
+        { sample =>
+          flow.logDetJacobian(sample)(params)
+        }
+      )
       val realParams = flow.forward(baseSamples)(params)
-      for realParam <- realParams.unstack["Sample"] do
+      for realParam <- realParams.unstack(Axis["Sample"]) do
         // println("real param: " + realParam)
-        val modelParams = summon[FromTensor1[Latent, ModelParams]].convert(realParam)
+        val modelParams = summon[FromTensor1[Latent, ModelParams]].convert(realParam.asInstanceOf[Tensor1[Latent]])
         println("model params: " + modelParams)
 
-      val baseLogProb = baseSamples.vmap[VmapAxis = "Sample"](baseDistribution.logpdf)
-      val targetLogProb = transformedSamples.vmap[VmapAxis = "Sample"](t =>
-        val modelParam = summon[FromTensor1["latent", ModelParams]].convert(t)
-        posterior(X, y)(modelParam)
+      val baseLogProb = baseSamples.vmap(Axis["Sample"], baseDistribution.logpdf)
+      val targetLogProb = transformedSamples.vmap(
+        Axis["Sample"],
+        t =>
+          val modelParam = summon[FromTensor1["latent", ModelParams]].convert(t.asInstanceOf[Tensor1["latent"]])
+          posterior(X, y)(modelParam)
       )
 
       println(s"Base log prob range: ${baseLogProb.min.toFloat} to ${baseLogProb.max.toFloat}")
       println(s"Target log prob range: ${targetLogProb.min.toFloat} to ${targetLogProb.max.toFloat}")
       println(s"Log det range: ${logdet.min.toFloat} to ${logdet.max.toFloat}")
 
-      val rawLogProbs = targetLogProb - baseLogProb + logdet
+      val rawLogProbs: Tensor1["Sample"] = targetLogProb - baseLogProb + logdet
       println(s"Raw log probs range: ${rawLogProbs.min.toFloat} to ${rawLogProbs.max.toFloat}")
 
       val loss = elbo(params)

@@ -1,5 +1,3 @@
-import scala.language.experimental.namedTypeArguments
-
 import shapeful.*
 import shapeful.jax.Jax
 import shapeful.autodiff.{Autodiff, ToPyTree, TensorTree}

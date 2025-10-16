@@ -1,5 +1,5 @@
 package shapeful.inference
-import scala.language.experimental.namedTypeArguments
+
 import shapeful.Label
 import shapeful.*
 import shapeful.distributions.MVNormal
@@ -35,14 +35,17 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
       // Transform all samples using the flow
       val transformedSamples = flow.forward(baseSamples)(params)
 
-      val logdet = baseSamples.vmap[VmapAxis = Samples] { sample =>
-        flow.logDetJacobian(sample)(params)
-      }
+      val logdet = baseSamples.vmap(
+        Axis[Samples],
+        { sample =>
+          flow.logDetJacobian(sample)(params)
+        }
+      )
 
       val safeLogdet = logdet.clamp(1e-8f, 1e8f) // Prevent extreme values
-      val baseLogProb = baseSamples.vmap[VmapAxis = Samples](baseDist.logpdf)
+      val baseLogProb = baseSamples.vmap(Axis[Samples], baseDist.logpdf)
 
-      val targetLogProb = transformedSamples.vmap[VmapAxis = Samples](t => posteriorLogProb(fromTensor.convert(t)))
+      val targetLogProb = transformedSamples.vmap(Axis[Samples], t => posteriorLogProb(fromTensor.convert(t)))
 
       val logProbs = (targetLogProb - baseLogProb + safeLogdet)
       // val clampedLogProbs = logProbs.clamp(-1000f, 1000f) // Prevent extreme values
@@ -55,4 +58,4 @@ class NormalizingFlow[Latent <: Label, Output <: Label, FlowParam](
     type Samples = "Sample" // internal label for the samples
     val baseSamples = baseDist.sampleBatch[Samples](numSamples, key)
     val forwardedSamples = flow.forward(baseSamples)(params)
-    forwardedSamples.unstack[VmapAxis = Samples].map(t => fromTensor.convert(t))
+    forwardedSamples.unstack(Axis[Samples]).map(t => fromTensor.convert(t))

@@ -1,6 +1,5 @@
 package examples.basic
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 
 /** Getting started with Shapeful tensors.

@@ -1,6 +1,5 @@
 package shapeful.tensor
 
-import scala.language.experimental.namedTypeArguments
 import munit.FunSuite
 
 class TensorEqualityTests extends FunSuite:

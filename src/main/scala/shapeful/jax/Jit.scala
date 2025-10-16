@@ -1,6 +1,5 @@
 package shapeful.jax
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.tensor.{Tensor, Shape, TupleHelpers, DType}
 import shapeful.jax.{Jax, JaxDType}
 import shapeful.autodiff.ToPyTree

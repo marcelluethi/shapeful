@@ -1,6 +1,5 @@
 package shapeful.nn
 
-import scala.language.experimental.namedTypeArguments
 import shapeful.*
 import shapeful.jax.Jax
 import scala.annotation.targetName

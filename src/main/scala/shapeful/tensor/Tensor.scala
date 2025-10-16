@@ -1,6 +1,5 @@
 package shapeful.tensor
 
-import scala.language.experimental.namedTypeArguments
 import scala.annotation.targetName
 import scala.collection.immutable.ArraySeq
 import shapeful.jax.Jax
@@ -24,6 +23,7 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
   /** map a function over the given axis of the tensor
     */
   inline def vmap[VmapAxis <: Label, OuterShape <: Tuple](
+      axis: Axis[VmapAxis],
       f: Tensor[TupleHelpers.Remove[VmapAxis, T]] => Tensor[OuterShape]
   ): Tensor[Tuple.Concat[Tuple1[VmapAxis], OuterShape]] =
 
@@ -67,7 +67,10 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
   /** zip two tensors and apply a function over the given axis of both tensors.
     */
-  inline def zipVmap[VmapAxis <: Label, OtherShape <: Tuple, OuterShape <: Tuple](other: Tensor[OtherShape])(
+  inline def zipVmap[VmapAxis <: Label, OtherShape <: Tuple, OuterShape <: Tuple](
+      axis: Axis[VmapAxis],
+      other: Tensor[OtherShape]
+  )(
       f: (
           Tensor[TupleHelpers.Remove[VmapAxis, T]],
           Tensor[TupleHelpers.Remove[VmapAxis, OtherShape]]
@@ -115,7 +118,9 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
 
     new Tensor(resultShape, vmap_val, dtype)
 
-  inline def unstack[VmapAxis <: Label]: ArraySeq[Tensor[TupleHelpers.Remove[VmapAxis, T]]] =
+  inline def unstack[VmapAxis <: Label](
+      axis: Axis[VmapAxis]
+  ): ArraySeq[Tensor[TupleHelpers.Remove[VmapAxis, T]]] =
     type InnerAxes = TupleHelpers.Remove[VmapAxis, T]
     val vmapAxisIndex = TupleHelpers.indexOf[VmapAxis, T]
     val vmapAxisSize = shape.dims(vmapAxisIndex)
@@ -139,17 +144,16 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
       .to(ArraySeq)
 
   def stack[NewAxis <: Label](
-      otherTensor: Tensor[T],
-      dtype: DType = DType.Float32
+      axis: Axis[NewAxis],
+      otherTensor: Tensor[T]*
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
-
-    Tensor.stack[T, NewAxis](this, ArraySeq(otherTensor))
+    Tensor.stack(axis, (this +: otherTensor)*)
 
   inline def concat[ConcatAxis <: Label](
-      otherTensor: Tensor[T],
-      dtype: DType = DType.Float32
+      axis: Axis[ConcatAxis],
+      otherTensor: Tensor[T]*
   ): Tensor[T] =
-    Tensor.concat[T, ConcatAxis](this, ArraySeq(otherTensor))
+    Tensor.concat(axis, (this +: otherTensor)*)
 
   /** Reshape the tensor to a new shape.
     */
@@ -367,54 +371,38 @@ object Tensor:
   ): Tensor[T] =
     Random.uniform(key, shape, minval, maxval, dtype)
 
-  /** stack a sequence of tensors, onto a given tensor
+  /** stack a sequence of tensors along a new axis
     */
   def stack[T <: Tuple, NewAxis <: Label](
-      tensor: Tensor[T],
-      tensorsToStack: ArraySeq[Tensor[T]]
+      axis: Axis[NewAxis],
+      tensors: Tensor[T]*
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
-    val tensors = tensor +: tensorsToStack
+    require(tensors.nonEmpty, "Cannot stack empty sequence of tensors")
     val refShape = tensors.head.shape
     val jaxValues = tensors.map(_.jaxValue).toPythonProxy
     val stacked = Jax.jnp.stack(jaxValues)
     val newShapeSeq = Seq(tensors.length) ++ refShape.dims
     val newShapeTuple = TupleHelpers.createTupleFromSeq[Tuple.Concat[Tuple1[NewAxis], T]](newShapeSeq)
     val shape = Shape[Tuple.Concat[Tuple1[NewAxis], T]](newShapeTuple)
-    new Tensor(shape, stacked, tensor.dtype)
+    new Tensor(shape, stacked, tensors.head.dtype)
 
-  // Backward compatibility method for Seq
-  def stack[T <: Tuple, NewAxis <: Label](
-      tensor: Tensor[T],
-      tensorsToStack: Seq[Tensor[T]]
-  ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
-    stack(tensor, ArraySeq.from(tensorsToStack))
-
-  /** Concat tensor with given sequence of tenor
+  /** Concat tensors along an existing axis
     */
   inline def concat[T <: Tuple, ConcatAxis <: Label](
-      tensor: Tensor[T],
-      tensorsToConcat: ArraySeq[Tensor[T]]
+      axis: Axis[ConcatAxis],
+      tensors: Tensor[T]*
   ): Tensor[T] =
-
-    // Use JAX concatenate directly
-    val tensors = tensor +: tensorsToConcat
+    require(tensors.nonEmpty, "Cannot concat empty sequence of tensors")
     val jaxValues = tensors.map(_.jaxValue).toPythonProxy
-    val axis = TupleHelpers.indexOf[ConcatAxis, T]
-    val concatenated = Jax.jnp.concatenate(jaxValues, axis = axis)
+    val axisIndex = TupleHelpers.indexOf[ConcatAxis, T]
+    val concatenated = Jax.jnp.concatenate(jaxValues, axis = axisIndex)
 
     // Get the actual shape directly from JAX result
     val resultDims = concatenated.shape.as[Seq[Int]]
     val newShapeTuple = TupleHelpers.createTupleFromSeq[T](resultDims)
     val shape = Shape[T](newShapeTuple)
 
-    new Tensor(shape, concatenated, tensor.dtype)
-
-  // Backward compatibility method for Seq
-  inline def concat[T <: Tuple, ConcatAxis <: Label](
-      tensor: Tensor[T],
-      tensorsToConcat: Seq[Tensor[T]]
-  ): Tensor[T] =
-    concat(tensor, ArraySeq.from(tensorsToConcat))
+    new Tensor(shape, concatenated, tensors.head.dtype)
 
 object Tensor0:
   import Tensor.{Tensor0, Tensor1}

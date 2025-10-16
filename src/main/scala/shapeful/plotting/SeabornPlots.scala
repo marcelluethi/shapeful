@@ -1,6 +1,5 @@
 package shapeful.plotting
 
-import scala.language.experimental.namedTypeArguments
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters
 import shapeful.*

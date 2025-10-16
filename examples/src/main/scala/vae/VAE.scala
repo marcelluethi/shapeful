@@ -1,7 +1,6 @@
-// package examples.vae
+package examples.vae
 
-//
-// import shapeful.*
+import shapeful.*
 // import shapeful.autodiff.*
 // import shapeful.nn.*
 // import shapeful.jax.Jax

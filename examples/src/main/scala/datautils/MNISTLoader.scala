@@ -4,7 +4,6 @@ import shapeful.*
 import shapeful.tensor.Device
 import shapeful.tensor.TensorIndexing.*
 import shapeful.jax.Jax
-import examples.datautils.DataLoader
 import java.io.{FileInputStream, DataInputStream, BufferedInputStream}
 import scala.util.{Try, Success, Failure}
 import me.shadaj.scalapy.py.SeqConverters

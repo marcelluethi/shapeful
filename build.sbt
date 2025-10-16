@@ -37,6 +37,7 @@ lazy val examples = (project in file("examples"))
     publishArtifact := false,
     // Examples source directory
     Compile / scalaSource := baseDirectory.value,
+    Compile / resourceDirectory := baseDirectory.value / "src" / "main" / "resources",
     scalafmtFailOnErrors := false
   )
 

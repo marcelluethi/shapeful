@@ -147,13 +147,13 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
       axis: Axis[NewAxis],
       otherTensor: Tensor[T]*
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
-    Tensor.stack(axis, (this +: otherTensor)*)
+    Tensor.stack(axis, (this +: otherTensor))
 
   inline def concat[ConcatAxis <: Label](
       axis: Axis[ConcatAxis],
       otherTensor: Tensor[T]*
   ): Tensor[T] =
-    Tensor.concat(axis, (this +: otherTensor)*)
+    Tensor.concat(axis, (this +: otherTensor))
 
   /** Reshape the tensor to a new shape.
     */
@@ -375,7 +375,7 @@ object Tensor:
     */
   def stack[T <: Tuple, NewAxis <: Label](
       axis: Axis[NewAxis],
-      tensors: Tensor[T]*
+      tensors: Seq[Tensor[T]]
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
     require(tensors.nonEmpty, "Cannot stack empty sequence of tensors")
     val refShape = tensors.head.shape
@@ -390,7 +390,7 @@ object Tensor:
     */
   inline def concat[T <: Tuple, ConcatAxis <: Label](
       axis: Axis[ConcatAxis],
-      tensors: Tensor[T]*
+      tensors: Seq[Tensor[T]]
   ): Tensor[T] =
     require(tensors.nonEmpty, "Cannot concat empty sequence of tensors")
     val jaxValues = tensors.map(_.jaxValue).toPythonProxy

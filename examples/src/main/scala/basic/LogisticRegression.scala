@@ -7,7 +7,6 @@ import shapeful.jax.Jax
 import shapeful.random.Random
 import shapeful.optimization.GradientDescent
 import examples.DataUtils
-import examples.nn.losses.BinaryCrossEntropy
 import io.github.quafadas.table.*
 import scala.compiletime.constValueTuple
 import scala.collection.immutable.ArraySeq

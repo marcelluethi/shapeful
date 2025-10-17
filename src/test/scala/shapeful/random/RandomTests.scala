@@ -90,7 +90,11 @@ class RandomTests extends FunSuite:
 
     // Test vmapSample with vector output
     val vectorSamples =
-      Random.vmapSample(baseKey, numSamples, (key: Random.Key) => Random.uniform(key, Shape1[Feature](featureSize)))
+      Random.vmapSample(
+        baseKey,
+        numSamples,
+        (key: Random.Key) => Random.uniform(key, Shape(Axis[Feature] -> featureSize))
+      )
 
     // Check output shape - should be (Sample, Feature)
     assert(vectorSamples.shape.dims.length == 2, "vmapSample output should have Sample and Feature dimensions")
@@ -181,14 +185,14 @@ class RandomTests extends FunSuite:
     val vmapResults = Random.vmapSample(
       baseKey,
       numSamples,
-      (key: Random.Key) => Random.uniform(key, Shape1[Feature](100)) // Larger tensors for meaningful timing
+      (key: Random.Key) => Random.uniform(key, Shape(Axis[Feature] -> 100)) // Larger tensors for meaningful timing
     )
     val vmapTime = System.nanoTime() - startVmap
 
     // Time sequential approach
     val startSeq = System.nanoTime()
     val keys = baseKey.split(numSamples)
-    val seqResults = keys.map(key => Random.uniform(key, Shape1[Feature](100)))
+    val seqResults = keys.map(key => Random.uniform(key, Shape(Axis[Feature] -> 100)))
     val seqTime = System.nanoTime() - startSeq
 
     // Verify results are equivalent (same keys should produce same results)
@@ -233,7 +237,7 @@ class RandomTests extends FunSuite:
   }
 
   test("type-safe permutation preserves elements along labeled axis") {
-    val shape = Shape2[Sample, Feature](3, 4)
+    val shape = Shape(Axis[Sample] -> 3, Axis[Feature] -> 4)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
     val key = Random.Key(123)

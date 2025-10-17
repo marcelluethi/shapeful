@@ -30,7 +30,7 @@ class NormalTests extends FunSuite:
   }
 
   test("Normal distribution creation with tensor parameters") {
-    val shape = Shape1[Batch](3)
+    val shape = Shape(Axis[Batch] -> 3)
     val mu = Tensor(shape, Seq(0.0f, 1.0f, -1.0f), DType.Float32)
     val sigma = Tensor(shape, Seq(1.0f, 2.0f, 0.5f), DType.Float32)
     val normal = Normal(mu, sigma)
@@ -79,7 +79,7 @@ class NormalTests extends FunSuite:
   }
 
   test("logpdf computation for tensor inputs") {
-    val shape = Shape1[Batch](3)
+    val shape = Shape(Axis[Batch] -> 3)
     val mu = Tensor(shape, Seq(0.0f, 1.0f, -1.0f), DType.Float32)
     val sigma = Tensor(shape, Seq(1.0f, 1.0f, 1.0f), DType.Float32)
     val normal = Normal(mu, sigma)
@@ -111,7 +111,7 @@ class NormalTests extends FunSuite:
   }
 
   test("sample generation produces correct shape") {
-    val shape = Shape2[Batch, Feature](2, 3)
+    val shape: Shape2[Batch, Feature] = Shape(Axis[Batch] -> 2, Axis[Feature] -> 3)
     val mu = Tensor.zeros(shape)
     val sigma = Tensor.ones(shape)
     val normal = Normal(mu, sigma)
@@ -181,7 +181,7 @@ class NormalTests extends FunSuite:
   }
 
   test("logpdf with 2D tensor inputs") {
-    val shape = Shape2[Batch, Feature](2, 2)
+    val shape: Shape2[Batch, Feature] = Shape(Axis[Batch] -> 2, Axis[Feature] -> 2)
     val mu = Tensor.zeros(shape)
     val sigma = Tensor.ones(shape)
     val normal = Normal(mu, sigma)

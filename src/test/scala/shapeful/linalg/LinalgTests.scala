@@ -18,7 +18,7 @@ class LinalgTests extends FunSuite:
 
   test("inverse of identity matrix returns identity matrix") {
     // Create a 2x2 identity matrix
-    val shape = Shape2[Dim1, Dim2](2, 2)
+    val shape = Shape(Axis[Dim1] -> 2, Axis[Dim2] -> 2)
     val values = Seq(1.0f, 0.0f, 0.0f, 1.0f)
     val identityMatrix = Tensor(shape, values, DType.Float32)
 
@@ -37,7 +37,7 @@ class LinalgTests extends FunSuite:
 
   test("inverse of 2x2 matrix") {
     // Create a 2x2 matrix [[4, 7], [2, 6]]
-    val shape = Shape2[Dim1, Dim2](2, 2)
+    val shape = Shape(Axis[Dim1] -> 2, Axis[Dim2] -> 2)
     val values = Seq(4.0f, 7.0f, 2.0f, 6.0f)
     val matrix = Tensor(shape, values, DType.Float32)
 
@@ -50,7 +50,7 @@ class LinalgTests extends FunSuite:
 
     // Create the expected inverse matrix
     val expectedValues = Seq(0.6f, -0.7f, -0.2f, 0.4f)
-    val expected = Tensor(Shape2[Dim2, Dim1](2, 2), expectedValues, DType.Float32)
+    val expected = Tensor(Shape(Axis[Dim2] -> 2, Axis[Dim1] -> 2), expectedValues, DType.Float32)
 
     // Check equality using approxEquals
     assert(
@@ -61,7 +61,7 @@ class LinalgTests extends FunSuite:
 
   test("matrix multiplication with inverse gives identity") {
     // Create a 2x2 matrix
-    val shape = Shape2[Dim1, Dim2](2, 2)
+    val shape = Shape(Axis[Dim1] -> 2, Axis[Dim2] -> 2)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
     val matrix = Tensor(shape, values, DType.Float32)
 
@@ -70,7 +70,7 @@ class LinalgTests extends FunSuite:
 
     // Multiply the matrix by its inverse using JAX directly
     val jaxResult = Jax.jnp.matmul(matrix.jaxValue, inverse.jaxValue)
-    val resultShape = Shape2[Dim1, Dim1](2, 2)
+    val resultShape = Shape(Axis[Dim1] -> 2, Axis[Dim1] -> 2)
     val result = new Tensor2[Dim1, Dim1](resultShape, jaxResult, DType.Float32)
 
     // Create a 2x2 identity matrix to compare with
@@ -86,7 +86,7 @@ class LinalgTests extends FunSuite:
 
   test("cholesky of identity matrix returns identity matrix") {
     // Create a 2x2 identity matrix
-    val shape = Shape2[Dim1, Dim2](2, 2)
+    val shape = Shape(Axis[Dim1] -> 2, Axis[Dim2] -> 2)
     val values = Seq(1.0f, 0.0f, 0.0f, 1.0f)
     val identityMatrix = Tensor(shape, values, DType.Float32)
 
@@ -105,7 +105,7 @@ class LinalgTests extends FunSuite:
 
   test("cholesky of positive definite matrix") {
     // Create a 2x2 positive definite matrix [[2, -1], [-1, 2]]
-    val shape = Shape2[Dim1, Dim2](2, 2)
+    val shape = Shape(Axis[Dim1] -> 2, Axis[Dim2] -> 2)
     val values = Seq(2.0f, -1.0f, -1.0f, 2.0f)
     val matrix = Tensor(shape, values, DType.Float32)
 
@@ -131,7 +131,7 @@ class LinalgTests extends FunSuite:
 
   test("cholesky decomposition reconstruction") {
     // Create a 3x3 positive definite matrix
-    val shape = Shape2[Dim1, Dim2](3, 3)
+    val shape = Shape(Axis[Dim1] -> 3, Axis[Dim2] -> 3)
     val values = Seq(
       4.0f, 1.0f, 1.0f, 1.0f, 3.0f, 2.0f, 1.0f, 2.0f, 6.0f
     )
@@ -144,7 +144,7 @@ class LinalgTests extends FunSuite:
     // Calculate L * L.T using JAX
     val cholTranspose = Jax.jnp.transpose(chol.jaxValue)
     val reconstructed = Jax.jnp.matmul(chol.jaxValue, cholTranspose)
-    val resultShape = Shape2[Dim1, Dim2](3, 3)
+    val resultShape = Shape(Axis[Dim1] -> 3, Axis[Dim2] -> 3)
     val result = new Tensor2[Dim1, Dim2](resultShape, reconstructed, DType.Float32)
 
     // Check that the reconstruction is close to the original using approxEquals

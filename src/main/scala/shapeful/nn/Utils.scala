@@ -11,7 +11,7 @@ object Utils:
       numClasses: Int
   ): Tensor2[Input, Classes] =
     val result = Jax.jnn.one_hot(labels.jaxValue, numClasses)
-    new Tensor(Shape2[Input, Classes](labels.shape.dim[Input], numClasses), result, labels.dtype)
+    new Tensor(Shape(Axis[Input] -> labels.shape.dim[Input], Axis[Classes] -> numClasses), result, labels.dtype)
 
   @targetName("oneHotScalar")
   def oneHot[Classes <: Label](
@@ -19,4 +19,4 @@ object Utils:
       numClasses: Int
   ): Tensor1[Classes] =
     val result = Jax.jnn.one_hot(labels.jaxValue, numClasses)
-    new Tensor(Shape1[Classes](numClasses), result, labels.dtype)
+    new Tensor(Shape(Axis[Classes] -> numClasses), result, labels.dtype)

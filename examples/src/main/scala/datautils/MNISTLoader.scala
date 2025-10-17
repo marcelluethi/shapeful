@@ -91,7 +91,7 @@ object MNISTLoader:
         // Slice to get a 1x28x28 tensor, then remove the first dimension
         val sliced = imagePixels.slice[Sample](index, index + 1)
         // Remove the first dimension by reshaping to 2D
-        val shape2D = Shape2[Height, Width](imagePixels.shape.dim[Height], imagePixels.shape.dim[Width])
+        val shape2D = Shape(Axis[Height] -> imagePixels.shape.dim[Height], Axis[Width] -> imagePixels.shape.dim[Width])
         sliced.reshape(shape2D)
 
   /** Read 32-bit big-endian integer from DataInputStream
@@ -127,7 +127,7 @@ object MNISTLoader:
         dis.readFully(pixelBytes)
         // Convert bytes to floats with vectorized operation
         val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
-        val shape = Shape3[Sample, Height, Width](numImages, rows, cols)
+        val shape = Shape(Axis[Sample] -> numImages, Axis[Height] -> rows, Axis[Width] -> cols)
         val tensor = Tensor3.fromArray[Sample, Height, Width](shape, ArraySeq.unsafeWrapArray(allPixels), DType.Float32)
         tensor.toDevice(Device.CPU)
       finally dis.close()

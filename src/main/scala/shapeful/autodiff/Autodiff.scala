@@ -60,7 +60,7 @@ object Autodiff:
       // Create 2D shape for Jacobian matrix
       val outputDim = f(params).shape.dims(0) // m (number of outputs)
       val inputDim = params.shape.dims(0) // n (number of inputs)
-      val jacobianShape = Shape2[OutputDim, InputDim](outputDim, inputDim)
+      val jacobianShape = Shape(Axis[OutputDim] -> outputDim, Axis[InputDim] -> inputDim)
 
       new Tensor2[OutputDim, InputDim](jacobianShape, pyjac.as[Jax.PyDynamic], params.dtype)
 
@@ -83,6 +83,6 @@ object Autodiff:
       // Create 2D shape for Jacobian matrix
       val outputDim = f(params).shape.dims(0) // m (number of outputs)
       val inputDim = params.shape.dims(0) // n (number of inputs)
-      val jacobianShape = Shape2[OutputDim, InputDim](outputDim, inputDim)
+      val jacobianShape = Shape(Axis[OutputDim] -> outputDim, Axis[InputDim] -> inputDim)
 
       new Tensor2[OutputDim, InputDim](jacobianShape, pyjac.as[Jax.PyDynamic], params.dtype)

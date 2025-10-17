@@ -237,12 +237,12 @@ object VariationalAutoEncoderMNIST:
 
         if actualBatchSize == batchSize then
           // Flatten images from (Sample, Height, Width) to (Sample, Feature)
-          val flattenedImages = batchImages.vmap(Axis[Sample], image => image.reshape(Shape1[Feature](784)))
+          val flattenedImages = batchImages.vmap(Axis[Sample], image => image.reshape(Shape(Axis[Feature] -> 784)))
 
           // Generate random epsilon samples OUTSIDE JIT
           val (batchKey, nextKey) = rngKey.split2()
           rngKey = nextKey
-          val batchEps = Tensor.randn(batchKey, Shape2[Sample, Latent](batchSize, 20))
+          val batchEps = Tensor.randn(batchKey, Shape(Axis[Sample] -> batchSize, Axis[Latent] -> 20))
 
           // Apply JIT-compiled gradient step (forward + backward + update in one compiled function)
           currentParams = jittedGradStep(currentParams, flattenedImages, batchEps)
@@ -270,11 +270,11 @@ object VariationalAutoEncoderMNIST:
 
     for idx <- 0 until 5 do
       // testImages3D is Tensor3[Sample, Height, Width], we need to get one image and flatten it
-      val testImage2D = testImages3D.slice[Sample](idx, idx + 1).reshape(Shape2[Height, Width](28, 28))
-      val flattenedImage = testImage2D.reshape(Shape1[Feature](784))
+      val testImage2D = testImages3D.slice[Sample](idx, idx + 1).reshape(Shape(Axis[Height] -> 28, Axis[Width] -> 28))
+      val flattenedImage = testImage2D.reshape(Shape(Axis[Feature] -> 784))
 
       val testKey = Random.Key(999 + idx)
-      val eps = Tensor.randn(testKey, Shape1[Latent](20))
+      val eps = Tensor.randn(testKey, Shape(Axis[Latent] -> 20))
       val (reconstructed, mean, logvar) = forward(currentParams, flattenedImage, eps)
 
       // Save original and reconstructed images
@@ -292,7 +292,7 @@ object VariationalAutoEncoderMNIST:
     for i <- 0 until 5 do
       val keys = genKey.split2()
       genKey = keys._2
-      val priorSample = Tensor.randn(keys._1, Shape1[Latent](20))
+      val priorSample = Tensor.randn(keys._1, Shape(Axis[Latent] -> 20))
       val generated = decode(currentParams, priorSample)
       saveTensorAsPNG(generated, s"$outputDir/generated_$i.png")
 

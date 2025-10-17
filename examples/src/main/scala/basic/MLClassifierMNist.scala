@@ -121,11 +121,11 @@ object MLPClassifierMNist:
             val testProbs = testImages.vmap(
               Axis[Sample],
               image =>
-                val flattened = image.reshape(Shape1[Feature](28 * 28))
+                val flattened = image.reshape(Shape(Axis[Feature] -> 28 * 28))
                 forward(currentParams, flattened)._2
             )
             val oneHotTestLabels =
-              Utils.oneHot[Sample, Output](testLabels.reshape(Shape1[Sample](testLabels.shape.dim[Sample])), 10)
+              Utils.oneHot[Sample, Output](testLabels.reshape(Shape(Axis[Sample] -> testLabels.shape.dim[Sample])), 10)
 
             val correctCount = jittedAccuracy(testProbs, oneHotTestLabels)
             val accuracy = correctCount.toFloat / 1000.0f
@@ -134,9 +134,9 @@ object MLPClassifierMNist:
             println("done evaluating")
 
           // Flatten images for MLP input
-          val flattenedImages = batchImages.vmap(Axis[Sample], image => image.reshape(Shape1[Feature](28 * 28)))
+          val flattenedImages = batchImages.vmap(Axis[Sample], image => image.reshape(Shape(Axis[Feature] -> 28 * 28)))
           val oneHotLabels =
-            Utils.oneHot[Sample, Output](batchLabels.reshape(Shape1[Sample](batchLabels.shape.dim[Sample])), 10)
+            Utils.oneHot[Sample, Output](batchLabels.reshape(Shape(Axis[Sample] -> batchLabels.shape.dim[Sample])), 10)
 
           // Use JIT-compiled gradient step - FAST! 10-50x speedup!
           currentParams = jittedGradStep(currentParams, flattenedImages, oneHotLabels)

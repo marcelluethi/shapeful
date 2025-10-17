@@ -26,7 +26,7 @@ object LogisticRegression:
   def initParams(key: Random.Key)(using featureDim: Dim[Feature]): Params =
     val keys = key.split(2)
     Params(
-      weights = Tensor.zeros(Shape1[Feature](featureDim.dim)),
+      weights = Tensor.zeros(Shape(Axis[Feature] -> featureDim.dim)),
       bias = Tensor.zeros(Shape0)
     )
 
@@ -67,7 +67,7 @@ object LogisticRegression:
     val labelData = dfShuffled.column["species"].toArray.map(_.toFloat)
 
     val trainingDataUnnormalized = Tensor2.fromArray(
-      Shape2[Sample, Feature](df.length, numFeatures),
+      Shape(Axis[Sample] -> df.length, Axis[Feature] -> numFeatures),
       ArraySeq.unsafeWrapArray(featureData)
     )
     val labels = Tensor1.fromArray[Sample](ArraySeq.unsafeWrapArray(labelData))

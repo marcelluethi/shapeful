@@ -203,7 +203,7 @@ object TensorOps:
     @targetName("tensor1MatmulTensor2")
     def matmul[L2 <: Label](other: Tensor2[L, L2]): Tensor1[L2] =
       val result = Jax.jnp.dot(t.jaxValue, other.jaxValue)
-      new Tensor(Shape1[L2](other.shape.dim[L2]), result, DType.promoteTypes(t.dtype, other.dtype))
+      new Tensor(Shape(Axis[L2] -> other.shape.dim[L2]), result, DType.promoteTypes(t.dtype, other.dtype))
 
     @targetName("tensor1as")
     def as[NewL <: Label]: Tensor[Tuple1[NewL]] =
@@ -213,13 +213,13 @@ object TensorOps:
 
     def transpose: Tensor2[L2, L1] =
       val result = Jax.jnp.transpose(t.jaxValue)
-      new Tensor(Shape2[L2, L1](t.shape.dim[L2], t.shape.dim[L1]), result, t.dtype)
+      new Tensor(Shape(Axis[L2] -> t.shape.dim[L2], Axis[L1] -> t.shape.dim[L1]), result, t.dtype)
 
     @targetName("tensor2MatmulTensor2")
     def matmul[L2Other <: Label](other: Tensor2[L2, L2Other]): Tensor2[L1, L2Other] =
       val result = Jax.jnp.matmul(t.jaxValue, other.jaxValue)
       new Tensor(
-        Shape2[L1, L2Other](t.shape.dim[L1], other.shape.dim[L2Other]),
+        Shape(Axis[L1] -> t.shape.dim[L1], Axis[L2Other] -> other.shape.dim[L2Other]),
         result,
         DType.promoteTypes(t.dtype, other.dtype)
       )
@@ -227,7 +227,7 @@ object TensorOps:
     @targetName("tensor2MatmulTensor1")
     def matmul1(other: Tensor1[L2]): Tensor1[L1] =
       val result = Jax.jnp.dot(t.jaxValue, other.jaxValue)
-      new Tensor(Shape1[L1](t.shape.dim[L1]), result, DType.promoteTypes(t.dtype, other.dtype))
+      new Tensor(Shape(Axis[L1] -> t.shape.dim[L1]), result, DType.promoteTypes(t.dtype, other.dtype))
 
     /** Compute the determinant of a square matrix
       *

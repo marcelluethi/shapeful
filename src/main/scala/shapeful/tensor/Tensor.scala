@@ -418,7 +418,7 @@ object Tensor1:
 
   def apply[L <: Label](values: ArraySeq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
-    val shape = Shape1[L](values.length)
+    val shape = Shape(Axis[L] -> values.length)
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
@@ -434,7 +434,7 @@ object Tensor1:
       dtype: DType = DType.Float32
   ): Tensor[Tuple1[L1]] =
 
-    val shape = Shape1[L1](values.length)
+    val shape = Shape(Axis[L1] -> values.length)
     val jaxValues = Jax.jnp
       .array(values.toArray.toPythonCopy, dtype = JaxDType.jaxDtype(dtype))
 
@@ -442,7 +442,7 @@ object Tensor1:
 
   def fromInts[L <: Label](values: ArraySeq[Int], dtype: DType = DType.Int32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
-    val shape = Shape1[L](values.length)
+    val shape = Shape(Axis[L] -> values.length)
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
@@ -469,7 +469,7 @@ object Tensor2:
     val cols = values.head.length
     require(values.forall(_.length == cols), "All rows must have the same length")
 
-    val shape = Shape2[L1, L2](rows, cols)
+    val shape = Shape(Axis[L1] -> rows, Axis[L2] -> cols)
     val flatValues = values.flatten
     fromArray(shape, flatValues, dtype)
 
@@ -495,12 +495,12 @@ object Tensor2:
 
   def eye[L <: Label](shape: Shape1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
     val jaxValues = Jax.jnp.eye(shape.size, dtype = JaxDType.jaxDtype(dtype))
-    new Tensor2[L, L](Shape2(shape.size, shape.size), jaxValues, dtype)
+    new Tensor2[L, L](Shape(Axis[L] -> shape.size, Axis[L] -> shape.size), jaxValues, dtype)
 
   def fromDiag[L <: Label](diag: Tensor1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
     val size = diag.shape.size
     val jaxValues = Jax.jnp.diag(diag.jaxValue)
-    new Tensor2[L, L](Shape2(size, size), jaxValues, dtype)
+    new Tensor2[L, L](Shape(Axis[L] -> size, Axis[L] -> size), jaxValues, dtype)
 
 object Tensor3:
   import Tensor.{Tensor1, Tensor2, Tensor3}
@@ -521,7 +521,7 @@ object Tensor3:
     require(values.forall(_.length == dim2), "All second dimensions must match")
     require(values.forall(_.forall(_.length == dim3)), "All third dimensions must match")
 
-    val shape = Shape3[L1, L2, L3](dim1, dim2, dim3)
+    val shape = Shape(Axis[L1] -> dim1, Axis[L2] -> dim2, Axis[L3] -> dim3)
     val flatValues = values.flatten.flatten
     val jaxValues = Jax.jnp
       .array(flatValues.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))

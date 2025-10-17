@@ -5,7 +5,7 @@ import munit.FunSuite
 class TensorEqualityTests extends FunSuite:
 
   test("basic tensor equality") {
-    val shape = Shape2["height", "width"](2, 2)
+    val shape = Shape(Axis["height"] -> 2, Axis["width"] -> 2)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
 
     val tensor1 = Tensor(shape, values)
@@ -20,7 +20,7 @@ class TensorEqualityTests extends FunSuite:
   }
 
   test("tensor inequality") {
-    val shape = Shape2["height", "width"](2, 2)
+    val shape = Shape(Axis["height"] -> 2, Axis["width"] -> 2)
     val values1 = Seq(1.0f, 2.0f, 3.0f, 4.0f)
     val values2 = Seq(1.0f, 2.0f, 3.0f, 5.0f) // Last value different
 

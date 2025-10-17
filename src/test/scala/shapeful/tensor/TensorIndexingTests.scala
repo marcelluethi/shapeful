@@ -276,7 +276,7 @@ class TensorIndexingTests extends FunSuite:
 
   test("slice - 3D tensor") {
     // Create a 2x3x4 tensor using Shape3
-    val shape = Shape3[Batch, Height, Width](2, 3, 4)
+    val shape = Shape(Axis[Batch] -> 2, Axis[Height] -> 3, Axis[Width] -> 4)
     val values = (1 to 24).map(_.toFloat)
     val tensor = Tensor(shape, values, DType.Float32)
 
@@ -291,7 +291,7 @@ class TensorIndexingTests extends FunSuite:
 
   test("gather - 3D tensor") {
     // Create a 2x3x4 tensor
-    val shape = Shape3[Batch, Height, Width](2, 3, 4)
+    val shape = Shape(Axis[Batch] -> 2, Axis[Height] -> 3, Axis[Width] -> 4)
     val values = (1 to 24).map(_.toFloat)
     val tensor = Tensor(shape, values, DType.Float32)
 

@@ -25,12 +25,12 @@ class LinearLayerTests extends FunSuite:
     // Create specific parameters (not random for deterministic test)
     val params = Linear.Params[InputDim, OutputDim](
       weight = Tensor(
-        Shape2[InputDim, OutputDim](inputDim, outputDim),
+        Shape(Axis[InputDim] -> inputDim, Axis[OutputDim] -> outputDim),
         Seq(1.0f, 2.0f, 0.5f, -1.0f, 0.0f, 1.5f), // 3x2 matrix
         DType.Float32
       ),
       bias = Tensor(
-        Shape1[OutputDim](outputDim),
+        Shape(Axis[OutputDim] -> outputDim),
         Seq(0.1f, -0.2f), // bias vector
         DType.Float32
       )
@@ -38,7 +38,7 @@ class LinearLayerTests extends FunSuite:
 
     // Create input tensor
     val input = Tensor(
-      Shape1[InputDim](inputDim),
+      Shape(Axis[InputDim] -> inputDim),
       Seq(1.0f, 2.0f, 3.0f), // input vector
       DType.Float32
     )
@@ -56,7 +56,7 @@ class LinearLayerTests extends FunSuite:
 
     // Create expected output tensor for comparison
     val expectedOutput = Tensor(
-      Shape1[OutputDim](outputDim),
+      Shape(Axis[OutputDim] -> outputDim),
       Seq(2.1f, 4.3f),
       DType.Float32
     )
@@ -84,7 +84,7 @@ class LinearLayerTests extends FunSuite:
     assertEquals(params.bias.shape.dims, Seq(outputDim))
 
     // Check that bias is actually zeros
-    val expectedBias = Tensor.zeros(Shape1[OutputDim](outputDim))
+    val expectedBias = Tensor.zeros(Shape(Axis[OutputDim] -> outputDim))
     assert(
       params.bias.tensorEquals(expectedBias),
       "Bias should be initialized to zeros"
@@ -116,7 +116,7 @@ class LinearLayerTests extends FunSuite:
     assertEquals(params.bias.shape.dims, Seq(outputDim))
 
     // Check that bias is actually zeros
-    val expectedBias = Tensor.zeros(Shape1[OutputDim](outputDim))
+    val expectedBias = Tensor.zeros(Shape(Axis[OutputDim] -> outputDim))
     assert(
       params.bias.tensorEquals(expectedBias),
       "Bias should be initialized to zeros"

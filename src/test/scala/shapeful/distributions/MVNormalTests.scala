@@ -270,12 +270,12 @@ class MVNormalTests extends FunSuite:
     val mvn = MVNormal(mu_mv, cov_mv)
 
     // Equivalent univariate normal
-    val mu_uv = Tensor(Shape1[Dim](1), Seq(2.0f), DType.Float32)
-    val sigma_uv = Tensor(Shape1[Dim](1), Seq(3.0f), DType.Float32)
+    val mu_uv = Tensor(Shape(Axis[Dim] -> 1), Seq(2.0f), DType.Float32)
+    val sigma_uv = Tensor(Shape(Axis[Dim] -> 1), Seq(3.0f), DType.Float32)
     val normal = Normal(mu_uv, sigma_uv)
 
     val x_mv = Tensor1[Dim](Seq(5.0f))
-    val x_uv = Tensor(Shape1[Dim](1), Seq(5.0f), DType.Float32)
+    val x_uv = Tensor(Shape(Axis[Dim] -> 1), Seq(5.0f), DType.Float32)
 
     val logpdf_mv = mvn.logpdf(x_mv)
     val logpdf_uv = normal.logpdf(x_uv)

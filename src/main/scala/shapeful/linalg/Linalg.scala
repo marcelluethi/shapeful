@@ -21,7 +21,7 @@ object Linalg:
     // Create a new tensor with the appropriate shape (dimensions are swapped)
     val rowDim = t.shape.dims(1) // B becomes first dimension
     val colDim = t.shape.dims(0) // A becomes second dimension
-    val resultShape = Shape2[B, A](rowDim, colDim)
+    val resultShape = Shape(Axis[B] -> rowDim, Axis[A] -> colDim)
 
     new Tensor2[B, A](resultShape, invMatrix.as[Jax.PyDynamic], t.dtype)
 

@@ -16,3 +16,4 @@ examples/target/
 examples/*/.scala-build
 ide-*.json
 examples/vae_output
+*.bak

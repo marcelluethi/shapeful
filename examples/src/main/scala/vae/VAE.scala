@@ -57,8 +57,8 @@ import shapeful.*
 //           //encoder_layer2 = Linear.he[Hidden1, Hidden2](hiddenSize1, hiddenSize2, keys(1)),
 //           encoder_mean = Linear.xavier[Hidden1, Latent](encHiddenSize, latentSize, keys(2)),
 //           encoder_logvar = Linear.Params[Hidden1, Latent](
-//             weight = Tensor.zeros(Shape2[Hidden1, Latent](encHiddenSize, latentSize)),
-//             bias = Tensor.zeros(Shape1[Latent](latentSize))
+//             weight = Tensor.zeros(Shape(Axis[Hidden1] -> encHiddenSize, Axis[Latent] -> latentSize)),
+//             bias = Tensor.zeros(Shape(Axis[Latent] -> latentSize))
 //           ),
 //           decoder_layer1 = Linear.he[Latent, Hidden1](latentSize, decHiddenSize1, keys(3)),
 //           decoder_layer2 = Linear.he[Hidden1, Hidden2](decHiddenSize1, decHiddenSize2, keys(5)),
@@ -249,7 +249,7 @@ import shapeful.*
 //     )
 //     scatter(reconData, "vae_output/reconstructed.html")
 
-//     val zSamples = MVNormal.standardNormal(Shape1[Latent](latentSize)).sample[Sample](1000, sampleKey)
+//     val zSamples = MVNormal.standardNormal(Shape(Axis[Latent] -> latentSize)).sample[Sample](1000, sampleKey)
 //     val xSamples = zSamples.vmap[VmapAxis = Sample](z => decode(finalParams, z))
 //     val sampleData = Map(
 //       "x" -> xSamples.unstack[Sample].map(_.at(Tuple1(0)).get.toFloat.toDouble),

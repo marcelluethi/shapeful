@@ -57,7 +57,7 @@ class HalfNormalTests extends FunSuite:
   }
 
   test("sample generation produces correct shape") {
-    val shape = Shape2[Batch, Feature](2, 3)
+    val shape: Shape2[Batch, Feature] = Shape(Axis[Batch] -> 2, Axis[Feature] -> 3)
     val sigma = Tensor.ones(shape)
     val halfNormal = HalfNormal(sigma)
     val key = shapeful.random.Random.Key(42)
@@ -105,8 +105,8 @@ class HalfNormalTests extends FunSuite:
     assert(logpdf2.toFloat > logpdf1.toFloat)
   }
 
-  test("logpdf computation for tensor inputs") {
-    val shape = Shape1[Batch](3)
+  test("logpdf with tensor inputs") {
+    val shape: Shape1[Batch] = Shape(Axis[Batch] -> 3)
     val sigma = Tensor(shape, Seq(1.0f, 1.0f, 1.0f), DType.Float32)
     val halfNormal = HalfNormal(sigma)
 

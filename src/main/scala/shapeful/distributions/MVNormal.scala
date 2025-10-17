@@ -54,7 +54,7 @@ class MVNormal[L <: Label](val mu: Tensor1[L], val cov: Tensor2[L, L]) extends M
       mean = mu.jaxValue,
       cov = cov.jaxValue
     )
-    new Tensor1[Batch](Shape1(x.shape.dim[Batch]), logpdf_values, mu.dtype)
+    new Tensor1[Batch](Shape(Axis[Batch] -> x.shape.dim[Batch]), logpdf_values, mu.dtype)
 
   /** Sample a single vector from the distribution
     *
@@ -88,7 +88,7 @@ class MVNormal[L <: Label](val mu: Tensor1[L], val cov: Tensor2[L, L]) extends M
       cov.jaxValue,
       shape.toPythonProxy
     )
-    val resultShape = Shape2[Batch, L](n, mu.shape.dim[L])
+    val resultShape = Shape(Axis[Batch] -> n, Axis[L] -> mu.shape.dim[L])
     new Tensor2[Batch, L](resultShape, samples, mu.dtype)
 
   /** Mean vector of the distribution */
@@ -110,5 +110,5 @@ object MVNormal:
   /** Standard normal distribution in d dimensions (zero mean, identity covariance) */
   def standard[L <: Label](shape: Shape1[L]): MVNormal[L] =
     val mu = Tensor1[L](Seq.fill(shape.size)(0.0f))
-    val cov = Tensor2.eye[L](Shape1(shape.size))
+    val cov = Tensor2.eye[L](Shape(Axis[L] -> shape.size))
     new MVNormal(mu, cov)

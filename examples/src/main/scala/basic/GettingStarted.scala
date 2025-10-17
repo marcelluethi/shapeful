@@ -71,10 +71,10 @@ object GettingStarted extends App:
   // 5. Special tensor creation methods
   println("5. Special Tensor Creation")
 
-  val zeros = Tensor.zeros(Shape1[Feature](4))
+  val zeros = Tensor.zeros(Shape(Axis[Feature] -> 4))
   println(s"Zeros: $zeros")
 
-  val ones = Tensor.ones(Shape1[Feature](3))
+  val ones = Tensor.ones(Shape(Axis[Feature] -> 3))
   println(s"Ones: $ones")
 
   println()

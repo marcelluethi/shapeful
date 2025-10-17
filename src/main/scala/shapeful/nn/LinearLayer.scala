@@ -22,8 +22,8 @@ object Linear:
   )(using inDim: Dim[InDim], outDim: Dim[OutDim]): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / (inDim.dim + outDim.dim)).toFloat
     Params(
-      weight = Tensor.randn(key, Shape2[InDim, OutDim](inDim.dim, outDim.dim)) * Tensor0(scale),
-      bias = Tensor.zeros(Shape1[OutDim](outDim.dim))
+      weight = Tensor.randn(key, Shape(Axis[InDim] -> inDim.dim, Axis[OutDim] -> outDim.dim)) * Tensor0(scale),
+      bias = Tensor.zeros(Shape(Axis[OutDim] -> outDim.dim))
     )
 
   // He initialization for ReLU activation functions
@@ -32,6 +32,6 @@ object Linear:
   )(using inDim: Dim[InDim], outDim: Dim[OutDim]): Linear.Params[InDim, OutDim] =
     val scale = math.sqrt(2.0 / inDim.dim).toFloat
     Params(
-      weight = Tensor.randn(key, Shape2[InDim, OutDim](inDim.dim, outDim.dim)) * Tensor0(scale),
-      bias = Tensor.zeros(Shape1[OutDim](outDim.dim))
+      weight = Tensor.randn(key, Shape(Axis[InDim] -> inDim.dim, Axis[OutDim] -> outDim.dim)) * Tensor0(scale),
+      bias = Tensor.zeros(Shape(Axis[OutDim] -> outDim.dim))
     )

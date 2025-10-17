@@ -83,20 +83,22 @@ object AffineCouplingFlow:
 
     val networkParams = NetworkParams(
       logScaleHiddenLayer = Linear.Params(
-        weight = Tensor.randn(keys(0), Shape2["Input", "Hidden"](input_dim, hidden_dim)) * Tensor0(0.01f),
-        bias = Tensor.zeros(Shape1["Hidden"](hidden_dim))
+        weight =
+          Tensor.randn(keys(0), Shape(Axis["Input"] -> input_dim, Axis["Hidden"] -> hidden_dim)) * Tensor0(0.01f),
+        bias = Tensor.zeros(Shape(Axis["Hidden"] -> hidden_dim))
       ),
       logScaleOutputLayer = Linear.Params(
-        weight = Tensor.randn(keys(1), Shape2["Hidden", "Scale"](hidden_dim, output_dim)) * Tensor0(0.01f),
-        bias = Tensor.zeros(Shape1["Scale"](output_dim))
+        weight =
+          Tensor.randn(keys(1), Shape(Axis["Hidden"] -> hidden_dim, Axis["Scale"] -> output_dim)) * Tensor0(0.01f),
+        bias = Tensor.zeros(Shape(Axis["Scale"] -> output_dim))
       ),
       shiftHiddenLayer = Linear.Params(
-        weight = Tensor.randn(keys(2), Shape2["Input", "Hidden"](input_dim, hidden_dim)) * Tensor0(1f),
-        bias = Tensor.zeros(Shape1["Hidden"](hidden_dim))
+        weight = Tensor.randn(keys(2), Shape(Axis["Input"] -> input_dim, Axis["Hidden"] -> hidden_dim)) * Tensor0(1f),
+        bias = Tensor.zeros(Shape(Axis["Hidden"] -> hidden_dim))
       ),
       shiftOutputLayer = Linear.Params(
-        weight = Tensor.randn(keys(3), Shape2["Hidden", "Shift"](hidden_dim, output_dim)) * Tensor0(1f),
-        bias = Tensor.zeros(Shape1["Shift"](output_dim))
+        weight = Tensor.randn(keys(3), Shape(Axis["Hidden"] -> hidden_dim, Axis["Shift"] -> output_dim)) * Tensor0(1f),
+        bias = Tensor.zeros(Shape(Axis["Shift"] -> output_dim))
       )
     )
     Params(networkParams = networkParams)

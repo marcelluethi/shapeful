@@ -18,7 +18,7 @@ class TensorTests extends FunSuite:
     super.beforeAll()
 
   test("Tensor creation with different dtypes") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
 
     val tensorFloat = Tensor(shape, values, DType.Float32)
@@ -61,9 +61,9 @@ class TensorTests extends FunSuite:
 
   test("Tensor2 identity matrix creation") {
     type Label = "aLabel"
-    val expectedShape = Shape2[Label, Label](2, 2)
+    val expectedShape = Shape(Axis[Label] -> 2, Axis[Label] -> 2)
     val expectedTensor = Tensor(expectedShape, Seq(1f, 0f, 0f, 1f))
-    val tensor = Tensor2.eye[Label](Shape1(2))
+    val tensor = Tensor2.eye[Label](Shape(Axis[Label] -> 2))
 
     assertEquals(tensor.shape, expectedShape)
     assert(tensor.tensorEquals(expectedTensor))
@@ -71,7 +71,7 @@ class TensorTests extends FunSuite:
 
   test("Tensor2  matrix creation from diag") {
     type Label = "aLabel"
-    val expectedShape = Shape2[Label, Label](2, 2)
+    val expectedShape = Shape(Axis[Label] -> 2, Axis[Label] -> 2)
     val expectedTensor = Tensor(expectedShape, Seq(3f, 0f, 0f, 2f))
     val tensor = Tensor2.fromDiag[Label](Tensor1[Label](Seq(3f, 2f)))
 
@@ -80,7 +80,7 @@ class TensorTests extends FunSuite:
   }
 
   test("zeros and ones creation") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
 
     val zeros = Tensor.zeros(shape)
     assertEquals(zeros.shape.dims, Seq(2, 3))
@@ -100,11 +100,11 @@ class TensorTests extends FunSuite:
   }
 
   test("reshape operation") {
-    val originalShape = Shape2[Height, Width](2, 3)
+    val originalShape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val tensor = Tensor(originalShape, values)
 
-    val newShape = Shape2[Batch, Feature](3, 2)
+    val newShape = Shape(Axis[Batch] -> 3, Axis[Feature] -> 2)
     val reshaped = tensor.reshape(newShape)
 
     assertEquals(reshaped.shape.dims, Seq(3, 2))
@@ -112,11 +112,11 @@ class TensorTests extends FunSuite:
   }
 
   test("reshape with incompatible dimensions should fail") {
-    val originalShape = Shape2[Height, Width](2, 3)
+    val originalShape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val tensor = Tensor(originalShape, values)
 
-    val incompatibleShape = Shape2[Batch, Feature](2, 4) // 8 elements vs 6
+    val incompatibleShape = Shape(Axis[Batch] -> 2, Axis[Feature] -> 4) // 8 elements vs 6
 
     intercept[IllegalArgumentException] {
       tensor.reshape(incompatibleShape)
@@ -124,7 +124,7 @@ class TensorTests extends FunSuite:
   }
 
   test("relabel operation") {
-    val originalShape = Shape2[Height, Width](2, 3)
+    val originalShape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val tensor = Tensor(originalShape, values)
 
@@ -135,7 +135,7 @@ class TensorTests extends FunSuite:
   }
 
   test("dtype conversion") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f)
     val tensor = Tensor(shape, values, DType.Float32)
 
@@ -149,7 +149,7 @@ class TensorTests extends FunSuite:
   }
 
   test("vmap operation") {
-    val shape = Shape2[Batch, Feature](3, 4)
+    val shape = Shape(Axis[Batch] -> 3, Axis[Feature] -> 4)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -168,7 +168,7 @@ class TensorTests extends FunSuite:
   }
 
   test("zipVmap operation") {
-    val shape = Shape2[Batch, Feature](2, 3)
+    val shape = Shape(Axis[Batch] -> 2, Axis[Feature] -> 3)
     val values1 = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val values2 = Seq(2.0f, 3.0f, 4.0f, 5.0f, 6.0f, 7.0f)
 
@@ -187,7 +187,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor indexing") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val tensor = Tensor(shape, values)
 
@@ -197,7 +197,7 @@ class TensorTests extends FunSuite:
 
   test("tensor indexer get and set operations") {
     // Create a 2x2 tensor for testing indexing operations
-    val shape = Shape2[Height, Width](2, 2)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 2)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
     val tensor = Tensor(shape, values)
 
@@ -259,7 +259,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor stats method") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val tensor = Tensor(shape, values)
 
@@ -281,7 +281,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor inspect method") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f)
     val tensor = Tensor(shape, values)
 
@@ -298,7 +298,7 @@ class TensorTests extends FunSuite:
   }
 
   test("dim method with specific labels") {
-    val shape = Shape2[Height, Width](5, 7)
+    val shape = Shape(Axis[Height] -> 5, Axis[Width] -> 7)
     val values = (1 to 35).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -307,7 +307,7 @@ class TensorTests extends FunSuite:
   }
 
   test("complex vmap with reduction") {
-    val shape = Shape2[Batch, Feature](3, 4)
+    val shape = Shape(Axis[Batch] -> 3, Axis[Feature] -> 4)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -325,7 +325,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor equality - identical tensors") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
 
     val tensor1 = Tensor(shape, values)
@@ -337,7 +337,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor equality - different values") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values1 = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val values2 = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 7.0f) // Last value different
 
@@ -352,15 +352,15 @@ class TensorTests extends FunSuite:
   test("tensor equality - different shapes") {
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
 
-    val tensor1 = Tensor(Shape2[Height, Width](2, 3), values)
-    val tensor2 = Tensor(Shape2[Height, Width](3, 2), values)
+    val tensor1 = Tensor(Shape(Axis[Height] -> 2, Axis[Width] -> 3), values)
+    val tensor2 = Tensor(Shape(Axis[Height] -> 3, Axis[Width] -> 2), values)
 
     assert(!tensor1.tensorEquals(tensor2))
     assert(tensor1 != tensor2)
   }
 
   test("tensor equality - different dtypes") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f)
 
     val tensor1 = Tensor(shape, values, DType.Float32)
@@ -379,7 +379,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor approximate equality") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
     val values1 = Seq(1.0f, 2.0f, 3.0f)
     val values2 = Seq(1.0000001f, 2.0000001f, 3.0000001f) // Very small difference
 
@@ -393,7 +393,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor element-wise equality") {
-    val shape = Shape2[Height, Width](2, 2)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 2)
     val values1 = Seq(1.0f, 2.0f, 3.0f, 4.0f)
     val values2 = Seq(1.0f, 0.0f, 3.0f, 0.0f) // Different at positions (0,1) and (1,1)
 
@@ -410,7 +410,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor equality with Object.equals") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f)
 
     val tensor1 = Tensor(shape, values)
@@ -423,7 +423,7 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor hashCode consistency") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f)
 
     val tensor1 = Tensor(shape, values)
@@ -434,8 +434,8 @@ class TensorTests extends FunSuite:
   }
 
   test("tensor equality - element-wise shape mismatch") {
-    val tensor1 = Tensor(Shape2[Height, Width](2, 3), (1 to 6).map(_.toFloat))
-    val tensor2 = Tensor(Shape2[Height, Width](3, 2), (1 to 6).map(_.toFloat))
+    val tensor1 = Tensor(Shape(Axis[Height] -> 2, Axis[Width] -> 3), (1 to 6).map(_.toFloat))
+    val tensor2 = Tensor(Shape(Axis[Height] -> 3, Axis[Width] -> 2), (1 to 6).map(_.toFloat))
 
     intercept[IllegalArgumentException] {
       tensor1.elementEquals(tensor2)
@@ -489,7 +489,7 @@ class TensorTests extends FunSuite:
 
   test("split operation") {
     // Test splitting a 2D tensor along the batch dimension
-    val shape = Shape2[Batch, Feature](3, 4)
+    val shape = Shape(Axis[Batch] -> 3, Axis[Feature] -> 4)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -533,7 +533,7 @@ class TensorTests extends FunSuite:
   test("split operation on 3D tensor") {
     // Test splitting a 3D tensor
     type Depth = "depth"
-    val shape = Shape3[Batch, Height, Width](2, 2, 3)
+    val shape = Shape(Axis[Batch] -> 2, Axis[Height] -> 2, Axis[Width] -> 3)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -597,7 +597,7 @@ class TensorTests extends FunSuite:
     import shapeful.tensor.TensorSlicing.*
 
     // Test splitting a 2D tensor along different axes
-    val shape = Shape2[Batch, Feature](3, 4)
+    val shape = Shape(Axis[Batch] -> 3, Axis[Feature] -> 4)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -646,7 +646,7 @@ class TensorTests extends FunSuite:
 
     // Test splitting a 3D tensor
     type Depth = "depth"
-    val shape = Shape3[Batch, Height, Width](2, 2, 3)
+    val shape = Shape(Axis[Batch] -> 2, Axis[Height] -> 2, Axis[Width] -> 3)
     val values = (1 to 12).map(_.toFloat)
     val tensor = Tensor(shape, values)
 
@@ -689,7 +689,7 @@ class TensorTests extends FunSuite:
   }
 
   test("toDevice method with CPU") {
-    val shape = Shape2[Height, Width](2, 3)
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 3)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f)
     val originalTensor = Tensor(shape, values)
 
@@ -711,7 +711,7 @@ class TensorTests extends FunSuite:
   }
 
   test("toDevice method returns different instances for same device") {
-    val shape = Shape1[Feature](4)
+    val shape = Shape(Axis[Feature] -> 4)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
     val originalTensor = Tensor(shape, values)
 
@@ -728,7 +728,7 @@ class TensorTests extends FunSuite:
   }
 
   test("toDevice preserves tensor properties across different dtypes") {
-    val shape = Shape1[Feature](3)
+    val shape = Shape(Axis[Feature] -> 3)
 
     // Test with Float32
     val floatTensor = Tensor(shape, Seq(1.0f, 2.0f, 3.0f), DType.Float32)
@@ -750,7 +750,7 @@ class TensorTests extends FunSuite:
   }
 
   test("toDevice with GPU when available") {
-    val shape = Shape1[Feature](4)
+    val shape = Shape(Axis[Feature] -> 4)
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
     val originalTensor = Tensor(shape, values)
 

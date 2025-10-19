@@ -28,7 +28,7 @@ class TensorContractTests extends FunSuite:
     val vector = Tensor1(Axis[Features], Seq(5.0f, 6.0f))
 
     // Contract over Features dimension
-    val result: Tensor1[Rows] = matrix.contract(Axis[Features], vector)
+    val result: Tensor1[Rows] = matrix.contract(Axis[Features])(vector)
 
     // Expected: [1*5 + 2*6, 3*5 + 4*6] = [17, 39]
     assertEquals(result.shape.size, 2, "size")
@@ -48,7 +48,7 @@ class TensorContractTests extends FunSuite:
     val m2 = Tensor2(Axis[Inner], Axis[Cols], Seq(Seq(5.0f, 6.0f), Seq(7.0f, 8.0f)))
 
     // Contract over Inner dimension
-    val result: Tensor2[Rows, Cols] = m1.contract(Axis[Inner], m2)
+    val result: Tensor2[Rows, Cols] = m1.contract(Axis[Inner])(m2)
 
     // Expected: [[1*5 + 2*7, 1*6 + 2*8], [3*5 + 4*7, 3*6 + 4*8]]
     //         = [[19, 22], [43, 50]]
@@ -77,7 +77,7 @@ class TensorContractTests extends FunSuite:
     val weights = Tensor2(Axis[Inner], Axis[Cols], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
 
     // Contract over Inner, keeping Batch and Rows
-    val result: Tensor3[Batch, Rows, Cols] = batched.contract(Axis[Inner], weights)
+    val result: Tensor3[Batch, Rows, Cols] = batched.contract(Axis[Inner])(weights)
 
     assertEquals(result.shape.dims, Seq(2, 2, 2), "dims")
 
@@ -108,7 +108,7 @@ class TensorContractTests extends FunSuite:
     val v2 = Tensor1(Axis[Dim], Seq(4.0f, 5.0f, 6.0f))
 
     // Contract over Dim, returns scalar
-    val result: Tensor0 = v1.contract(Axis[Dim], v2)
+    val result: Tensor0 = v1.contract(Axis[Dim])(v2)
 
     // Expected: 1*4 + 2*5 + 3*6 = 4 + 10 + 18 = 32
     assertEquals(result.shape.dims, Seq.empty, "dims")
@@ -123,7 +123,7 @@ class TensorContractTests extends FunSuite:
     val matrix = Tensor2(Axis[Inner], Axis[Cols], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f), Seq(5.0f, 6.0f)))
 
     // Contract over Inner dimension
-    val result: Tensor1[Cols] = vector.contract(Axis[Inner], matrix)
+    val result: Tensor1[Cols] = vector.contract(Axis[Inner])(matrix)
 
     // Expected: [1*1 + 2*3 + 3*5, 1*2 + 2*4 + 3*6] = [22, 28]
     assertEquals(result.shape.size, 2, "size")
@@ -143,7 +143,7 @@ class TensorContractTests extends FunSuite:
     val v2 = Tensor1(Axis[I], Seq(3.0f, 4.0f))
 
     // Contract over I dimension
-    val result: Tensor0 = v1.contract(Axis[I], v2)
+    val result: Tensor0 = v1.contract(Axis[I])(v2)
 
     // Expected: 1*3 + 2*4 = 11
     assertEqualsDouble(result.toFloat.toDouble, 11.0, 1e-5)
@@ -165,7 +165,7 @@ class TensorContractTests extends FunSuite:
     val t2 = Tensor2(Axis[J], Axis[K], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f), Seq(5.0f, 6.0f)))
 
     // Contract over J dimension
-    val result: Tensor3[Batch, I, K] = t1.contract(Axis[J], t2)
+    val result: Tensor3[Batch, I, K] = t1.contract(Axis[J])(t2)
 
     assertEquals(result.shape.dims, Seq(2, 2, 2), "dims")
 
@@ -194,7 +194,7 @@ class TensorContractTests extends FunSuite:
     val m2 = Tensor2(Axis[Inner], Axis[Cols], Seq(Seq(7.0f, 8.0f), Seq(9.0f, 10.0f), Seq(11.0f, 12.0f)))
 
     // Using contract
-    val contractResult: Tensor2[Rows, Cols] = m1.contract(Axis[Inner], m2)
+    val contractResult: Tensor2[Rows, Cols] = m1.contract(Axis[Inner])(m2)
 
     // Using existing matmul
     val matmulResult = m1.matmul(m2)
@@ -211,7 +211,7 @@ class TensorContractTests extends FunSuite:
     val v2 = Tensor1(Axis[Dim], Seq(5.0f, 6.0f, 7.0f, 8.0f))
 
     // Using contract
-    val contractResult: Tensor0 = v1.contract(Axis[Dim], v2)
+    val contractResult: Tensor0 = v1.contract(Axis[Dim])(v2)
 
     // Using existing dot
     val dotResult = v1.dot(v2)
@@ -236,7 +236,7 @@ class TensorContractTests extends FunSuite:
       Seq(Seq(1.0f, 2.0f, 3.0f), Seq(4.0f, 5.0f, 6.0f)) // 2 inner, 3 features
     )
 
-    val result: Tensor2[Batch, Features] = t1.contract(Axis[Inner], t2)
+    val result: Tensor2[Batch, Features] = t1.contract(Axis[Inner])(t2)
 
     // Result should have shape (3, 3) - 3 batches, 3 features
     assertEquals(result.shape.dims, Seq(3, 3), "dims")

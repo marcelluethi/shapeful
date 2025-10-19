@@ -346,7 +346,7 @@ object TensorOps:
       * {{{
       * val matrix = Tensor2[Rows, Features](...)
       * val vector = Tensor1[Features](...)
-      * val result: Tensor1[Rows] = matrix.contract(Axis[Features], vector)
+      * val result: Tensor1[Rows] = matrix.contract(Axis[Features])(vector)
       * }}}
       *
       * @param axis
@@ -361,7 +361,8 @@ object TensorOps:
         OtherShape <: Tuple,
         ResultShape <: Tuple
     ](
-        axis: Axis[ContractAxis],
+        axis: Axis[ContractAxis]
+    )(
         other: Tensor[OtherShape]
     )(using
         // Ensure ContractAxis exists in both tensors

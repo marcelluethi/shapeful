@@ -3,10 +3,11 @@ package shapeful.tensor
 import TupleHelpers.{ToIntTuple, createTupleFromSeq}
 import shapeful.Label
 import scala.collection.View.Empty
+import scala.annotation.publicInBinary
 
 /** Represents the (typed) Shape of a tensor with runtime labels
   */
-final class Shape[T <: Tuple] private[tensor] (
+final class Shape[T <: Tuple] @publicInBinary private[tensor] (
     private val dimensions: ToIntTuple[T],
     private val labels: Array[String]
 ):
@@ -74,11 +75,11 @@ object Shape:
     }
 
   // Axis-based constructors with optional labels (using summonFrom to make ValueOf optional)
-  def apply[L <: Label](dim: (Axis[L], Int)): Shape[L *: EmptyTuple] =
+  inline def apply[L <: Label](dim: (Axis[L], Int)): Shape[L *: EmptyTuple] =
     val label = getLabel[L](0)
     new Shape(Tuple1(dim._2), Array(label))
 
-  def apply[L1 <: Label, L2 <: Label](
+  inline def apply[L1 <: Label, L2 <: Label](
       dim1: (Axis[L1], Int),
       dim2: (Axis[L2], Int)
   ): Shape[L1 *: L2 *: EmptyTuple] =
@@ -86,7 +87,7 @@ object Shape:
     val label2 = getLabel[L2](1)
     new Shape((dim1._2, dim2._2), Array(label1, label2))
 
-  def apply[L1 <: Label, L2 <: Label, L3 <: Label](
+  inline def apply[L1 <: Label, L2 <: Label, L3 <: Label](
       dim1: (Axis[L1], Int),
       dim2: (Axis[L2], Int),
       dim3: (Axis[L3], Int)

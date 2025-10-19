@@ -2,6 +2,7 @@ package shapeful.tensor
 
 import scala.annotation.targetName
 import scala.collection.immutable.ArraySeq
+import scala.compiletime.{erasedValue, summonFrom}
 import shapeful.jax.Jax
 import shapeful.jax.JaxDType
 import shapeful.Label
@@ -167,6 +168,52 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
     */
   def relabel[Names <: Tuple](using ev: Tuple.Size[T] =:= Tuple.Size[Names]): Tensor[Names] =
     new Tensor[Names](shape.relabel[Names], jaxValue, dtype)
+
+  /** Rearrange tensor dimensions by specifying new axis order using Axis constructors.
+    *
+    * Example: tensor.rearrange[(Width, Height, Batch)](Axis[Width], Axis[Height], Axis[Batch])
+    *
+    * The NewOrder type parameter specifies the desired output shape type. The axes arguments must match this order and
+    * provide the runtime label information.
+    */
+  inline def rearrange[NewOrder <: Tuple](
+      inline axes: Axis[?]*
+  )(using ev: Tuple.Size[NewOrder] =:= Tuple.Size[T]): Tensor[NewOrder] =
+    require(
+      axes.length == shape.dims.length,
+      s"Number of axes ${axes.length} must match tensor rank ${shape.dims.length}"
+    )
+
+    // Extract label names from the NewOrder type at compile time
+    val newLabelNames = extractLabelNamesFromAxes[NewOrder]
+
+    // Get the current shape's axis labels
+    val currentLabelNames = shape.axisLabels
+
+    // Find the permutation indices by matching new order to current order
+    val permutation = newLabelNames.map { labelName =>
+      val idx = currentLabelNames.indexOf(labelName)
+      require(idx >= 0, s"Axis ${labelName} not found in tensor shape")
+      idx
+    }
+
+    // Apply JAX transpose
+    val transposedJax = Jax.jnp.transpose(jaxValue, permutation.toArray.toPythonProxy)
+
+    // Build the new shape with preserved labels
+    val newDims = permutation.map(i => shape.dims(i))
+    val newShapeTuple = TupleHelpers.createTupleFromSeq[NewOrder](newDims)
+    val newShape = new Shape[NewOrder](newShapeTuple, newLabelNames.toArray)
+
+    new Tensor[NewOrder](newShape, transposedJax, dtype)
+
+  // Helper to extract label names from a tuple type at compile time
+  private inline def extractLabelNamesFromAxes[T <: Tuple]: Seq[String] =
+    inline erasedValue[T] match
+      case _: EmptyTuple     => Seq.empty
+      case _: (head *: tail) =>
+        val headName = scala.compiletime.constValue[head]
+        headName.toString +: extractLabelNamesFromAxes[tail]
 
   /** Access a specific index of the tensor.
     */
@@ -544,7 +591,7 @@ object Tensor2:
     * @return
     *   A square identity matrix with 1s on the diagonal and 0s elsewhere
     */
-  def eye[L <: Label](dim: Int, dtype: DType = DType.Float32): Tensor2[L, L] =
+  inline def eye[L <: Label](dim: Int, dtype: DType = DType.Float32): Tensor2[L, L] =
     val jaxValues = Jax.jnp.eye(dim, dtype = JaxDType.jaxDtype(dtype))
     new Tensor2[L, L](Shape(Axis[L] -> dim, Axis[L] -> dim), jaxValues, dtype)
 
@@ -555,7 +602,7 @@ object Tensor2:
     * @return
     *   A square identity matrix
     */
-  def eye[L <: Label](axisDim: (Axis[L], Int)): Tensor2[L, L] =
+  inline def eye[L <: Label](axisDim: (Axis[L], Int)): Tensor2[L, L] =
     eye(axisDim._2, DType.Float32)
 
   /** Create an identity matrix from a Shape1 (backward compatibility)
@@ -565,10 +612,10 @@ object Tensor2:
     * @return
     *   A square identity matrix
     */
-  def eye[L <: Label](shape: Shape1[L]): Tensor2[L, L] =
+  inline def eye[L <: Label](shape: Shape1[L]): Tensor2[L, L] =
     eye(shape.size, DType.Float32)
 
-  def fromDiag[L <: Label](diag: Tensor1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
+  inline def fromDiag[L <: Label](diag: Tensor1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
     val size = diag.shape.size
     val jaxValues = Jax.jnp.diag(diag.jaxValue)
     new Tensor2[L, L](Shape(Axis[L] -> size, Axis[L] -> size), jaxValues, dtype)

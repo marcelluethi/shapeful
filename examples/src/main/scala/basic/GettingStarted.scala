@@ -79,6 +79,7 @@ object GettingStarted extends App:
   println(s"Shape: ${zeros.shape}")  // Shows Shape(Feature=4)
 
   val ones = Tensor.ones(Shape(Axis[Channel] -> 3))
+  val onesOther = Tensor.ones(Axis[Channel] -> 3)  // Alternative syntax
   println(s"Ones: $ones")
   println(s"Shape: ${ones.shape}")  // Shows Shape(Channel=3)
 

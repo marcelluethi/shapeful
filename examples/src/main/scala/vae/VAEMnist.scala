@@ -135,7 +135,7 @@ object VariationalAutoEncoderMNIST:
   // Batch loss using vmap - takes batch of epsilon values as input
   def batchLoss(batchImages: Tensor2[Sample, Feature], batchEps: Tensor2[Sample, Latent])(params: VAEParams): Tensor0 =
     // Compute loss for each sample using zipVmap
-    val losses = batchImages.zipVmap(Axis[Sample], batchEps) { (sample, epsNoise) =>
+    val losses = batchImages.zipVmap(Axis[Sample])(batchEps) { (sample, epsNoise) =>
       vae_loss(params, sample, epsNoise)
     }
     shapeful.mean(losses)
@@ -237,7 +237,7 @@ object VariationalAutoEncoderMNIST:
 
         if actualBatchSize == batchSize then
           // Flatten images from (Sample, Height, Width) to (Sample, Feature)
-          val flattenedImages = batchImages.vmap(Axis[Sample], image => image.reshape(Shape(Axis[Feature] -> 784)))
+          val flattenedImages = batchImages.vmap(Axis[Sample]) { image => image.reshape(Shape(Axis[Feature] -> 784)) }
 
           // Generate random epsilon samples OUTSIDE JIT
           val (batchKey, nextKey) = rngKey.split2()

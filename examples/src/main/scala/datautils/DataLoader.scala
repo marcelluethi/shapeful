@@ -35,8 +35,8 @@ trait DataLoader[Features <: Tuple, Target <: Tuple]:
     val (features, targets) = samples.unzip
 
     // Stack into batched tensors
-    val batchedFeatures = Tensor.stack(Axis[Sample], features)
-    val batchedTargets = Tensor.stack(Axis[Sample], targets)
+    val batchedFeatures = Tensor.stack(Axis[Sample])(features)
+    val batchedTargets = Tensor.stack(Axis[Sample])(targets)
 
     (batchedFeatures, batchedTargets)
 

@@ -10,7 +10,7 @@ trait Flow[From <: Label, To <: Label, P]:
   def forwardSample(x: Tensor1[From])(params: Params): Tensor1[To]
 
   inline def forward[Sample <: Label](x: Tensor2[Sample, From])(params: Params): Tensor2[Sample, To] =
-    x.vmap(Axis[Sample], x => forwardSample(x)(params))
+    x.vmap(Axis[Sample]) { x => forwardSample(x)(params) }
 
   // Optional analytical log determinant - override for efficiency
   def logDetJacobian(x: Tensor1[From])(params: Params): Tensor0 =

@@ -118,7 +118,7 @@ class AutodiffTests extends FunSuite:
       val sumSquared: Tensor0 = squared.sum // Sum of squares
       val meanVal: Tensor0 = x.mean // Mean value
       val normVal: Tensor0 = x.norm // L2 norm
-      Tensor.stack(Axis[Output], Seq(sumSquared, meanVal, normVal))
+      Tensor.stack(Axis[Output])(Seq(sumSquared, meanVal, normVal))
 
     val jacF = Autodiff.jacFwd[Feature, Output](f)
 

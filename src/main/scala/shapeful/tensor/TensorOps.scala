@@ -102,6 +102,87 @@ object TensorOps:
       val result = Jax.jnp.`var`(t.jaxValue)
       new Tensor[EmptyTuple](Shape.empty, result, t.dtype)
 
+    // Axis-specific reduction operations
+    inline def sum[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.sum(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, t.dtype)
+
+    inline def mean[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.mean(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, t.dtype)
+
+    inline def max[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.max(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, t.dtype)
+
+    inline def min[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.min(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, t.dtype)
+
+    inline def argmax[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.argmax(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, DType.Int32)
+
+    inline def argmin[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.argmin(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, DType.Int32)
+
+    inline def std[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.std(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, t.dtype)
+
+    inline def variance[ReduceAxis <: Label](
+        axis: Axis[ReduceAxis]
+    ): Tensor[TupleHelpers.Remove[ReduceAxis, T]] =
+      val axisIndex = TupleHelpers.indexOf[ReduceAxis, T]
+      val result = Jax.jnp.`var`(t.jaxValue, axis = axisIndex)
+      val newDims = t.shape.dims.zipWithIndex.filter(_._2 != axisIndex).map(_._1)
+      val newTuple = TupleHelpers.createTupleFromSeq[TupleHelpers.Remove[ReduceAxis, T]](newDims)
+      val newShape = Shape[TupleHelpers.Remove[ReduceAxis, T]](newTuple)
+      new Tensor(newShape, result, t.dtype)
+
     // Additional math operations
     def abs: Tensor[T] =
       val result = Jax.jnp.abs(t.jaxValue)

@@ -78,10 +78,10 @@ object MLPClassifierMNist:
     def batchLoss(batchImages: Tensor2[Sample, Feature], batchLabels: Tensor2[Sample, Output])(
         params: MLPParams
     ): Tensor0 =
-      val losses = batchImages.zipVmap(Axis[Sample], batchLabels)((sample, label) =>
+      val losses = batchImages.zipVmap(Axis[Sample])(batchLabels) { (sample, label) =>
         val (logits, _) = forward(params, sample)
         BinaryCrossEntropy(logits, label)
-      )
+      }
       shapeful.mean(losses)
 
     val initialParams = initParams(dataKey)
@@ -91,10 +91,10 @@ object MLPClassifierMNist:
 
     // JIT-compile accuracy calculation
     def accuracyFn(predictions: Tensor2[Sample, Output], targets: Tensor2[Sample, Output]): Tensor0 =
-      val predClasses = predictions.vmap(Axis[Sample], pred => shapeful.argmax(pred))
-      val targetClasses = targets.vmap(Axis[Sample], target => shapeful.argmax(target))
+      val predClasses = predictions.vmap(Axis[Sample]) { pred => shapeful.argmax(pred) }
+      val targetClasses = targets.vmap(Axis[Sample]) { target => shapeful.argmax(target) }
       val matches =
-        predClasses.zipVmap(Axis[Sample], targetClasses)((pred, target) => Tensor0(1.0f) - (pred - target).abs.sign)
+        predClasses.zipVmap(Axis[Sample])(targetClasses) { (pred, target) => Tensor0(1.0f) - (pred - target).abs.sign }
       shapeful.sum(matches)
 
     val jittedAccuracy = Jit.function2(accuracyFn)
@@ -118,12 +118,10 @@ object MLPClassifierMNist:
 
             val (testImages, testLabels) =
               testData.getBatch[Sample](0, 1000) // Use first 1000 test samples for quick eval
-            val testProbs = testImages.vmap(
-              Axis[Sample],
-              image =>
-                val flattened = image.reshape(Shape(Axis[Feature] -> 28 * 28))
-                forward(currentParams, flattened)._2
-            )
+            val testProbs = testImages.vmap(Axis[Sample]) { image =>
+              val flattened = image.reshape(Shape(Axis[Feature] -> 28 * 28))
+              forward(currentParams, flattened)._2
+            }
             val oneHotTestLabels =
               Utils.oneHot[Sample, Output](testLabels.reshape(Shape(Axis[Sample] -> testLabels.shape.dim[Sample])), 10)
 
@@ -134,7 +132,7 @@ object MLPClassifierMNist:
             println("done evaluating")
 
           // Flatten images for MLP input
-          val flattenedImages = batchImages.vmap(Axis[Sample], image => image.reshape(Shape(Axis[Feature] -> 28 * 28)))
+          val flattenedImages = batchImages.vmap(Axis[Sample]) { image => image.reshape(Shape(Axis[Feature] -> 28 * 28)) }
           val oneHotLabels =
             Utils.oneHot[Sample, Output](batchLabels.reshape(Shape(Axis[Sample] -> batchLabels.shape.dim[Sample])), 10)
 

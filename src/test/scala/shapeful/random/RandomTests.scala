@@ -196,7 +196,7 @@ class RandomTests extends FunSuite:
     val seqTime = System.nanoTime() - startSeq
 
     // Verify results are equivalent (same keys should produce same results)
-    val stackedSeq = Tensor.stack(Axis[Feature], seqResults)
+    val stackedSeq = Tensor.stack(Axis[Feature])(seqResults)
     assert(
       vmapResults.approxEquals(stackedSeq, tolerance),
       "vmapSample and sequential sampling should produce equivalent results"

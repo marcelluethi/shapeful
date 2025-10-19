@@ -73,19 +73,19 @@ object LogisticRegression:
     val labels = Tensor1.fromArray(Axis[Sample], ArraySeq.unsafeWrapArray(labelData))
 
     def standardize(t: Tensor2[Sample, Feature]): Tensor2[Sample, Feature] =
-      val mean = t.vmap(Axis[Feature], _.mean)
-      val std = t.zipVmap(Axis[Feature], mean)((x, m) => (x - m).pow(Tensor0(2f)).mean.sqrt + Tensor0(1e-6f))
-      t.vmap(Axis[Sample], (x) => (x - mean) / std)
+      val mean = t.vmap(Axis[Feature]) { _.mean }
+      val std = t.zipVmap(Axis[Feature])(mean) { (x, m) => (x - m).pow(Tensor0(2f)).mean.sqrt + Tensor0(1e-6f) }
+      t.vmap(Axis[Sample]) { (x) => (x - mean) / std }
     val trainingData = standardize(trainingDataUnnormalized)
 
     val (initKey, restKey) = trainKey.split2()
     val (lossKey, sampleKey) = restKey.split2()
 
     def loss(p: Params): Tensor0 =
-      val losses = trainingData.zipVmap(Axis[Sample], labels)((sample, label) =>
+      val losses = trainingData.zipVmap(Axis[Sample])(labels) { (sample, label) =>
         val (logits, probs) = forward(p, sample)
         (logits.relu - logits * label + ((logits.abs * Tensor0(-1f)).exp + Tensor0(1f)).log)
-      )
+      }
       losses.mean
 
     val initialParams = initParams(initKey)
@@ -97,7 +97,7 @@ object LogisticRegression:
       .map((params, i) =>
         if i % 10 == 0 then
           println("loss: " + loss(params))
-          val outputs = trainingData.vmap(Axis[Sample], x => forward(params, x)._2)
+          val outputs = trainingData.vmap(Axis[Sample]) { x => forward(params, x)._2 }
           println("acc: " + (Tensor0(1f) - (outputs - labels).abs.mean))
         end if
         params
@@ -106,8 +106,8 @@ object LogisticRegression:
       .toSeq
       .last
 
-    val predictions = trainingData.vmap(Axis[Sample], x => forward(finalParams, x)._2)
+    val predictions = trainingData.vmap(Axis[Sample]) { x => forward(finalParams, x)._2 }
     println(predictions)
-    val predictionClasses = predictions.vmap(Axis[Sample], p => p.argmax)
+    val predictionClasses = predictions.vmap(Axis[Sample]) { p => p.argmax }
 
     println("\nTraining complete. Optimized parameters:" + finalParams)

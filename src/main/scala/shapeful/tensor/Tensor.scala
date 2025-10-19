@@ -24,7 +24,8 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
   /** map a function over the given axis of the tensor
     */
   inline def vmap[VmapAxis <: Label, OuterShape <: Tuple](
-      axis: Axis[VmapAxis],
+      axis: Axis[VmapAxis]
+  )(
       f: Tensor[TupleHelpers.Remove[VmapAxis, T]] => Tensor[OuterShape]
   ): Tensor[Tuple.Concat[Tuple1[VmapAxis], OuterShape]] =
 
@@ -69,7 +70,8 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
   /** zip two tensors and apply a function over the given axis of both tensors.
     */
   inline def zipVmap[VmapAxis <: Label, OtherShape <: Tuple, OuterShape <: Tuple](
-      axis: Axis[VmapAxis],
+      axis: Axis[VmapAxis]
+  )(
       other: Tensor[OtherShape]
   )(
       f: (
@@ -145,16 +147,18 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
       .to(ArraySeq)
 
   def stack[NewAxis <: Label](
-      axis: Axis[NewAxis],
+      axis: Axis[NewAxis]
+  )(
       otherTensor: Tensor[T]*
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
-    Tensor.stack(axis, (this +: otherTensor))
+    Tensor.stack(axis)(this +: otherTensor)
 
   inline def concat[ConcatAxis <: Label](
-      axis: Axis[ConcatAxis],
+      axis: Axis[ConcatAxis]
+  )(
       otherTensor: Tensor[T]*
   ): Tensor[T] =
-    Tensor.concat(axis, (this +: otherTensor))
+    Tensor.concat(axis)(this +: otherTensor)
 
   /** Reshape the tensor to a new shape.
     */
@@ -455,7 +459,8 @@ object Tensor:
   /** stack a sequence of tensors along a new axis
     */
   def stack[T <: Tuple, NewAxis <: Label](
-      axis: Axis[NewAxis],
+      axis: Axis[NewAxis]
+  )(
       tensors: Seq[Tensor[T]]
   ): Tensor[Tuple.Concat[Tuple1[NewAxis], T]] =
     require(tensors.nonEmpty, "Cannot stack empty sequence of tensors")
@@ -470,7 +475,8 @@ object Tensor:
   /** Concat tensors along an existing axis
     */
   inline def concat[T <: Tuple, ConcatAxis <: Label](
-      axis: Axis[ConcatAxis],
+      axis: Axis[ConcatAxis]
+  )(
       tensors: Seq[Tensor[T]]
   ): Tensor[T] =
     require(tensors.nonEmpty, "Cannot concat empty sequence of tensors")

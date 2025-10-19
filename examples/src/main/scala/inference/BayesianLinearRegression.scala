@@ -35,7 +35,7 @@ object BayesianLinearRegression extends App:
   val (key1, key2) = key.split2()
   val X = Tensor1(Axis[Sample], Range(0, 100, 1).map(_.toFloat / 100f).toSeq)
   val noise = Normal(Tensor.zeros(X.shape), Tensor.ones(X.shape) * trueSigma).sample(key1)
-  val y = X.vmap(Axis[Sample], sample => trueWeight * sample + trueBias) + noise
+  val y = X.vmap(Axis[Sample]) { sample => trueWeight * sample + trueBias } + noise
 
   // model params
   case class ModelParams(
@@ -131,25 +131,20 @@ object BayesianLinearRegression extends App:
       val (baseKey, _) = optimizerKey.split2()
       val baseSamples = baseDistribution.sampleBatch["Sample"](10, key = baseKey)
       val transformedSamples = flow.forward(baseSamples)(params)
-      val logdet = baseSamples.vmap(
-        Axis["Sample"],
-        { sample =>
-          flow.logDetJacobian(sample)(params)
-        }
-      )
+      val logdet = baseSamples.vmap(Axis["Sample"]) { sample =>
+        flow.logDetJacobian(sample)(params)
+      }
       val realParams = flow.forward(baseSamples)(params)
       for realParam <- realParams.unstack(Axis["Sample"]) do
         // println("real param: " + realParam)
         val modelParams = summon[FromTensor1[Latent, ModelParams]].convert(realParam.asInstanceOf[Tensor1[Latent]])
         println("model params: " + modelParams)
 
-      val baseLogProb = baseSamples.vmap(Axis["Sample"], baseDistribution.logpdf)
-      val targetLogProb = transformedSamples.vmap(
-        Axis["Sample"],
-        t =>
-          val modelParam = summon[FromTensor1["latent", ModelParams]].convert(t.asInstanceOf[Tensor1["latent"]])
-          posterior(X, y)(modelParam)
-      )
+      val baseLogProb = baseSamples.vmap(Axis["Sample"]) { baseDistribution.logpdf }
+      val targetLogProb = transformedSamples.vmap(Axis["Sample"]) { t =>
+        val modelParam = summon[FromTensor1["latent", ModelParams]].convert(t.asInstanceOf[Tensor1["latent"]])
+        posterior(X, y)(modelParam)
+      }
 
       println(s"Base log prob range: ${baseLogProb.min.toFloat} to ${baseLogProb.max.toFloat}")
       println(s"Target log prob range: ${targetLogProb.min.toFloat} to ${targetLogProb.max.toFloat}")

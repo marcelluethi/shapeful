@@ -28,6 +28,19 @@ object TupleHelpers:
     case EmptyTuple   => From
     case head *: tail => RemoveAll[tail, Remove[head, From]]
 
+  /** Check if a type X is contained in tuple T
+    */
+  type Contains[X, T <: Tuple] <: Boolean = T match
+    case EmptyTuple => false
+    case X *: tail  => true
+    case _ *: tail  => Contains[X, tail]
+
+  /** Compute the result shape after contracting over a single axis Result is concatenation of T1 and T2 with
+    * ContractAxis removed from both
+    */
+  type ContractResult[T1 <: Tuple, T2 <: Tuple, ContractAxis] =
+    Tuple.Concat[Remove[ContractAxis, T1], Remove[ContractAxis, T2]]
+
   // Successor type for counting (compact version)
   type S[N <: Int] <: Int = N match
     case 0  => 1

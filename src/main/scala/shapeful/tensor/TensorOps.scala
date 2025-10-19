@@ -251,3 +251,64 @@ object TensorOps:
     @targetName("tensor2as")
     def as[NewL1 <: Label, NewL2 <: Label]: Tensor[(NewL1, NewL2)] =
       t.relabel[(NewL1, NewL2)]
+
+  /** Tensor contraction operations
+    *
+    * Contract tensors over one or more shared axes using type-safe axis labels. This generalizes operations like dot
+    * product, matrix multiplication, and tensor products.
+    */
+  extension [T <: Tuple](tensor: Tensor[T])
+
+    /** Contract this tensor with another over a single shared axis
+      *
+      * Example: matrix-vector multiplication
+      * {{{
+      * val matrix = Tensor2[Rows, Features](...)
+      * val vector = Tensor1[Features](...)
+      * val result: Tensor1[Rows] = matrix.contract(Axis[Features], vector)
+      * }}}
+      *
+      * @param axis
+      *   The axis to contract over (must exist in both tensors)
+      * @param other
+      *   The tensor to contract with
+      * @return
+      *   A new tensor with the contracted axis removed from both inputs
+      */
+    inline def contract[
+        ContractAxis <: Label,
+        OtherShape <: Tuple,
+        ResultShape <: Tuple
+    ](
+        axis: Axis[ContractAxis],
+        other: Tensor[OtherShape]
+    )(using
+        // Ensure ContractAxis exists in both tensors
+        ev1: TupleHelpers.Contains[ContractAxis, T] =:= true,
+        ev2: TupleHelpers.Contains[ContractAxis, OtherShape] =:= true,
+        // Compute result shape at compile time
+        ev3: TupleHelpers.ContractResult[T, OtherShape, ContractAxis] =:= ResultShape
+    ): Tensor[ResultShape] =
+
+      val thisAxisIdx = TupleHelpers.indexOf[ContractAxis, T]
+      val otherAxisIdx = TupleHelpers.indexOf[ContractAxis, OtherShape]
+
+      // Use tensordot for single-axis contraction
+      // Convert axis indices to Python tuples
+      import me.shadaj.scalapy.py.SeqConverters
+      val axesTuple1 = Jax.Dynamic.global.tuple(Seq(thisAxisIdx).toPythonProxy)
+      val axesTuple2 = Jax.Dynamic.global.tuple(Seq(otherAxisIdx).toPythonProxy)
+      val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
+
+      val result = Jax.jnp.tensordot(
+        tensor.jaxValue,
+        other.jaxValue,
+        axes = axesPair
+      )
+
+      // Build result shape from JAX output
+      val resultDims = result.shape.as[Seq[Int]]
+      val resultTuple = TupleHelpers.createTupleFromSeq[ResultShape](resultDims)
+      val resultShape = Shape[ResultShape](resultTuple)
+
+      new Tensor(resultShape, result, DType.promoteTypes(tensor.dtype, other.dtype))

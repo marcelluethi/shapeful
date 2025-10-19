@@ -122,7 +122,7 @@ class AutodiffTests extends FunSuite:
 
     val jacF = Autodiff.jacFwd[Feature, Output](f)
 
-    val x = Tensor1[Feature](Seq(2.0f, 3.0f))
+    val x = Tensor1(Axis[Feature], Seq(2.0f, 3.0f))
     val jacobian: Tensor2[Output, Feature] = jacF(x)
 
     // Expected Jacobian:
@@ -133,7 +133,9 @@ class AutodiffTests extends FunSuite:
     // df3/dx0 = x0 / sqrt(x0^2 + x1^2) = 2/√13
     // df3/dx1 = x1 / sqrt(x0^2 + x1^2) = 3/√13
     val sqrt13 = math.sqrt(13.0).toFloat
-    val expected = Tensor2[Output, Feature](
+    val expected = Tensor2(
+      Axis[Output],
+      Axis[Feature],
       Seq(
         Seq(4.0f, 6.0f),
         Seq(0.5f, 0.5f),
@@ -157,11 +159,11 @@ class AutodiffTests extends FunSuite:
     val f = (x: Tensor1[Feature]) =>
       val scaledSum = x.sum * Tensor0(2.0f) // 2 * sum
       val meanVal = x.mean // Mean value
-      Tensor1[Output](Seq(scaledSum.toFloat, meanVal.toFloat))
+      Tensor1(Axis[Output], Seq(scaledSum.toFloat, meanVal.toFloat))
 
     val jacF = Autodiff.jacRev[Feature, Output](f)
 
-    val x = Tensor1[Feature](Seq(3.0f, 4.0f))
+    val x = Tensor1(Axis[Feature], Seq(3.0f, 4.0f))
     val jacobian: Tensor2[Output, Feature] = jacF(x)
 
     // Verify the computation runs and produces a 2D tensor
@@ -184,11 +186,11 @@ class AutodiffTests extends FunSuite:
     val f = (v: Tensor1[Feature]) => v.sum
     val gradF = Autodiff.grad(f)
 
-    val v = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
+    val v = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
     val gradient = gradF(v)
 
     // Expected: [1, 1, 1, 1]
-    val expected = Tensor1[Feature](Seq(1.0f, 1.0f, 1.0f, 1.0f))
+    val expected = Tensor1(Axis[Feature], Seq(1.0f, 1.0f, 1.0f, 1.0f))
     assert(gradient.approxEquals(expected, tolerance = 1e-5f), s"Expected ones vector, got ${gradient.toString}")
   }
 
@@ -199,11 +201,11 @@ class AutodiffTests extends FunSuite:
       squared.sum
     val gradF = Autodiff.grad(f)
 
-    val v = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
+    val v = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
     val gradient = gradF(v)
 
     // Expected: 2 * [1, 2, 3] = [2, 4, 6]
-    val expected = Tensor1[Feature](Seq(2.0f, 4.0f, 6.0f))
+    val expected = Tensor1(Axis[Feature], Seq(2.0f, 4.0f, 6.0f))
     assert(gradient.approxEquals(expected, tolerance = 1e-5f), s"Expected 2*v, got ${gradient.toString}")
   }
 

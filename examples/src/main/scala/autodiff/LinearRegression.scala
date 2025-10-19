@@ -22,7 +22,7 @@ object LinearRegression extends App:
   // 1. Create synthetic dataset
   println("1. Creating Synthetic Dataset")
 
-  val X = Tensor2[Sample, Feature](
+  val X = Tensor2(Axis[Sample], Axis[Feature],
     Seq(
       Seq(1.0f, 2.0f),
       Seq(2.0f, 3.0f),
@@ -30,7 +30,7 @@ object LinearRegression extends App:
       Seq(4.0f, 5.0f)
     )
   )
-  val y = Tensor1[Sample](Seq(5.0f, 8.0f, 11.0f, 14.0f)) // y = x1 + 2*x2 + 1
+  val y = Tensor1(Axis[Sample], Seq(5.0f, 8.0f, 11.0f, 14.0f)) // y = x1 + 2*x2 + 1
 
   println(s"Training data X (${X.shape.dims}):")
   println(s"${X.inspect}")
@@ -63,7 +63,7 @@ object LinearRegression extends App:
   val gradFn = Autodiff.grad(params => loss(params))
 
   val initialParams = ModelParams(
-    weight = Tensor1[Feature](Seq(0.0f, 0.0f)), // Initial weights
+    weight = Tensor1(Axis[Feature], Seq(0.0f, 0.0f)), // Initial weights
     bias = Tensor0(0.0f) // Initial bias
   )
 

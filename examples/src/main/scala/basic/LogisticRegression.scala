@@ -70,7 +70,7 @@ object LogisticRegression:
       Shape(Axis[Sample] -> df.length, Axis[Feature] -> numFeatures),
       ArraySeq.unsafeWrapArray(featureData)
     )
-    val labels = Tensor1.fromArray[Sample](ArraySeq.unsafeWrapArray(labelData))
+    val labels = Tensor1.fromArray(Axis[Sample], ArraySeq.unsafeWrapArray(labelData))
 
     def standardize(t: Tensor2[Sample, Feature]): Tensor2[Sample, Feature] =
       val mean = t.vmap(Axis[Feature], _.mean)

@@ -21,8 +21,8 @@ object ArithmeticOps extends App:
   // 1. Element-wise operations
   println("1. Element-wise Operations")
 
-  val a = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
-  val b = Tensor1[Feature](Seq(2.0f, 3.0f, 4.0f, 5.0f))
+  val a = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
+  val b = Tensor1(Axis[Feature], Seq(2.0f, 3.0f, 4.0f, 5.0f))
 
   println(s"a = $a")
   println(s"b = $b")
@@ -45,14 +45,14 @@ object ArithmeticOps extends App:
   // 3. Matrix operations
   println("3. Matrix Operations")
 
-  val matrix1 = Tensor2[Batch, Feature](
+  val matrix1 = Tensor2(Axis[Batch], Axis[Feature],
     Seq(
       Seq(1.0f, 2.0f, 3.0f),
       Seq(4.0f, 5.0f, 6.0f)
     )
   )
 
-  val matrix2 = Tensor2[Batch, Feature](
+  val matrix2 = Tensor2(Axis[Batch], Axis[Feature],
     Seq(
       Seq(2.0f, 2.0f, 2.0f),
       Seq(3.0f, 3.0f, 3.0f)
@@ -68,7 +68,7 @@ object ArithmeticOps extends App:
   // 4. Mathematical functions
   println("4. Mathematical Functions")
 
-  val values = Tensor1[Feature](Seq(0.0f, 1.0f, 2.0f, 3.0f))
+  val values = Tensor1(Axis[Feature], Seq(0.0f, 1.0f, 2.0f, 3.0f))
   println(s"values = $values")
   println(s"exp(values) = ${values.exp}")
   println(s"sin(values) = ${values.sin}")
@@ -79,7 +79,7 @@ object ArithmeticOps extends App:
   // 5. Reduction operations
   println("5. Reduction Operations")
 
-  val data = Tensor2[Batch, Feature](
+  val data = Tensor2(Axis[Batch], Axis[Feature],
     Seq(
       Seq(1.0f, 2.0f, 3.0f, 4.0f),
       Seq(5.0f, 6.0f, 7.0f, 8.0f),
@@ -97,8 +97,8 @@ object ArithmeticOps extends App:
   // 6. Comparisons and boolean operations
   println("6. Comparisons")
 
-  val x = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
-  val threshold = Tensor1[Feature](Seq(2.5f, 2.5f, 2.5f, 2.5f)) // Same shape for comparison
+  val x = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
+  val threshold = Tensor1(Axis[Feature], Seq(2.5f, 2.5f, 2.5f, 2.5f)) // Same shape for comparison
 
   println(s"x = $x")
   println(s"threshold = $threshold")
@@ -109,7 +109,7 @@ object ArithmeticOps extends App:
   // 7. Chaining operations
   println("7. Chaining Operations")
 
-  val input = Tensor1[Feature](Seq(-2.0f, -1.0f, 0.0f, 1.0f, 2.0f))
+  val input = Tensor1(Axis[Feature], Seq(-2.0f, -1.0f, 0.0f, 1.0f, 2.0f))
   val result = input.exp // Exponential
     .tanh // Hyperbolic tangent
     * Tensor0(10.0f) // Scale by 10

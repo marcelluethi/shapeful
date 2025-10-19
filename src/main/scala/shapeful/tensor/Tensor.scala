@@ -341,9 +341,43 @@ object Tensor:
     val jaxValues = Jax.jnp.zeros(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
 
+  // Convenient Axis-based overloads for zeros
+  inline def zeros[L1 <: Label](axis1: (Axis[L1], Int)): Tensor1[L1] =
+    zeros(Shape(axis1), DType.Float32)
+
+  inline def zeros[L1 <: Label, L2 <: Label](
+      axis1: (Axis[L1], Int),
+      axis2: (Axis[L2], Int)
+  ): Tensor2[L1, L2] =
+    zeros(Shape(axis1, axis2), DType.Float32)
+
+  inline def zeros[L1 <: Label, L2 <: Label, L3 <: Label](
+      axis1: (Axis[L1], Int),
+      axis2: (Axis[L2], Int),
+      axis3: (Axis[L3], Int)
+  ): Tensor3[L1, L2, L3] =
+    zeros(Shape(axis1, axis2, axis3), DType.Float32)
+
   def ones[T <: Tuple](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
     val jaxValues = Jax.jnp.ones(shape.dims.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor[T](shape, jaxValues, dtype)
+
+  // Convenient Axis-based overloads for ones
+  inline def ones[L1 <: Label](axis1: (Axis[L1], Int)): Tensor1[L1] =
+    ones(Shape(axis1), DType.Float32)
+
+  inline def ones[L1 <: Label, L2 <: Label](
+      axis1: (Axis[L1], Int),
+      axis2: (Axis[L2], Int)
+  ): Tensor2[L1, L2] =
+    ones(Shape(axis1, axis2), DType.Float32)
+
+  inline def ones[L1 <: Label, L2 <: Label, L3 <: Label](
+      axis1: (Axis[L1], Int),
+      axis2: (Axis[L2], Int),
+      axis3: (Axis[L3], Int)
+  ): Tensor3[L1, L2, L3] =
+    ones(Shape(axis1, axis2, axis3), DType.Float32)
 
   /** Generate random tensor from standard normal distribution N(0, 1) */
   def randn[T <: Tuple](
@@ -416,42 +450,43 @@ object Tensor0:
 object Tensor1:
   import Tensor.{Tensor1, Tensor2}
 
-  def apply[L <: Label](values: ArraySeq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
+  def apply[L <: Label](axis: Axis[L], values: ArraySeq[Float], dtype: DType = DType.Float32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
-    val shape = Shape(Axis[L] -> values.length)
+    val shape = Shape(axis -> values.length)
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
   // Backward compatibility method for Seq
-  def apply[L <: Label](values: Seq[Float]): Tensor[Tuple1[L]] =
-    apply(ArraySeq.from(values), DType.Float32)
+  def apply[L <: Label](axis: Axis[L], values: Seq[Float]): Tensor[Tuple1[L]] =
+    apply(axis, ArraySeq.from(values), DType.Float32)
 
-  def apply[L <: Label](values: Seq[Float], dtype: DType): Tensor[Tuple1[L]] =
-    apply(ArraySeq.from(values), dtype)
+  def apply[L <: Label](axis: Axis[L], values: Seq[Float], dtype: DType): Tensor[Tuple1[L]] =
+    apply(axis, ArraySeq.from(values), dtype)
 
   def fromArray[L1 <: Label](
+      axis: Axis[L1],
       values: ArraySeq[Float],
       dtype: DType = DType.Float32
   ): Tensor[Tuple1[L1]] =
 
-    val shape = Shape(Axis[L1] -> values.length)
+    val shape = Shape(axis -> values.length)
     val jaxValues = Jax.jnp
       .array(values.toArray.toPythonCopy, dtype = JaxDType.jaxDtype(dtype))
 
     new Tensor(shape, jaxValues, dtype)
 
-  def fromInts[L <: Label](values: ArraySeq[Int], dtype: DType = DType.Int32): Tensor[Tuple1[L]] =
+  def fromInts[L <: Label](axis: Axis[L], values: ArraySeq[Int], dtype: DType = DType.Int32): Tensor[Tuple1[L]] =
     require(values.nonEmpty, "Cannot create tensor from empty sequence")
-    val shape = Shape(Axis[L] -> values.length)
+    val shape = Shape(axis -> values.length)
     val jaxValues = Jax.jnp.array(values.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
     new Tensor(shape, jaxValues, dtype)
 
   // Backward compatibility method for Seq
-  def fromInts[L <: Label](values: Seq[Int]): Tensor[Tuple1[L]] =
-    fromInts(ArraySeq.from(values), DType.Int32)
+  def fromInts[L <: Label](axis: Axis[L], values: Seq[Int]): Tensor[Tuple1[L]] =
+    fromInts(axis, ArraySeq.from(values), DType.Int32)
 
-  def fromInts[L <: Label](values: Seq[Int], dtype: DType): Tensor[Tuple1[L]] =
-    fromInts(ArraySeq.from(values), dtype)
+  def fromInts[L <: Label](axis: Axis[L], values: Seq[Int], dtype: DType): Tensor[Tuple1[L]] =
+    fromInts(axis, ArraySeq.from(values), dtype)
 
 object Tensor2:
 
@@ -459,6 +494,8 @@ object Tensor2:
   import Shape.{Shape1, Shape2, Shape3}
 
   def apply[L1 <: Label, L2 <: Label](
+      axis1: Axis[L1],
+      axis2: Axis[L2],
       values: ArraySeq[ArraySeq[Float]],
       dtype: DType = DType.Float32
   ): Tensor[(L1, L2)] =
@@ -469,7 +506,7 @@ object Tensor2:
     val cols = values.head.length
     require(values.forall(_.length == cols), "All rows must have the same length")
 
-    val shape = Shape(Axis[L1] -> rows, Axis[L2] -> cols)
+    val shape = Shape(axis1 -> rows, axis2 -> cols)
     val flatValues = values.flatten
     fromArray(shape, flatValues, dtype)
 
@@ -487,15 +524,49 @@ object Tensor2:
     new Tensor(shape, jaxValues, dtype)
 
   // Backward compatibility method for Seq
-  def apply[L1 <: Label, L2 <: Label](values: Seq[Seq[Float]]): Tensor[(L1, L2)] =
-    apply(ArraySeq.from(values.map(ArraySeq.from)), DType.Float32)
+  def apply[L1 <: Label, L2 <: Label](axis1: Axis[L1], axis2: Axis[L2], values: Seq[Seq[Float]]): Tensor[(L1, L2)] =
+    apply(axis1, axis2, ArraySeq.from(values.map(ArraySeq.from)), DType.Float32)
 
-  def apply[L1 <: Label, L2 <: Label](values: Seq[Seq[Float]], dtype: DType): Tensor[(L1, L2)] =
-    apply(ArraySeq.from(values.map(ArraySeq.from)), dtype)
+  def apply[L1 <: Label, L2 <: Label](
+      axis1: Axis[L1],
+      axis2: Axis[L2],
+      values: Seq[Seq[Float]],
+      dtype: DType
+  ): Tensor[(L1, L2)] =
+    apply(axis1, axis2, ArraySeq.from(values.map(ArraySeq.from)), dtype)
 
-  def eye[L <: Label](shape: Shape1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
-    val jaxValues = Jax.jnp.eye(shape.size, dtype = JaxDType.jaxDtype(dtype))
-    new Tensor2[L, L](Shape(Axis[L] -> shape.size, Axis[L] -> shape.size), jaxValues, dtype)
+  /** Create an identity matrix (eye) of size n x n
+    *
+    * @param dim
+    *   The dimension of the square identity matrix
+    * @param dtype
+    *   The data type (default Float32)
+    * @return
+    *   A square identity matrix with 1s on the diagonal and 0s elsewhere
+    */
+  def eye[L <: Label](dim: Int, dtype: DType = DType.Float32): Tensor2[L, L] =
+    val jaxValues = Jax.jnp.eye(dim, dtype = JaxDType.jaxDtype(dtype))
+    new Tensor2[L, L](Shape(Axis[L] -> dim, Axis[L] -> dim), jaxValues, dtype)
+
+  /** Create an identity matrix using an Axis with dimension
+    *
+    * @param axisDim
+    *   A tuple of (Axis[L], dimension)
+    * @return
+    *   A square identity matrix
+    */
+  def eye[L <: Label](axisDim: (Axis[L], Int)): Tensor2[L, L] =
+    eye(axisDim._2, DType.Float32)
+
+  /** Create an identity matrix from a Shape1 (backward compatibility)
+    *
+    * @param shape
+    *   A Shape1 containing the dimension
+    * @return
+    *   A square identity matrix
+    */
+  def eye[L <: Label](shape: Shape1[L]): Tensor2[L, L] =
+    eye(shape.size, DType.Float32)
 
   def fromDiag[L <: Label](diag: Tensor1[L], dtype: DType = DType.Float32): Tensor2[L, L] =
     val size = diag.shape.size
@@ -507,6 +578,9 @@ object Tensor3:
   import shapeful.tensor.Shape.{Shape1, Shape2, Shape3}
 
   def apply[L1 <: Label, L2 <: Label, L3 <: Label](
+      axis1: Axis[L1],
+      axis2: Axis[L2],
+      axis3: Axis[L3],
       values: ArraySeq[ArraySeq[ArraySeq[Float]]],
       dtype: DType = DType.Float32
   ): Tensor[(L1, L2, L3)] =
@@ -521,7 +595,7 @@ object Tensor3:
     require(values.forall(_.length == dim2), "All second dimensions must match")
     require(values.forall(_.forall(_.length == dim3)), "All third dimensions must match")
 
-    val shape = Shape(Axis[L1] -> dim1, Axis[L2] -> dim2, Axis[L3] -> dim3)
+    val shape = Shape(axis1 -> dim1, axis2 -> dim2, axis3 -> dim3)
     val flatValues = values.flatten.flatten
     val jaxValues = Jax.jnp
       .array(flatValues.toPythonProxy, dtype = JaxDType.jaxDtype(dtype))
@@ -531,15 +605,21 @@ object Tensor3:
 
   // Backward compatibility method for Seq
   def apply[L1 <: Label, L2 <: Label, L3 <: Label](
+      axis1: Axis[L1],
+      axis2: Axis[L2],
+      axis3: Axis[L3],
       values: Seq[Seq[Seq[Float]]]
   ): Tensor[(L1, L2, L3)] =
-    apply(ArraySeq.from(values.map(_.map(ArraySeq.from).to(ArraySeq)).to(ArraySeq)), DType.Float32)
+    apply(axis1, axis2, axis3, ArraySeq.from(values.map(_.map(ArraySeq.from).to(ArraySeq)).to(ArraySeq)), DType.Float32)
 
   def apply[L1 <: Label, L2 <: Label, L3 <: Label](
+      axis1: Axis[L1],
+      axis2: Axis[L2],
+      axis3: Axis[L3],
       values: Seq[Seq[Seq[Float]]],
       dtype: DType
   ): Tensor[(L1, L2, L3)] =
-    apply(ArraySeq.from(values.map(_.map(ArraySeq.from).to(ArraySeq)).to(ArraySeq)), dtype)
+    apply(axis1, axis2, axis3, ArraySeq.from(values.map(_.map(ArraySeq.from).to(ArraySeq)).to(ArraySeq)), dtype)
 
   def fromArray[L1 <: Label, L2 <: Label, L3 <: Label](
       shape: Shape3[L1, L2, L3],

@@ -55,14 +55,14 @@ class TensorTreeTests extends FunSuite:
 
   test("TensorTree map works with linear layer parameters") {
     val params = LinearParams(
-      weight = Tensor2[Feature, Hidden](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f))),
-      bias = Tensor1[Hidden](Seq(0.5f, 1.0f))
+      weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f))),
+      bias = Tensor1(Axis[Hidden], Seq(0.5f, 1.0f))
     )
 
     val doubled = TensorTree[LinearParams].map(params, [T <: Tuple] => (t: Tensor[T]) => (t * Tensor0(2.0f)))
 
-    val expectedWeight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 4.0f), Seq(6.0f, 8.0f)))
-    val expectedBias = Tensor1[Hidden](Seq(1.0f, 2.0f))
+    val expectedWeight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(2.0f, 4.0f), Seq(6.0f, 8.0f)))
+    val expectedBias = Tensor1(Axis[Hidden], Seq(1.0f, 2.0f))
 
     assert(doubled.weight.approxEquals(expectedWeight, tolerance = 1e-5f), "Weight should be doubled")
     assert(doubled.bias.approxEquals(expectedBias, tolerance = 1e-5f), "Bias should be doubled")
@@ -71,12 +71,12 @@ class TensorTreeTests extends FunSuite:
   test("TensorTree map handles nested structures") {
     val params = NetworkParams(
       layer1 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(1.0f, 2.0f))),
-        bias = Tensor1[Hidden](Seq(0.5f, 1.0f))
+        weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(1.0f, 2.0f))),
+        bias = Tensor1(Axis[Hidden], Seq(0.5f, 1.0f))
       ),
       layer2 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(3.0f, 4.0f))),
-        bias = Tensor1[Hidden](Seq(1.5f, 2.0f))
+        weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(3.0f, 4.0f))),
+        bias = Tensor1(Axis[Hidden], Seq(1.5f, 2.0f))
       ),
       scale = Tensor0(2.0f)
     )
@@ -128,12 +128,12 @@ class TensorTreeTests extends FunSuite:
 
   test("TensorTree zipMap combines linear layer parameters") {
     val params1 = LinearParams(
-      weight = Tensor2[Feature, Hidden](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f))),
-      bias = Tensor1[Hidden](Seq(1.0f, 2.0f))
+      weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f))),
+      bias = Tensor1(Axis[Hidden], Seq(1.0f, 2.0f))
     )
     val params2 = LinearParams(
-      weight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 3.0f), Seq(4.0f, 5.0f))),
-      bias = Tensor1[Hidden](Seq(0.5f, 1.5f))
+      weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(2.0f, 3.0f), Seq(4.0f, 5.0f))),
+      bias = Tensor1(Axis[Hidden], Seq(0.5f, 1.5f))
     )
 
     val sum = TensorTree[LinearParams].zipMap(
@@ -142,8 +142,8 @@ class TensorTreeTests extends FunSuite:
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a + b)
     )
 
-    val expectedWeight = Tensor2[Feature, Hidden](Seq(Seq(3.0f, 5.0f), Seq(7.0f, 9.0f)))
-    val expectedBias = Tensor1[Hidden](Seq(1.5f, 3.5f))
+    val expectedWeight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(3.0f, 5.0f), Seq(7.0f, 9.0f)))
+    val expectedBias = Tensor1(Axis[Hidden], Seq(1.5f, 3.5f))
 
     assert(sum.weight.approxEquals(expectedWeight, tolerance = 1e-5f), "Weight should be summed")
     assert(sum.bias.approxEquals(expectedBias, tolerance = 1e-5f), "Bias should be summed")
@@ -152,24 +152,24 @@ class TensorTreeTests extends FunSuite:
   test("TensorTree zipMap handles nested structures") {
     val params1 = NetworkParams(
       layer1 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(1.0f, 2.0f))),
-        bias = Tensor1[Hidden](Seq(1.0f, 2.0f))
+        weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(1.0f, 2.0f))),
+        bias = Tensor1(Axis[Hidden], Seq(1.0f, 2.0f))
       ),
       layer2 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(3.0f, 4.0f))),
-        bias = Tensor1[Hidden](Seq(3.0f, 4.0f))
+        weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(3.0f, 4.0f))),
+        bias = Tensor1(Axis[Hidden], Seq(3.0f, 4.0f))
       ),
       scale = Tensor0(1.0f)
     )
 
     val params2 = NetworkParams(
       layer1 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 3.5f))),
-        bias = Tensor1[Hidden](Seq(0.5f, 1.5f))
+        weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(2.0f, 3.5f))),
+        bias = Tensor1(Axis[Hidden], Seq(0.5f, 1.5f))
       ),
       layer2 = LinearParams(
-        weight = Tensor2[Feature, Hidden](Seq(Seq(5.0f, 4.0f))),
-        bias = Tensor1[Hidden](Seq(2.0f, 3.0f))
+        weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(5.0f, 4.0f))),
+        bias = Tensor1(Axis[Hidden], Seq(2.0f, 3.0f))
       ),
       scale = Tensor0(2.0f)
     )
@@ -180,9 +180,9 @@ class TensorTreeTests extends FunSuite:
       [T <: Tuple] => (a: Tensor[T], b: Tensor[T]) => (a - b)
     )
     val expectedWeightDiffLayer2 =
-      Tensor2[Feature, Hidden](Seq(Seq(-2f, 0f)))
+      Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(-2f, 0f)))
     val expectedBiasDiffLayer2 =
-      Tensor1[Hidden](Seq(1f, 1f))
+      Tensor1(Axis[Hidden], Seq(1f, 1f))
 
     assert(
       difference.layer2.weight.approxEquals(expectedWeightDiffLayer2),
@@ -228,8 +228,8 @@ class TensorTreeTests extends FunSuite:
 
   test("multiple operations can be chained") {
     val params = LinearParams(
-      weight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 4.0f))),
-      bias = Tensor1[Hidden](Seq(1.0f, 2.0f))
+      weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(2.0f, 4.0f))),
+      bias = Tensor1(Axis[Hidden], Seq(1.0f, 2.0f))
     )
 
     // Chain multiple operations: double, then add bias offset, then square
@@ -251,12 +251,12 @@ class TensorTreeTests extends FunSuite:
 
   test("zipMap with different operations for different tensor types") {
     val params1 = LinearParams(
-      weight = Tensor2[Feature, Hidden](Seq(Seq(8.0f, 12.0f))),
-      bias = Tensor1[Hidden](Seq(4.0f, 6.0f))
+      weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(8.0f, 12.0f))),
+      bias = Tensor1(Axis[Hidden], Seq(4.0f, 6.0f))
     )
     val params2 = LinearParams(
-      weight = Tensor2[Feature, Hidden](Seq(Seq(2.0f, 3.0f))),
-      bias = Tensor1[Hidden](Seq(2.0f, 3.0f))
+      weight = Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(2.0f, 3.0f))),
+      bias = Tensor1(Axis[Hidden], Seq(2.0f, 3.0f))
     )
 
     // Divide weights, subtract biases

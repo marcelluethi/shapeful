@@ -14,7 +14,9 @@ class SoftmaxTests extends FunSuite:
 
   test("softmax with default axis (-1)") {
     // Create a 2D tensor: (batch_size=2, num_classes=3)
-    val logits = Tensor2[Batch, Classes](
+    val logits = Tensor2(
+      Axis[Batch],
+      Axis[Classes],
       Seq(
         Seq(1.0f, 2.0f, 3.0f),
         Seq(4.0f, 5.0f, 6.0f)
@@ -33,7 +35,9 @@ class SoftmaxTests extends FunSuite:
   }
 
   test("activation class still works") {
-    val logits = Tensor2[Batch, Classes](
+    val logits = Tensor2(
+      Axis[Batch],
+      Axis[Classes],
       Seq(
         Seq(1.0f, 2.0f, 3.0f),
         Seq(4.0f, 5.0f, 6.0f)
@@ -49,7 +53,9 @@ class SoftmaxTests extends FunSuite:
 
   test("demonstrates JAX softmax usage") {
     // Create a simple example to show the concept
-    val logits = Tensor2[Batch, Classes](
+    val logits = Tensor2(
+      Axis[Batch],
+      Axis[Classes],
       Seq(
         Seq(1.0f, 2.0f, 3.0f),
         Seq(4.0f, 5.0f, 6.0f)

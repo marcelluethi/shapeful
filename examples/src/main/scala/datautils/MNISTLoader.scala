@@ -79,7 +79,7 @@ object MNISTLoader:
       // Extract single label and keep as integer
       val labelTensor = labels.at(Tuple1(index)).get
       val labelValue = labelTensor.jaxValue.item().as[Int]
-      Tensor1.fromInts[Label](ArraySeq(labelValue), DType.Int32)
+      Tensor1.fromInts(Axis[Label], ArraySeq(labelValue), DType.Int32)
 
     /** Extract a 2D image tensor from the 3D tensor
       */
@@ -154,7 +154,7 @@ object MNISTLoader:
       for i <- 0.until(numLabels) do labels(i) = dis.readUnsignedByte()
 
       // Create Tensor1 from labels - specify the label type correctly
-      val tensor = Tensor1.fromInts[Label](ArraySeq.unsafeWrapArray(labels), DType.Int32)
+      val tensor = Tensor1.fromInts(Axis[Label], ArraySeq.unsafeWrapArray(labels), DType.Int32)
       tensor.toDevice(Device.CPU)
     finally dis.close()
   }

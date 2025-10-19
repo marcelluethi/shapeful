@@ -121,7 +121,7 @@ class JaxBasicTests extends FunSuite:
     import shapeful.tensor.DType
 
     type Feature = "feature"
-    val original = Tensor1[Feature](Seq(1.0f, 2.5f, 3.7f, 4.2f))
+    val original = Tensor1(Axis[Feature], Seq(1.0f, 2.5f, 3.7f, 4.2f))
 
     // Convert to PyTree
     val pytree = summon[ToPyTree[Tensor1[Feature]]].toPyTree(original)
@@ -148,7 +148,9 @@ class JaxBasicTests extends FunSuite:
 
     type Height = "height"
     type Width = "width"
-    val original = Tensor2[Height, Width](
+    val original = Tensor2(
+      Axis[Height],
+      Axis[Width],
       Seq(
         Seq(1.0f, 2.0f, 3.0f),
         Seq(4.0f, 5.0f, 6.0f)
@@ -203,7 +205,10 @@ class JaxBasicTests extends FunSuite:
     type Hidden = "hidden"
 
     // Test 3D tensor
-    val tensor3D = Tensor3[Feature, Batch, Hidden](
+    val tensor3D = Tensor3(
+      Axis[Feature],
+      Axis[Batch],
+      Axis[Hidden],
       Seq(
         Seq(
           Seq(0.1f, 0.2f),

@@ -33,13 +33,13 @@ object CustomPyTree extends App:
   // but let's see how it works with our simple structure
 
   val simpleModel = SimpleModel(
-    weight = Tensor2[Feature, Hidden](
+    weight = Tensor2(Axis[Feature], Axis[Hidden],
       Seq(
         Seq(0.1f, 0.2f, 0.3f),
         Seq(0.4f, 0.5f, 0.6f)
       )
     ),
-    bias = Tensor1[Hidden](Seq(0.1f, 0.0f, -0.1f)),
+    bias = Tensor1(Axis[Hidden], Seq(0.1f, 0.0f, -0.1f)),
     scale = Tensor0(1.0f)
   )
 
@@ -67,31 +67,31 @@ object CustomPyTree extends App:
 
   val multiLayerModel = MultiLayerModel(
     layer1 = NetworkLayer(
-      weight = Tensor2[Feature, Hidden](
+      weight = Tensor2(Axis[Feature], Axis[Hidden],
         Seq(
           Seq(0.1f, 0.2f),
           Seq(0.3f, 0.4f),
           Seq(0.5f, 0.6f)
         )
       ),
-      bias = Tensor1[Hidden](Seq(0.1f, 0.0f))
+      bias = Tensor1(Axis[Hidden], Seq(0.1f, 0.0f))
     ),
     layer2 = NetworkLayer(
-      weight = Tensor2[Feature, Hidden](
+      weight = Tensor2(Axis[Feature], Axis[Hidden],
         Seq( // Changed from Hidden, Hidden to Feature, Hidden
           Seq(0.7f, 0.8f),
           Seq(0.9f, 1.0f)
         )
       ),
-      bias = Tensor1[Hidden](Seq(-0.1f, 0.2f))
+      bias = Tensor1(Axis[Hidden], Seq(-0.1f, 0.2f))
     ),
-    outputWeight = Tensor2[Hidden, Output](
+    outputWeight = Tensor2(Axis[Hidden], Axis[Output],
       Seq(
         Seq(1.1f),
         Seq(1.2f)
       )
     ),
-    outputBias = Tensor1[Output](Seq(0.5f)),
+    outputBias = Tensor1(Axis[Output], Seq(0.5f)),
     globalScale = Tensor0(2.0f)
   )
 
@@ -117,8 +117,8 @@ object CustomPyTree extends App:
     output * output
 
   val networkParams = (
-    Tensor2[Feature, Hidden](Seq(Seq(0.1f, 0.2f), Seq(0.3f, 0.4f))), // w1
-    Tensor1[Hidden](Seq(0.1f, 0.0f)), // b1
+    Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(0.1f, 0.2f), Seq(0.3f, 0.4f))), // w1
+    Tensor1(Axis[Hidden], Seq(0.1f, 0.0f)), // b1
     Tensor0(2.0f) // scale
   )
 
@@ -146,7 +146,7 @@ object CustomPyTree extends App:
     weight.sum * scale
 
   val simpleParams: SimplePair = (
-    Tensor2[Feature, Hidden](Seq(Seq(1.0f, 2.0f))),
+    Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(1.0f, 2.0f))),
     Tensor0(2.0f)
   )
 
@@ -171,8 +171,8 @@ object CustomPyTree extends App:
   println("6. Testing PyTree Round-trip")
 
   val testParams = (
-    Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f)),
-    Tensor2[Feature, Hidden](Seq(Seq(4.0f, 5.0f), Seq(6.0f, 7.0f))),
+    Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f)),
+    Tensor2(Axis[Feature], Axis[Hidden], Seq(Seq(4.0f, 5.0f), Seq(6.0f, 7.0f))),
     Tensor0(8.0f)
   )
 

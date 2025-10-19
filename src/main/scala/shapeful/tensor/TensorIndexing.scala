@@ -87,7 +87,7 @@ object TensorIndexing:
     /** Convenience method: gather using sequence of integers
       */
     inline def gatherSeq[GatherAxis <: Label](indices: Seq[Int]): Tensor[T] =
-      val indicesTensor = Tensor1["indices"](indices.map(_.toFloat))
+      val indicesTensor = Tensor1(Axis["indices"], indices.map(_.toFloat))
       gather[GatherAxis, "indices"](indicesTensor)
 
 end TensorIndexing

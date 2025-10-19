@@ -22,16 +22,18 @@ class MVNormalTests extends FunSuite:
     super.beforeAll()
 
   test("MVNormal creation with 1D parameters") {
-    val mu = Tensor1[Dim](Seq(0.0f))
-    val cov = Tensor2[Dim, Dim](Seq(Seq(1.0f)))
+    val mu = Tensor1(Axis[Dim], Seq(0.0f))
+    val cov = Tensor2(Axis[Dim], Axis[Dim], Seq(Seq(1.0f)))
     val mvn = MVNormal(mu, cov)
 
     assert(mvn != null)
   }
 
   test("MVNormal creation with 2D parameters") {
-    val mu = Tensor1[Dim](Seq(0.0f, 1.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 1.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 2.0f)
@@ -43,12 +45,12 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf computation for 1D standard multivariate normal") {
-    val mu = Tensor1[Dim](Seq(0.0f))
-    val cov = Tensor2[Dim, Dim](Seq(Seq(1.0f)))
+    val mu = Tensor1(Axis[Dim], Seq(0.0f))
+    val cov = Tensor2(Axis[Dim], Axis[Dim], Seq(Seq(1.0f)))
     val mvn = MVNormal(mu, cov)
 
     // Test at x = [0] (should be peak of standard normal)
-    val x = Tensor1[Dim](Seq(0.0f))
+    val x = Tensor1(Axis[Dim], Seq(0.0f))
     val logpdf = mvn.logpdf(x)
 
     // For 1D standard normal at x=0: -0.5 * log(2π)
@@ -57,11 +59,11 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf computation for 1D normal at x=1") {
-    val mu = Tensor1[Dim](Seq(0.0f))
-    val cov = Tensor2[Dim, Dim](Seq(Seq(1.0f)))
+    val mu = Tensor1(Axis[Dim], Seq(0.0f))
+    val cov = Tensor2(Axis[Dim], Axis[Dim], Seq(Seq(1.0f)))
     val mvn = MVNormal(mu, cov)
 
-    val x = Tensor1[Dim](Seq(1.0f))
+    val x = Tensor1(Axis[Dim], Seq(1.0f))
     val logpdf = mvn.logpdf(x)
 
     // For 1D standard normal at x=1: -0.5 * log(2π) - 0.5 * 1^2
@@ -70,8 +72,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf computation for 2D identity covariance") {
-    val mu = Tensor1[Dim](Seq(0.0f, 0.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 1.0f)
@@ -80,7 +84,7 @@ class MVNormalTests extends FunSuite:
     val mvn = MVNormal(mu, cov)
 
     // Test at mean
-    val x = Tensor1[Dim](Seq(0.0f, 0.0f))
+    val x = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
     val logpdf = mvn.logpdf(x)
 
     // For 2D standard normal at mean: -0.5 * 2 * log(2π) = -log(2π)
@@ -89,8 +93,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf computation for 2D diagonal covariance") {
-    val mu = Tensor1[Dim](Seq(1.0f, 2.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(1.0f, 2.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(4.0f, 0.0f),
         Seq(0.0f, 9.0f)
@@ -99,7 +105,7 @@ class MVNormalTests extends FunSuite:
     val mvn = MVNormal(mu, cov)
 
     // Test at mean
-    val x = Tensor1[Dim](Seq(1.0f, 2.0f))
+    val x = Tensor1(Axis[Dim], Seq(1.0f, 2.0f))
     val logpdf = mvn.logpdf(x)
 
     // det(cov) = 4 * 9 = 36
@@ -110,8 +116,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf symmetry around mean for 2D case") {
-    val mu = Tensor1[Dim](Seq(1.0f, 2.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(1.0f, 2.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 1.0f)
@@ -119,8 +127,8 @@ class MVNormalTests extends FunSuite:
     )
     val mvn = MVNormal(mu, cov)
 
-    val x1 = Tensor1[Dim](Seq(0.0f, 2.0f)) // mu + (-1, 0)
-    val x2 = Tensor1[Dim](Seq(2.0f, 2.0f)) // mu + (1, 0)
+    val x1 = Tensor1(Axis[Dim], Seq(0.0f, 2.0f)) // mu + (-1, 0)
+    val x2 = Tensor1(Axis[Dim], Seq(2.0f, 2.0f)) // mu + (1, 0)
 
     val logpdf1 = mvn.logpdf(x1)
     val logpdf2 = mvn.logpdf(x2)
@@ -130,8 +138,8 @@ class MVNormalTests extends FunSuite:
   }
 
   test("sample generation produces correct shape for 1D") {
-    val mu = Tensor1[Dim](Seq(0.0f))
-    val cov = Tensor2[Dim, Dim](Seq(Seq(1.0f)))
+    val mu = Tensor1(Axis[Dim], Seq(0.0f))
+    val cov = Tensor2(Axis[Dim], Axis[Dim], Seq(Seq(1.0f)))
     val mvn = MVNormal(mu, cov)
     val key = shapeful.random.Random.Key(42)
 
@@ -142,8 +150,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("sample generation produces correct shape for 2D") {
-    val mu = Tensor1[Dim](Seq(0.0f, 1.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 1.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 2.0f)
@@ -159,8 +169,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("multiple sample generation produces correct shape") {
-    val mu = Tensor1[Dim](Seq(0.0f, 1.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 1.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 2.0f)
@@ -177,8 +189,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf decreases with distance from mean") {
-    val mu = Tensor1[Dim](Seq(0.0f, 0.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 1.0f)
@@ -186,8 +200,8 @@ class MVNormalTests extends FunSuite:
     )
     val mvn = MVNormal(mu, cov)
 
-    val x_close = Tensor1[Dim](Seq(0.1f, 0.1f)) // Close to mean
-    val x_far = Tensor1[Dim](Seq(2.0f, 2.0f)) // Far from mean
+    val x_close = Tensor1(Axis[Dim], Seq(0.1f, 0.1f)) // Close to mean
+    val x_far = Tensor1(Axis[Dim], Seq(2.0f, 2.0f)) // Far from mean
 
     val logpdf_close = mvn.logpdf(x_close)
     val logpdf_far = mvn.logpdf(x_far)
@@ -197,8 +211,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf with positive definite non-diagonal covariance") {
-    val mu = Tensor1[Dim](Seq(0.0f, 0.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(2.0f, 0.5f),
         Seq(0.5f, 1.0f)
@@ -206,7 +222,7 @@ class MVNormalTests extends FunSuite:
     )
     val mvn = MVNormal(mu, cov)
 
-    val x = Tensor1[Dim](Seq(0.0f, 0.0f))
+    val x = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
     val logpdf = mvn.logpdf(x)
 
     // Should be finite and negative (since it's a log probability)
@@ -215,8 +231,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("logpdf numerical stability for extreme values") {
-    val mu = Tensor1[Dim](Seq(0.0f, 0.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 1.0f)
@@ -225,7 +243,7 @@ class MVNormalTests extends FunSuite:
     val mvn = MVNormal(mu, cov)
 
     // Test very far from mean
-    val x = Tensor1[Dim](Seq(10.0f, 10.0f))
+    val x = Tensor1(Axis[Dim], Seq(10.0f, 10.0f))
     val logpdf = mvn.logpdf(x)
 
     // Should be finite but very negative
@@ -234,11 +252,13 @@ class MVNormalTests extends FunSuite:
   }
 
   test("different covariance structures give different logpdf") {
-    val mu = Tensor1[Dim](Seq(0.0f, 0.0f))
-    val x = Tensor1[Dim](Seq(1.0f, 1.0f))
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 0.0f))
+    val x = Tensor1(Axis[Dim], Seq(1.0f, 1.0f))
 
     // Identity covariance
-    val cov1 = Tensor2[Dim, Dim](
+    val cov1 = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f),
         Seq(0.0f, 1.0f)
@@ -247,7 +267,9 @@ class MVNormalTests extends FunSuite:
     val mvn1 = MVNormal(mu, cov1)
 
     // Scaled covariance (higher variance)
-    val cov2 = Tensor2[Dim, Dim](
+    val cov2 = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(4.0f, 0.0f),
         Seq(0.0f, 4.0f)
@@ -265,8 +287,8 @@ class MVNormalTests extends FunSuite:
   }
 
   test("MVNormal reduces to univariate normal for 1D case") {
-    val mu_mv = Tensor1[Dim](Seq(2.0f))
-    val cov_mv = Tensor2[Dim, Dim](Seq(Seq(9.0f))) // variance = 9, sigma = 3
+    val mu_mv = Tensor1(Axis[Dim], Seq(2.0f))
+    val cov_mv = Tensor2(Axis[Dim], Axis[Dim], Seq(Seq(9.0f))) // variance = 9, sigma = 3
     val mvn = MVNormal(mu_mv, cov_mv)
 
     // Equivalent univariate normal
@@ -274,7 +296,7 @@ class MVNormalTests extends FunSuite:
     val sigma_uv = Tensor(Shape(Axis[Dim] -> 1), Seq(3.0f), DType.Float32)
     val normal = Normal(mu_uv, sigma_uv)
 
-    val x_mv = Tensor1[Dim](Seq(5.0f))
+    val x_mv = Tensor1(Axis[Dim], Seq(5.0f))
     val x_uv = Tensor(Shape(Axis[Dim] -> 1), Seq(5.0f), DType.Float32)
 
     val logpdf_mv = mvn.logpdf(x_mv)
@@ -286,8 +308,10 @@ class MVNormalTests extends FunSuite:
   }
 
   test("3D MVNormal basic functionality") {
-    val mu = Tensor1[Dim](Seq(0.0f, 1.0f, -1.0f))
-    val cov = Tensor2[Dim, Dim](
+    val mu = Tensor1(Axis[Dim], Seq(0.0f, 1.0f, -1.0f))
+    val cov = Tensor2(
+      Axis[Dim],
+      Axis[Dim],
       Seq(
         Seq(1.0f, 0.0f, 0.0f),
         Seq(0.0f, 2.0f, 0.0f),

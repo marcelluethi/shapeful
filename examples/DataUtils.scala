@@ -36,7 +36,7 @@ object DataUtils:
     // Generate second moon (lower crescent, shifted and rotated)
     val moon2Angles = Tensor.randUniform(
       key2,
-      Shape(Axis[Sample] -> samplesPerMoon + remainingSamples),
+      Shape(Axis[Sample] -> (samplesPerMoon + remainingSamples)),
       minval = Tensor0(0.0f),
       maxval = Tensor0(math.Pi.toFloat)
     )
@@ -49,14 +49,14 @@ object DataUtils:
     val noise1X = Tensor.randn(noiseKeys(0), Shape(Axis[Sample] -> samplesPerMoon)) * Tensor0(noiseScale)
     val noise1Y = Tensor.randn(noiseKeys(1), Shape(Axis[Sample] -> samplesPerMoon)) * Tensor0(noiseScale)
     val noise2X =
-      Tensor.randn(noiseKeys(2), Shape(Axis[Sample] -> samplesPerMoon + remainingSamples)) * Tensor0(noiseScale)
+      Tensor.randn(noiseKeys(2), Shape(Axis[Sample] -> (samplesPerMoon + remainingSamples))) * Tensor0(noiseScale)
     val noise2Y =
-      Tensor.randn(noiseKeys(3), Shape(Axis[Sample] -> samplesPerMoon + remainingSamples)) * Tensor0(noiseScale)
+      Tensor.randn(noiseKeys(3), Shape(Axis[Sample] -> (samplesPerMoon + remainingSamples))) * Tensor0(noiseScale)
 
     // Combine coordinates with noise using stack operation
     // Stack X and Y coordinates to create 2D points for each moon
-    val moon1 = (moon1X + noise1X).stack(Axis[Feature], moon1Y + noise1Y).transpose
-    val moon2 = (moon2X + noise2X).stack(Axis[Feature], moon2Y_flipped + noise2Y).transpose
+    val moon1 = (moon1X + noise1X).stack(Axis[Feature], (moon1Y + noise1Y)).transpose
+    val moon2 = (moon2X + noise2X).stack(Axis[Feature], (moon2Y_flipped + noise2Y)).transpose
 
     // Concatenate both moons along the sample dimension
     val X = moon1.concat(Axis[Sample], moon2)

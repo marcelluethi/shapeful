@@ -19,7 +19,7 @@ class PyTreeTests extends FunSuite:
     super.beforeAll()
 
   test("single tensor can be converted to PyTree and recovered") {
-    val original = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
+    val original = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
     val converter = summon[ToPyTree[Tensor1[Feature]]]
 
     // Convert to PyTree
@@ -61,7 +61,9 @@ class PyTreeTests extends FunSuite:
   }
 
   test("2D tensor can be converted to PyTree and recovered") {
-    val original = Tensor2[Batch, Feature](
+    val original = Tensor2(
+      Axis[Batch],
+      Axis[Feature],
       Seq(
         Seq(1.0f, 2.0f, 3.0f),
         Seq(4.0f, 5.0f, 6.0f)
@@ -87,8 +89,10 @@ class PyTreeTests extends FunSuite:
   }
 
   test("tuple of 2 tensors can be converted to PyTree and recovered") {
-    val tensor1 = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
-    val tensor2 = Tensor2[Batch, Hidden](
+    val tensor1 = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
+    val tensor2 = Tensor2(
+      Axis[Batch],
+      Axis[Hidden],
       Seq(
         Seq(4.0f, 5.0f),
         Seq(6.0f, 7.0f),
@@ -116,8 +120,10 @@ class PyTreeTests extends FunSuite:
 
   test("tuple of 3 tensors can be converted to PyTree and recovered") {
     val tensor1 = Tensor0(1.0f)
-    val tensor2 = Tensor1[Feature](Seq(2.0f, 3.0f))
-    val tensor3 = Tensor2[Batch, Hidden](
+    val tensor2 = Tensor1(Axis[Feature], Seq(2.0f, 3.0f))
+    val tensor3 = Tensor2(
+      Axis[Batch],
+      Axis[Hidden],
       Seq(
         Seq(4.0f, 5.0f),
         Seq(6.0f, 7.0f)
@@ -146,7 +152,7 @@ class PyTreeTests extends FunSuite:
 
   test("dtype preservation in PyTree conversion") {
     // Test that dtype is correctly extracted and preserved
-    val originalFloat32 = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
+    val originalFloat32 = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
     val converter = summon[ToPyTree[Tensor1[Feature]]]
 
     val pyTree = converter.toPyTree(originalFloat32)

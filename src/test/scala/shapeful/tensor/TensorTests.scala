@@ -40,9 +40,9 @@ class TensorTests extends FunSuite:
 
   test("Tensor1 creation") {
     val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
-    assertEquals(tensor.shape.dims, Seq(4))
+    assertEquals(tensor.shape.dims, Seq(4), "dims")
     assertEquals(tensor.dtype, DType.Float32)
     assertEquals(tensor.shape.dim[Feature], 4)
   }
@@ -52,10 +52,10 @@ class TensorTests extends FunSuite:
       Seq(1.0f, 2.0f, 3.0f),
       Seq(4.0f, 5.0f, 6.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
-    assertEquals(tensor.shape.dims, Seq(2, 3))
-    assertEquals(tensor.shape.dim[Height], 2)
+    assertEquals(tensor.shape.dims, Seq(2, 3), "dims")
+    assertEquals(tensor.shape.dim[Height], 2, "height")
     assertEquals(tensor.shape.dim[Width], 3)
   }
 
@@ -69,14 +69,30 @@ class TensorTests extends FunSuite:
     assert(tensor.tensorEquals(expectedTensor))
   }
 
+  test("Tensor2 identity matrix creation - improved API") {
+    type Label = "aLabel"
+    val expectedShape = Shape(Axis[Label] -> 3, Axis[Label] -> 3)
+    val expectedTensor = Tensor(expectedShape, Seq(1f, 0f, 0f, 0f, 1f, 0f, 0f, 0f, 1f))
+
+    // Test with just an integer
+    val tensor1 = Tensor2.eye[Label](3)
+    assertEquals(tensor1.shape, expectedShape)
+    assert(tensor1.tensorEquals(expectedTensor))
+
+    // Test with Axis tuple
+    val tensor2 = Tensor2.eye(Axis[Label] -> 3)
+    assertEquals(tensor2.shape, expectedShape)
+    assert(tensor2.tensorEquals(expectedTensor))
+  }
+
   test("Tensor2  matrix creation from diag") {
     type Label = "aLabel"
     val expectedShape = Shape(Axis[Label] -> 2, Axis[Label] -> 2)
     val expectedTensor = Tensor(expectedShape, Seq(3f, 0f, 0f, 2f))
-    val tensor = Tensor2.fromDiag[Label](Tensor1[Label](Seq(3f, 2f)))
+    val tensor = Tensor2.fromDiag[Label](Tensor1(Axis[Label], Seq(3f, 2f)))
 
-    assertEquals(tensor.shape, expectedShape)
-    assert(tensor.tensorEquals(expectedTensor))
+    assertEquals(tensor.shape, expectedShape, "shape")
+    assert(tensor.tensorEquals(expectedTensor), "equals")
   }
 
   test("zeros and ones creation") {
@@ -97,6 +113,34 @@ class TensorTests extends FunSuite:
     // Verify ones tensor actually contains all ones
     val expectedOnes = Tensor(shape, Seq.fill(6)(1.0f))
     assert(ones.tensorEquals(expectedOnes))
+  }
+
+  test("zeros and ones creation with Axis arguments") {
+    // Test 1D
+    val zeros1d = Tensor.zeros(Axis[Height] -> 5)
+    assertEquals(zeros1d.shape.dims, Seq(5))
+    assertEquals(zeros1d.dtype, DType.Float32)
+
+    val ones1d = Tensor.ones(Axis[Width] -> 4)
+    assertEquals(ones1d.shape.dims, Seq(4))
+    assertEquals(ones1d.dtype, DType.Float32)
+
+    // Test 2D
+    val zeros2d = Tensor.zeros(Axis[Height] -> 2, Axis[Width] -> 3)
+    assertEquals(zeros2d.shape.dims, Seq(2, 3))
+    assertEquals(zeros2d.dtype, DType.Float32)
+
+    val ones2d = Tensor.ones(Axis[Height] -> 2, Axis[Width] -> 3)
+    assertEquals(ones2d.shape.dims, Seq(2, 3))
+    assertEquals(ones2d.dtype, DType.Float32)
+
+    // Test 3D
+    type Depth = "depth"
+    val zeros3d = Tensor.zeros(Axis[Batch] -> 2, Axis[Height] -> 3, Axis[Width] -> 4)
+    assertEquals(zeros3d.shape.dims, Seq(2, 3, 4))
+
+    val ones3d = Tensor.ones(Axis[Batch] -> 2, Axis[Height] -> 3, Axis[Width] -> 4)
+    assertEquals(ones3d.shape.dims, Seq(2, 3, 4))
   }
 
   test("reshape operation") {
@@ -239,23 +283,23 @@ class TensorTests extends FunSuite:
     assert(scalarStr.nonEmpty)
     // Verify the scalar actually contains the expected value
     val expectedScalar = Tensor0(3.14f)
-    assert(scalar.tensorEquals(expectedScalar))
+    assert(scalar.tensorEquals(expectedScalar), "scalar equals")
 
     // 1D tensor
-    val vector = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
+    val vector = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
     val vectorStr = vector.toString
-    assert(vectorStr.nonEmpty)
+    assert(vectorStr.nonEmpty, "vector string")
     // Verify the vector contains expected values
-    val expectedVector = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
-    assert(vector.tensorEquals(expectedVector))
+    val expectedVector = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
+    assert(vector.tensorEquals(expectedVector), "vector equals")
 
     // 2D tensor
-    val matrix = Tensor2[Height, Width](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
+    val matrix = Tensor2(Axis[Height], Axis[Width], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
     val matrixStr = matrix.toString
-    assert(matrixStr.nonEmpty)
+    assert(matrixStr.nonEmpty, "matrix string")
     // Verify the matrix contains expected values
-    val expectedMatrix = Tensor2[Height, Width](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
-    assert(matrix.tensorEquals(expectedMatrix))
+    val expectedMatrix = Tensor2(Axis[Height], Axis[Width], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
+    assert(matrix.tensorEquals(expectedMatrix), "matrix equals")
   }
 
   test("tensor stats method") {
@@ -448,43 +492,43 @@ class TensorTests extends FunSuite:
     val t2 = Tensor0(2.0f)
     val t3 = Tensor0(3.0f)
     val stacked = Tensor.stack(Axis[Feature], Seq(t1, t2, t3))
-    val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
-    assertEquals(stacked.shape.dims, Seq(3))
+    val expected = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
+    assertEquals(stacked.shape.dims, Seq(3), "dims")
     assert(stacked.tensorEquals(expected), "Stacked tensor should equal expected")
 
     // Stack two vectors into a matrix
-    val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
-    val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
+    val v1 = Tensor1(Axis[Feature], Seq(1.0f, 2.0f))
+    val v2 = Tensor1(Axis[Feature], Seq(3.0f, 4.0f))
     val stacked2 = Tensor.stack(Axis[Batch], Seq(v1, v2))
-    val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
-    assertEquals(stacked2.shape.dims, Seq(2, 2))
+    val expected2 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
+    assertEquals(stacked2.shape.dims, Seq(2, 2), "dims")
     assert(stacked2.tensorEquals(expected2), "Second stacked tensor should equal expected")
   }
 
   test("concat operation") {
     // Concatenate two vectors along the feature dimension
-    val v1 = Tensor1[Feature](Seq(1.0f, 2.0f))
-    val v2 = Tensor1[Feature](Seq(3.0f, 4.0f))
+    val v1 = Tensor1(Axis[Feature], Seq(1.0f, 2.0f))
+    val v2 = Tensor1(Axis[Feature], Seq(3.0f, 4.0f))
     val concatenated = v1.concat(Axis[Feature], v2)
-    val expected = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
-    assertEquals(concatenated.shape.dims, Seq(4))
-    assert(concatenated.tensorEquals(expected))
+    val expected = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
+    assertEquals(concatenated.shape.dims, Seq(4), "dims")
+    assert(concatenated.tensorEquals(expected), "equals")
 
     // Concatenate two matrices along the batch dimension
-    val m1 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
-    val m2 = Tensor2[Batch, Feature](Seq(Seq(5.0f, 6.0f)))
+    val m1 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
+    val m2 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(5.0f, 6.0f)))
     val concatenated2 = m1.concat(Axis[Batch], m2)
-    val expected2 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f), Seq(5.0f, 6.0f)))
-    assertEquals(concatenated2.shape.dims, Seq(3, 2))
-    assert(concatenated2.tensorEquals(expected2))
+    val expected2 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f), Seq(5.0f, 6.0f)))
+    assertEquals(concatenated2.shape.dims, Seq(3, 2), "dims")
+    assert(concatenated2.tensorEquals(expected2), "equals")
 
     // Concatenate two matrices along the feature dimension
-    val m3 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
-    val m4 = Tensor2[Batch, Feature](Seq(Seq(5.0f, 6.0f), Seq(7.0f, 8.0f)))
+    val m3 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(1.0f, 2.0f), Seq(3.0f, 4.0f)))
+    val m4 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(5.0f, 6.0f), Seq(7.0f, 8.0f)))
     val concatenated3 = m3.concat(Axis[Feature], m4)
-    val expected3 = Tensor2[Batch, Feature](Seq(Seq(1.0f, 2.0f, 5.0f, 6.0f), Seq(3.0f, 4.0f, 7.0f, 8.0f)))
-    assertEquals(concatenated3.shape.dims, Seq(2, 4))
-    assert(concatenated3.tensorEquals(expected3))
+    val expected3 = Tensor2(Axis[Batch], Axis[Feature], Seq(Seq(1.0f, 2.0f, 5.0f, 6.0f), Seq(3.0f, 4.0f, 7.0f, 8.0f)))
+    assertEquals(concatenated3.shape.dims, Seq(2, 4), "dims")
+    assert(concatenated3.tensorEquals(expected3), "equals")
   }
 
   test("split operation") {
@@ -498,36 +542,36 @@ class TensorTests extends FunSuite:
 
     assertEquals(splits.length, 3)
     splits.foreach { split =>
-      assertEquals(split.shape.dims, Seq(4))
+      assertEquals(split.shape.dims, Seq(4), "dims")
     }
 
     // Check that split tensors contain correct values
-    val expected1 = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
-    val expected2 = Tensor1[Feature](Seq(5.0f, 6.0f, 7.0f, 8.0f))
-    val expected3 = Tensor1[Feature](Seq(9.0f, 10.0f, 11.0f, 12.0f))
+    val expected1 = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
+    val expected2 = Tensor1(Axis[Feature], Seq(5.0f, 6.0f, 7.0f, 8.0f))
+    val expected3 = Tensor1(Axis[Feature], Seq(9.0f, 10.0f, 11.0f, 12.0f))
 
-    assert(splits(0).tensorEquals(expected1))
-    assert(splits(1).tensorEquals(expected2))
-    assert(splits(2).tensorEquals(expected3))
+    assert(splits(0).tensorEquals(expected1), "split 0")
+    assert(splits(1).tensorEquals(expected2), "split 1")
+    assert(splits(2).tensorEquals(expected3), "split 2")
 
     // Test splitting along feature dimension - should get 4 tensors of shape (3,)
     val featureSplits = tensor.unstack(Axis[Feature])
 
-    assertEquals(featureSplits.length, 4)
+    assertEquals(featureSplits.length, 4, "length")
     featureSplits.foreach { split =>
-      assertEquals(split.shape.dims, Seq(3))
+      assertEquals(split.shape.dims, Seq(3), "dims")
     }
 
     // Check that feature splits contain correct values
-    val expectedF1 = Tensor1[Batch](Seq(1.0f, 5.0f, 9.0f))
-    val expectedF2 = Tensor1[Batch](Seq(2.0f, 6.0f, 10.0f))
-    val expectedF3 = Tensor1[Batch](Seq(3.0f, 7.0f, 11.0f))
-    val expectedF4 = Tensor1[Batch](Seq(4.0f, 8.0f, 12.0f))
+    val expectedF1 = Tensor1(Axis[Batch], Seq(1.0f, 5.0f, 9.0f))
+    val expectedF2 = Tensor1(Axis[Batch], Seq(2.0f, 6.0f, 10.0f))
+    val expectedF3 = Tensor1(Axis[Batch], Seq(3.0f, 7.0f, 11.0f))
+    val expectedF4 = Tensor1(Axis[Batch], Seq(4.0f, 8.0f, 12.0f))
 
-    assert(featureSplits(0).tensorEquals(expectedF1))
-    assert(featureSplits(1).tensorEquals(expectedF2))
-    assert(featureSplits(2).tensorEquals(expectedF3))
-    assert(featureSplits(3).tensorEquals(expectedF4))
+    assert(featureSplits(0).tensorEquals(expectedF1), "f0")
+    assert(featureSplits(1).tensorEquals(expectedF2), "f1")
+    assert(featureSplits(2).tensorEquals(expectedF3), "f2")
+    assert(featureSplits(3).tensorEquals(expectedF4), "f3")
   }
 
   test("split operation on 3D tensor") {
@@ -566,31 +610,31 @@ class TensorTests extends FunSuite:
     import shapeful.tensor.TensorSlicing.*
 
     // Test splitting a 1D tensor
-    val tensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f))
+    val tensor = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f, 5.0f, 6.0f))
 
     // Split at index 3
     val (first, second) = tensor.splitAt[Feature](3)
 
-    assertEquals(first.shape.dims, Seq(3))
-    assertEquals(second.shape.dims, Seq(3))
+    assertEquals(first.shape.dims, Seq(3), "first dims")
+    assertEquals(second.shape.dims, Seq(3), "second dims")
 
     // Check values
-    val expectedFirst = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f))
-    val expectedSecond = Tensor1[Feature](Seq(4.0f, 5.0f, 6.0f))
+    val expectedFirst = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f))
+    val expectedSecond = Tensor1(Axis[Feature], Seq(4.0f, 5.0f, 6.0f))
 
-    assert(first.tensorEquals(expectedFirst))
-    assert(second.tensorEquals(expectedSecond))
+    assert(first.tensorEquals(expectedFirst), "first equals")
+    assert(second.tensorEquals(expectedSecond), "second equals")
 
     // Split at beginning
     val (empty, all) = tensor.splitAt[Feature](0)
-    assertEquals(empty.shape.dims, Seq(0))
-    assertEquals(all.shape.dims, Seq(6))
+    assertEquals(empty.shape.dims, Seq(0), "empty dims")
+    assertEquals(all.shape.dims, Seq(6), "all dims")
 
     // Split at end
     val (allButEnd, endEmpty) = tensor.splitAt[Feature](6)
-    assertEquals(allButEnd.shape.dims, Seq(6))
-    assertEquals(endEmpty.shape.dims, Seq(0))
-    assert(allButEnd.tensorEquals(tensor))
+    assertEquals(allButEnd.shape.dims, Seq(6), "allButEnd dims")
+    assertEquals(endEmpty.shape.dims, Seq(0), "endEmpty dims")
+    assert(allButEnd.tensorEquals(tensor), "allButEnd equals")
   }
 
   test("splitAt operation on Tensor2") {
@@ -608,37 +652,43 @@ class TensorTests extends FunSuite:
     assertEquals(batch2.shape.dims, Seq(1, 4))
 
     // Check that batch1 contains first 2 rows
-    val expectedBatch1 = Tensor2[Batch, Feature](
+    val expectedBatch1 = Tensor2(
+      Axis[Batch],
+      Axis[Feature],
       Seq(
         Seq(1.0f, 2.0f, 3.0f, 4.0f),
         Seq(5.0f, 6.0f, 7.0f, 8.0f)
       )
     )
-    assert(batch1.tensorEquals(expectedBatch1))
+    assert(batch1.tensorEquals(expectedBatch1), "batch1 equals")
 
     // Check that batch2 contains last row
-    val expectedBatch2 = Tensor2[Batch, Feature](
+    val expectedBatch2 = Tensor2(
+      Axis[Batch],
+      Axis[Feature],
       Seq(
         Seq(9.0f, 10.0f, 11.0f, 12.0f)
       )
     )
-    assert(batch2.tensorEquals(expectedBatch2))
+    assert(batch2.tensorEquals(expectedBatch2), "batch2 equals")
 
     // Split along feature dimension
     val (features1, features2) = tensor.splitAt[Feature](2)
 
-    assertEquals(features1.shape.dims, Seq(3, 2))
-    assertEquals(features2.shape.dims, Seq(3, 2))
+    assertEquals(features1.shape.dims, Seq(3, 2), "features1 dims")
+    assertEquals(features2.shape.dims, Seq(3, 2), "features2 dims")
 
     // Check that features1 contains first 2 columns
-    val expectedFeatures1 = Tensor2[Batch, Feature](
+    val expectedFeatures1 = Tensor2(
+      Axis[Batch],
+      Axis[Feature],
       Seq(
         Seq(1.0f, 2.0f),
         Seq(5.0f, 6.0f),
         Seq(9.0f, 10.0f)
       )
     )
-    assert(features1.tensorEquals(expectedFeatures1))
+    assert(features1.tensorEquals(expectedFeatures1), "features1 equals")
   }
 
   test("splitAt operation on Tensor3") {
@@ -672,11 +722,11 @@ class TensorTests extends FunSuite:
   test("splitAt bounds checking") {
     import shapeful.tensor.TensorSlicing.*
 
-    val tensor = Tensor1[Feature](Seq(1.0f, 2.0f, 3.0f, 4.0f))
+    val tensor = Tensor1(Axis[Feature], Seq(1.0f, 2.0f, 3.0f, 4.0f))
 
     // Valid bounds
     val (first, second) = tensor.splitAt[Feature](2)
-    assertEquals(first.shape.dims(0) + second.shape.dims(0), 4)
+    assertEquals(first.shape.dims(0) + second.shape.dims(0), 4, "sum")
 
     // Test boundary conditions
     intercept[IllegalArgumentException] {

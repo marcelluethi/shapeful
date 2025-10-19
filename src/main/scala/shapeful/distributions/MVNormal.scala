@@ -109,6 +109,6 @@ object MVNormal:
 
   /** Standard normal distribution in d dimensions (zero mean, identity covariance) */
   def standard[L <: Label](shape: Shape1[L]): MVNormal[L] =
-    val mu = Tensor1[L](Seq.fill(shape.size)(0.0f))
+    val mu = Tensor1(Axis[L], Seq.fill(shape.size)(0.0f))
     val cov = Tensor2.eye[L](Shape(Axis[L] -> shape.size))
     new MVNormal(mu, cov)

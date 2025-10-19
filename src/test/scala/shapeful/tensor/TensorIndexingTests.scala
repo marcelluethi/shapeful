@@ -26,14 +26,14 @@ class TensorIndexingTests extends FunSuite:
       Seq(5.0f, 6.0f, 7.0f, 8.0f),
       Seq(9.0f, 10.0f, 11.0f, 12.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Slice first 2 rows (indices 0 and 1)
     val sliced = tensor.slice[Height](0, 2)
 
-    assertEquals(sliced.shape.dims, Seq(2, 4))
-    assertEquals(sliced.shape.dim[Height], 2)
-    assertEquals(sliced.shape.dim[Width], 4)
+    assertEquals(sliced.shape.dims, Seq(2, 4), "dims")
+    assertEquals(sliced.shape.dim[Height], 2, "height")
+    assertEquals(sliced.shape.dim[Width], 4, "width")
   }
 
   test("slice - basic slicing along second axis") {
@@ -43,14 +43,14 @@ class TensorIndexingTests extends FunSuite:
       Seq(5.0f, 6.0f, 7.0f, 8.0f),
       Seq(9.0f, 10.0f, 11.0f, 12.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Slice first 3 columns (indices 0, 1, 2)
     val sliced = tensor.slice[Width](0, 3)
 
-    assertEquals(sliced.shape.dims, Seq(3, 3))
-    assertEquals(sliced.shape.dim[Height], 3)
-    assertEquals(sliced.shape.dim[Width], 3)
+    assertEquals(sliced.shape.dims, Seq(3, 3), "dims")
+    assertEquals(sliced.shape.dim[Height], 3, "height")
+    assertEquals(sliced.shape.dim[Width], 3, "width")
   }
 
   test("slice - middle slice") {
@@ -61,14 +61,14 @@ class TensorIndexingTests extends FunSuite:
       Seq(9.0f, 10.0f, 11.0f, 12.0f),
       Seq(13.0f, 14.0f, 15.0f, 16.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Slice rows 1 and 2 (indices 1, 2)
     val sliced = tensor.slice[Height](1, 3)
 
-    assertEquals(sliced.shape.dims, Seq(2, 4))
-    assertEquals(sliced.shape.dim[Height], 2)
-    assertEquals(sliced.shape.dim[Width], 4)
+    assertEquals(sliced.shape.dims, Seq(2, 4), "dims")
+    assertEquals(sliced.shape.dim[Height], 2, "height")
+    assertEquals(sliced.shape.dim[Width], 4, "width")
   }
 
   test("slice - single element slice") {
@@ -76,14 +76,14 @@ class TensorIndexingTests extends FunSuite:
       Seq(1.0f, 2.0f, 3.0f),
       Seq(4.0f, 5.0f, 6.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Slice just one row
     val sliced = tensor.slice[Height](0, 1)
 
-    assertEquals(sliced.shape.dims, Seq(1, 3))
-    assertEquals(sliced.shape.dim[Height], 1)
-    assertEquals(sliced.shape.dim[Width], 3)
+    assertEquals(sliced.shape.dims, Seq(1, 3), "dims")
+    assertEquals(sliced.shape.dim[Height], 1, "height")
+    assertEquals(sliced.shape.dim[Width], 3, "width")
   }
 
   test("slice - empty slice") {
@@ -91,19 +91,19 @@ class TensorIndexingTests extends FunSuite:
       Seq(1.0f, 2.0f, 3.0f),
       Seq(4.0f, 5.0f, 6.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Empty slice (start == end)
     val sliced = tensor.slice[Height](1, 1)
 
-    assertEquals(sliced.shape.dims, Seq(0, 3))
-    assertEquals(sliced.shape.dim[Height], 0)
-    assertEquals(sliced.shape.dim[Width], 3)
+    assertEquals(sliced.shape.dims, Seq(0, 3), "dims")
+    assertEquals(sliced.shape.dim[Height], 0, "height")
+    assertEquals(sliced.shape.dim[Width], 3, "width")
   }
 
   test("slice - boundary validation - negative start") {
     val values = Seq(1.0f, 2.0f, 3.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
     intercept[IllegalArgumentException] {
       tensor.slice[Feature](-1, 2)
@@ -112,7 +112,7 @@ class TensorIndexingTests extends FunSuite:
 
   test("slice - boundary validation - start > axis size") {
     val values = Seq(1.0f, 2.0f, 3.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
     intercept[IllegalArgumentException] {
       tensor.slice[Feature](4, 5)
@@ -121,7 +121,7 @@ class TensorIndexingTests extends FunSuite:
 
   test("slice - boundary validation - end < start") {
     val values = Seq(1.0f, 2.0f, 3.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
     intercept[IllegalArgumentException] {
       tensor.slice[Feature](2, 1)
@@ -130,7 +130,7 @@ class TensorIndexingTests extends FunSuite:
 
   test("slice - boundary validation - end > axis size") {
     val values = Seq(1.0f, 2.0f, 3.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
     intercept[IllegalArgumentException] {
       tensor.slice[Feature](0, 4)
@@ -143,14 +143,14 @@ class TensorIndexingTests extends FunSuite:
       Seq(5.0f, 6.0f, 7.0f, 8.0f),
       Seq(9.0f, 10.0f, 11.0f, 12.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Slice 2 elements starting from index 1
     val sliced = tensor.sliceWithSize[Height](1, 2)
 
-    assertEquals(sliced.shape.dims, Seq(2, 4))
-    assertEquals(sliced.shape.dim[Height], 2)
-    assertEquals(sliced.shape.dim[Width], 4)
+    assertEquals(sliced.shape.dims, Seq(2, 4), "dims")
+    assertEquals(sliced.shape.dim[Height], 2, "height")
+    assertEquals(sliced.shape.dim[Width], 4, "width")
   }
 
   test("gather - basic gathering with indices") {
@@ -161,15 +161,15 @@ class TensorIndexingTests extends FunSuite:
       Seq(7.0f, 8.0f, 9.0f),
       Seq(10.0f, 11.0f, 12.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Gather rows at indices [0, 2, 1] - using integers directly
-    val indices = Tensor1[Index](Seq(0, 2, 1).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(0, 2, 1).map(_.toFloat))
     val gathered = tensor.gather[Height, Index](indices)
 
-    assertEquals(gathered.shape.dims, Seq(3, 3))
-    assertEquals(gathered.shape.dim[Height], 3) // 3 indices
-    assertEquals(gathered.shape.dim[Width], 3)
+    assertEquals(gathered.shape.dims, Seq(3, 3), "dims")
+    assertEquals(gathered.shape.dim[Height], 3, "height") // 3 indices
+    assertEquals(gathered.shape.dim[Width], 3, "width")
   }
 
   test("gather - gathering along second axis") {
@@ -179,15 +179,15 @@ class TensorIndexingTests extends FunSuite:
       Seq(5.0f, 6.0f, 7.0f, 8.0f),
       Seq(9.0f, 10.0f, 11.0f, 12.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Gather columns at indices [1, 3, 0] - using integers directly
-    val indices = Tensor1[Index](Seq(1, 3, 0).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(1, 3, 0).map(_.toFloat))
     val gathered = tensor.gather[Width, Index](indices)
 
-    assertEquals(gathered.shape.dims, Seq(3, 3))
-    assertEquals(gathered.shape.dim[Height], 3)
-    assertEquals(gathered.shape.dim[Width], 3) // 3 indices
+    assertEquals(gathered.shape.dims, Seq(3, 3), "dims")
+    assertEquals(gathered.shape.dim[Height], 3, "height")
+    assertEquals(gathered.shape.dim[Width], 3, "width") // 3 indices
   }
 
   test("gather - single index") {
@@ -196,15 +196,15 @@ class TensorIndexingTests extends FunSuite:
       Seq(4.0f, 5.0f, 6.0f),
       Seq(7.0f, 8.0f, 9.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Gather just one row (index 1)
-    val indices = Tensor1[Index](Seq(1).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(1).map(_.toFloat))
     val gathered = tensor.gather[Height, Index](indices)
 
-    assertEquals(gathered.shape.dims, Seq(1, 3))
-    assertEquals(gathered.shape.dim[Height], 1)
-    assertEquals(gathered.shape.dim[Width], 3)
+    assertEquals(gathered.shape.dims, Seq(1, 3), "dims")
+    assertEquals(gathered.shape.dim[Height], 1, "height")
+    assertEquals(gathered.shape.dim[Width], 3, "width")
   }
 
   test("gather - duplicate indices") {
@@ -213,22 +213,22 @@ class TensorIndexingTests extends FunSuite:
       Seq(3.0f, 4.0f),
       Seq(5.0f, 6.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Gather with duplicate indices [0, 0, 2, 0]
-    val indices = Tensor1[Index](Seq(0, 0, 2, 0).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(0, 0, 2, 0).map(_.toFloat))
     val gathered = tensor.gather[Height, Index](indices)
 
-    assertEquals(gathered.shape.dims, Seq(4, 2))
-    assertEquals(gathered.shape.dim[Height], 4) // 4 indices
-    assertEquals(gathered.shape.dim[Width], 2)
+    assertEquals(gathered.shape.dims, Seq(4, 2), "dims")
+    assertEquals(gathered.shape.dim[Height], 4, "height") // 4 indices
+    assertEquals(gathered.shape.dim[Width], 2, "width")
   }
 
   test("gather - boundary validation - negative indices") {
     val values = Seq(1.0f, 2.0f, 3.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
-    val indices = Tensor1[Index](Seq(-1, 1).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(-1, 1).map(_.toFloat))
 
     intercept[IllegalArgumentException] {
       tensor.gather[Feature, Index](indices)
@@ -237,9 +237,9 @@ class TensorIndexingTests extends FunSuite:
 
   test("gather - boundary validation - indices out of bounds") {
     val values = Seq(1.0f, 2.0f, 3.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
-    val indices = Tensor1[Index](Seq(0, 3).map(_.toFloat)) // 3 is out of bounds for size 3
+    val indices = Tensor1(Axis[Index], Seq(0, 3).map(_.toFloat)) // 3 is out of bounds for size 3
 
     intercept[IllegalArgumentException] {
       tensor.gather[Feature, Index](indices)
@@ -253,25 +253,25 @@ class TensorIndexingTests extends FunSuite:
       Seq(7.0f, 8.0f, 9.0f),
       Seq(10.0f, 11.0f, 12.0f)
     )
-    val tensor = Tensor2[Height, Width](values)
+    val tensor = Tensor2(Axis[Height], Axis[Width], values)
 
     // Gather rows using sequence of integers
     val gathered = tensor.gatherSeq[Height](Seq(3, 0, 1))
 
-    assertEquals(gathered.shape.dims, Seq(3, 3))
-    assertEquals(gathered.shape.dim[Height], 3)
-    assertEquals(gathered.shape.dim[Width], 3)
+    assertEquals(gathered.shape.dims, Seq(3, 3), "dims")
+    assertEquals(gathered.shape.dim[Height], 3, "height")
+    assertEquals(gathered.shape.dim[Width], 3, "width")
   }
 
   test("gather - 1D tensor") {
     val values = Seq(10.0f, 20.0f, 30.0f, 40.0f, 50.0f)
-    val tensor = Tensor1[Feature](values)
+    val tensor = Tensor1(Axis[Feature], values)
 
-    val indices = Tensor1[Index](Seq(4, 0, 2).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(4, 0, 2).map(_.toFloat))
     val gathered = tensor.gather[Feature, Index](indices)
 
-    assertEquals(gathered.shape.dims, Seq(3))
-    assertEquals(gathered.shape.dim[Feature], 3)
+    assertEquals(gathered.shape.dims, Seq(3), "dims")
+    assertEquals(gathered.shape.dim[Feature], 3, "feature")
   }
 
   test("slice - 3D tensor") {
@@ -283,10 +283,10 @@ class TensorIndexingTests extends FunSuite:
     // Slice along the batch dimension
     val sliced = tensor.slice[Batch](0, 1)
 
-    assertEquals(sliced.shape.dims, Seq(1, 3, 4))
-    assertEquals(sliced.shape.dim[Batch], 1)
-    assertEquals(sliced.shape.dim[Height], 3)
-    assertEquals(sliced.shape.dim[Width], 4)
+    assertEquals(sliced.shape.dims, Seq(1, 3, 4), "dims")
+    assertEquals(sliced.shape.dim[Batch], 1, "batch")
+    assertEquals(sliced.shape.dim[Height], 3, "height")
+    assertEquals(sliced.shape.dim[Width], 4, "width")
   }
 
   test("gather - 3D tensor") {
@@ -296,13 +296,13 @@ class TensorIndexingTests extends FunSuite:
     val tensor = Tensor(shape, values, DType.Float32)
 
     // Gather along height dimension
-    val indices = Tensor1[Index](Seq(2, 0).map(_.toFloat))
+    val indices = Tensor1(Axis[Index], Seq(2, 0).map(_.toFloat))
     val gathered = tensor.gather[Height, Index](indices)
 
-    assertEquals(gathered.shape.dims, Seq(2, 2, 4))
-    assertEquals(gathered.shape.dim[Batch], 2)
-    assertEquals(gathered.shape.dim[Height], 2) // 2 indices
-    assertEquals(gathered.shape.dim[Width], 4)
+    assertEquals(gathered.shape.dims, Seq(2, 2, 4), "dims")
+    assertEquals(gathered.shape.dim[Batch], 2, "batch")
+    assertEquals(gathered.shape.dim[Height], 2, "height") // 2 indices
+    assertEquals(gathered.shape.dim[Width], 4, "width")
   }
 
 end TensorIndexingTests

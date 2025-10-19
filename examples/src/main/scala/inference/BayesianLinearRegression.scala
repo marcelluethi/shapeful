@@ -33,7 +33,7 @@ object BayesianLinearRegression extends App:
 
   // 1. Create synthetic dataset
   val (key1, key2) = key.split2()
-  val X = Tensor1[Sample](Range(0, 100, 1).map(_.toFloat / 100f).toSeq)
+  val X = Tensor1(Axis[Sample], Range(0, 100, 1).map(_.toFloat / 100f).toSeq)
   val noise = Normal(Tensor.zeros(X.shape), Tensor.ones(X.shape) * trueSigma).sample(key1)
   val y = X.vmap(Axis[Sample], sample => trueWeight * sample + trueBias) + noise
 
@@ -73,12 +73,12 @@ object BayesianLinearRegression extends App:
     prior(params) + likelihood(x, y)(params)
 
   val baseDistribution = MVNormal.standard[Latent](
-    Shape1(3)
+    Shape1(Axis["latent"] -> 3)
   ) // Tensor.zeros(Shape1(3)), Tensor.eye(Shape2(3, 3)) * Tensor0(0.1f)) // 3D latent space for weight, bias, logSigma
 
-  val mask1 = Tensor1[Latent](Seq(1.0f, 0.0f, 1.0f)) // Example mask for 3D latent space
+  val mask1 = Tensor1(Axis[Latent], Seq(1.0f, 0.0f, 1.0f)) // Example mask for 3D latent space
   val flow1 = AffineCouplingFlow[Latent](mask1)
-  val mask2 = Tensor1[Latent](Seq(0.0f, 1.0f, 1.0f)) // Another mask for the second flow
+  val mask2 = Tensor1(Axis[Latent], Seq(0.0f, 1.0f, 1.0f)) // Another mask for the second flow
   val flow2 = AffineCouplingFlow[Latent](mask2)
 
   case class CompositeParams(
@@ -155,7 +155,7 @@ object BayesianLinearRegression extends App:
       println(s"Target log prob range: ${targetLogProb.min.toFloat} to ${targetLogProb.max.toFloat}")
       println(s"Log det range: ${logdet.min.toFloat} to ${logdet.max.toFloat}")
 
-      val rawLogProbs: Tensor1["Sample"] = targetLogProb - baseLogProb + logdet
+      val rawLogProbs: Tensor1["Sample"] = (targetLogProb - baseLogProb) + logdet
       println(s"Raw log probs range: ${rawLogProbs.min.toFloat} to ${rawLogProbs.max.toFloat}")
 
       val loss = elbo(params)

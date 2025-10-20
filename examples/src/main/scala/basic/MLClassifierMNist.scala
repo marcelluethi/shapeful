@@ -52,7 +52,7 @@ object MLPClassifierMNist:
       .andThen(outputLayer(params.output))
 
     val logits = mapping(x)
-    val probs = Activation.softmax(Axis[Output], logits)
+    val probs = Activation.softmax(Axis[Output])(logits)
     (logits, probs)
 
   def main(args: Array[String]): Unit =

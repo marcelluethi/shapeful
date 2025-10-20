@@ -45,7 +45,7 @@ class SoftmaxTests extends FunSuite:
     )
 
     // Test the original Activation class (uses default axis=-1)
-    val result = Activation.softmax(Axis[Classes], logits)
+    val result = Activation.softmax(Axis[Classes])(logits)
 
     assertEquals(result.shape.dims, Seq(2, 3))
     assert(result.jaxValue != null, "Activation.Softmax should produce valid output")

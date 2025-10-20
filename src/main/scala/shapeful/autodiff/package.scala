@@ -1,11 +1,8 @@
-import shapeful.*
-import shapeful.jax.Jax
-import shapeful.autodiff.{Autodiff, ToPyTree, TensorTree}
+package shapeful
 
 package object autodiff:
+  // Core autodiff functions
+  export Autodiff.{grad, valueAndGrad, jacFwd, jacRev, Gradient}
 
-  export Autodiff.{grad, valueAndGrad, jacFwd}
-  export Autodiff.Gradient
-  export autodiff.ToPyTree
-  export ToPyTree.given
-  export autodiff.TensorTree
+  // PyTree and TensorTree typeclasses
+  export shapeful.autodiff.{ToPyTree, TensorTree}

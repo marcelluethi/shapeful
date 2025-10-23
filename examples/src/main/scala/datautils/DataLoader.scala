@@ -67,7 +67,7 @@ private class ShuffledDataLoader[Features <: Tuple, Target <: Tuple](
     // Create a tensor of indices and shuffle using Random.permutation
     type IndexLabel = "Index"
     val indices = Tensor1.fromInts(Axis[IndexLabel], (0 until underlying.size).toSeq, DType.Int32)
-    val shuffled = Random.permutation(Axis[IndexLabel], key, indices)
+    val shuffled = Random.permutation(Axis[IndexLabel])(key, indices)
     // Convert back to Array[Int]
     (0 until underlying.size).map { i =>
       shuffled.at(Tuple1(i)).get.jaxValue.item().as[Int]

@@ -820,6 +820,54 @@ class TensorTests extends FunSuite:
         println("GPU not available, skipping GPU test")
   }
 
+  test("rearrange actually rearranges data correctly") {
+    // Create a simple 2x2 tensor where we can manually verify the transformation
+    // Shape: (Height=2, Width=2) with values [[1, 2], [3, 4]]
+    val shape = Shape(Axis[Height] -> 2, Axis[Width] -> 2)
+    val values = Seq(1.0f, 2.0f, 3.0f, 4.0f)
+    val tensor = Tensor(shape, values)
+
+    // Original layout (Height, Width):
+    // [1, 2]  <- height=0
+    // [3, 4]  <- height=1
+
+    // Rearrange to (Width, Height) - transpose
+    val rearranged = tensor.rearrange(Axis[Width], Axis[Height])
+
+    // After transpose to (Width, Height):
+    // [1, 3]  <- width=0
+    // [2, 4]  <- width=1
+
+    // Verify the new shape
+    assertEquals(rearranged.shape.dims, Seq(2, 2), "Rearranged shape")
+    assertEquals(rearranged.shape.axisLabels, Seq("width", "height"), "Rearranged labels")
+
+    // Check specific elements to verify actual data rearrangement
+    // Element at (height=0, width=0) = 1 should be at (width=0, height=0) = 1
+    val elem_0_0_orig = tensor.at((0, 0)).get
+    val elem_0_0_rearr = rearranged.at((0, 0)).get
+    assert(elem_0_0_orig.tensorEquals(Tensor0(1.0f)), "Original [0,0]")
+    assert(elem_0_0_rearr.tensorEquals(Tensor0(1.0f)), "Rearranged [0,0]")
+
+    // Element at (height=0, width=1) = 2 should be at (width=1, height=0) = 2
+    val elem_0_1_orig = tensor.at((0, 1)).get
+    val elem_1_0_rearr = rearranged.at((1, 0)).get
+    assert(elem_0_1_orig.tensorEquals(Tensor0(2.0f)), "Original [0,1]")
+    assert(elem_1_0_rearr.tensorEquals(Tensor0(2.0f)), "Rearranged [1,0] should match original [0,1]")
+
+    // Element at (height=1, width=0) = 3 should be at (width=0, height=1) = 3
+    val elem_1_0_orig = tensor.at((1, 0)).get
+    val elem_0_1_rearr = rearranged.at((0, 1)).get
+    assert(elem_1_0_orig.tensorEquals(Tensor0(3.0f)), "Original [1,0]")
+    assert(elem_0_1_rearr.tensorEquals(Tensor0(3.0f)), "Rearranged [0,1] should match original [1,0]")
+
+    // Element at (height=1, width=1) = 4 should be at (width=1, height=1) = 4
+    val elem_1_1_orig = tensor.at((1, 1)).get
+    val elem_1_1_rearr = rearranged.at((1, 1)).get
+    assert(elem_1_1_orig.tensorEquals(Tensor0(4.0f)), "Original [1,1]")
+    assert(elem_1_1_rearr.tensorEquals(Tensor0(4.0f)), "Rearranged [1,1]")
+  }
+
   test("rearrange transposes tensor dimensions") {
     // Create a tensor with shape (Batch, Height, Width)
     val shape = Shape(Axis[Batch] -> 2, Axis[Height] -> 3, Axis[Width] -> 4)
@@ -827,11 +875,7 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Rearrange to (Width, Height, Batch)
-    val rearranged = tensor.rearrange[(Width, Height, Batch)](
-      Axis[Width],
-      Axis[Height],
-      Axis[Batch]
-    )
+    val rearranged = tensor.rearrange(Axis[Width], Axis[Height], Axis[Batch])
 
     // Verify the new shape
     assertEquals(rearranged.shape.dims, Seq(4, 3, 2))
@@ -850,13 +894,13 @@ class TensorTests extends FunSuite:
     val tensor = Tensor(shape, values)
 
     // Test various rearrangements
-    val bhw = tensor.rearrange[(Batch, Height, Width)](Axis[Batch], Axis[Height], Axis[Width])
+    val bhw = tensor.rearrange(Axis[Batch], Axis[Height], Axis[Width])
     assertEquals(bhw.shape.dims, Seq(2, 3, 4))
 
-    val bwh = tensor.rearrange[(Batch, Width, Height)](Axis[Batch], Axis[Width], Axis[Height])
+    val bwh = tensor.rearrange(Axis[Batch], Axis[Width], Axis[Height])
     assertEquals(bwh.shape.dims, Seq(2, 4, 3))
 
-    val hwb = tensor.rearrange[(Height, Width, Batch)](Axis[Height], Axis[Width], Axis[Batch])
+    val hwb = tensor.rearrange(Axis[Height], Axis[Width], Axis[Batch])
     assertEquals(hwb.shape.dims, Seq(3, 4, 2))
   }
 
@@ -865,28 +909,14 @@ class TensorTests extends FunSuite:
     val values = (1 to 24).map(_.toFloat).toSeq
     val tensor = Tensor(shape, values)
 
-    val rearranged = tensor.rearrange[(Width, Height, Batch)](
-      Axis[Width],
-      Axis[Height],
-      Axis[Batch]
-    )
+    val rearranged = tensor.rearrange(Axis[Width], Axis[Height], Axis[Batch])
 
     assertEquals(rearranged.shape.dims.product, tensor.shape.dims.product)
   }
 
-  test("rearrange fails with wrong number of axes") {
-    val shape = Shape(Axis[Batch] -> 2, Axis[Height] -> 3, Axis[Width] -> 4)
-    val tensor = Tensor(shape, Seq.fill(24)(1.0f))
-
-    // This should fail at runtime because we pass wrong number of axis arguments
-    // (Note: We can't test compile-time failures easily, but providing wrong number
-    // of Axis arguments at runtime will trigger the require check)
-    intercept[IllegalArgumentException] {
-      // Intentionally pass only 2 axis arguments when 3 are needed
-      // We use the correct type to get past compile-time, but wrong runtime args
-      tensor.rearrange[(Batch, Height, Width)](Axis[Batch], Axis[Height])
-    }
-  }
+  // Note: The "wrong number of axes" test can't be written anymore because
+  // the type system now catches this at compile-time rather than runtime.
+  // This is actually an improvement - type safety!
 
   test("rearrange fails with non-existent axis") {
     type NonExistent = "nonexistent"
@@ -895,11 +925,7 @@ class TensorTests extends FunSuite:
 
     intercept[IllegalArgumentException] {
       // Try to rearrange with an axis that doesn't exist
-      tensor.rearrange[(NonExistent, Height, Width)](
-        Axis[NonExistent],
-        Axis[Height],
-        Axis[Width]
-      )
+      tensor.rearrange(Axis[NonExistent], Axis[Height], Axis[Width])
     }
   }
 

@@ -22,7 +22,9 @@ object LinearRegression extends App:
   // 1. Create synthetic dataset
   println("1. Creating Synthetic Dataset")
 
-  val X = Tensor2(Axis[Sample], Axis[Feature],
+  val X = Tensor2(
+    Axis[Sample],
+    Axis[Feature],
     Seq(
       Seq(1.0f, 2.0f),
       Seq(2.0f, 3.0f),

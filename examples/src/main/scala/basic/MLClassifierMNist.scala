@@ -56,8 +56,6 @@ object MLPClassifierMNist:
     (logits, probs)
 
   def main(args: Array[String]): Unit =
-    println("Starting optimized MNIST MLP training...")
-
     val learningRate = 5e-2f
     val numSamples = 20000
     val batchSize = 512
@@ -132,7 +130,9 @@ object MLPClassifierMNist:
             println("done evaluating")
 
           // Flatten images for MLP input
-          val flattenedImages = batchImages.vmap(Axis[Sample]) { image => image.reshape(Shape(Axis[Feature] -> 28 * 28)) }
+          val flattenedImages = batchImages.vmap(Axis[Sample]) { image =>
+            image.reshape(Shape(Axis[Feature] -> 28 * 28))
+          }
           val oneHotLabels =
             Utils.oneHot[Sample, Output](batchLabels.reshape(Shape(Axis[Sample] -> batchLabels.shape.dim[Sample])), 10)
 

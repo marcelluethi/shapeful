@@ -173,23 +173,80 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
   def relabel[Names <: Tuple](using ev: Tuple.Size[T] =:= Tuple.Size[Names]): Tensor[Names] =
     new Tensor[Names](shape.relabel[Names], jaxValue, dtype)
 
-  /** Rearrange tensor dimensions by specifying new axis order using Axis constructors.
-    *
-    * Example: tensor.rearrange[(Width, Height, Batch)](Axis[Width], Axis[Height], Axis[Batch])
-    *
-    * The NewOrder type parameter specifies the desired output shape type. The axes arguments must match this order and
-    * provide the runtime label information.
-    */
-  inline def rearrange[NewOrder <: Tuple](
-      inline axes: Axis[?]*
-  )(using ev: Tuple.Size[NewOrder] =:= Tuple.Size[T]): Tensor[NewOrder] =
-    require(
-      axes.length == shape.dims.length,
-      s"Number of axes ${axes.length} must match tensor rank ${shape.dims.length}"
+    /** Rearrange tensor dimensions by specifying new axis order using Axis constructors.
+      *
+      * Example: tensor.rearrange(Axis[Width], Axis[Height], Axis[Batch])
+      *
+      * The axes arguments determine the new order. Type inference derives the result type from the axis types.
+      */
+  inline def rearrange[A1 <: Label](a1: Axis[A1])(using
+      ev: Tuple.Size[Tuple1[A1]] =:= Tuple.Size[T]
+  ): Tensor[Tuple1[A1]] =
+    rearrangeImpl[Tuple1[A1]](Seq(getLabelForRearrange[A1](0)))
+
+  inline def rearrange[A1 <: Label, A2 <: Label](
+      a1: Axis[A1],
+      a2: Axis[A2]
+  )(using ev: Tuple.Size[(A1, A2)] =:= Tuple.Size[T]): Tensor[(A1, A2)] =
+    rearrangeImpl[(A1, A2)](Seq(getLabelForRearrange[A1](0), getLabelForRearrange[A2](1)))
+
+  inline def rearrange[A1 <: Label, A2 <: Label, A3 <: Label](
+      a1: Axis[A1],
+      a2: Axis[A2],
+      a3: Axis[A3]
+  )(using ev: Tuple.Size[(A1, A2, A3)] =:= Tuple.Size[T]): Tensor[(A1, A2, A3)] =
+    rearrangeImpl[(A1, A2, A3)](
+      Seq(getLabelForRearrange[A1](0), getLabelForRearrange[A2](1), getLabelForRearrange[A3](2))
     )
 
-    // Extract label names from the NewOrder type at compile time
-    val newLabelNames = extractLabelNamesFromAxes[NewOrder]
+  inline def rearrange[A1 <: Label, A2 <: Label, A3 <: Label, A4 <: Label](
+      a1: Axis[A1],
+      a2: Axis[A2],
+      a3: Axis[A3],
+      a4: Axis[A4]
+  )(using ev: Tuple.Size[(A1, A2, A3, A4)] =:= Tuple.Size[T]): Tensor[(A1, A2, A3, A4)] =
+    rearrangeImpl[(A1, A2, A3, A4)](
+      Seq(
+        getLabelForRearrange[A1](0),
+        getLabelForRearrange[A2](1),
+        getLabelForRearrange[A3](2),
+        getLabelForRearrange[A4](3)
+      )
+    )
+
+  inline def rearrange[A1 <: Label, A2 <: Label, A3 <: Label, A4 <: Label, A5 <: Label](
+      a1: Axis[A1],
+      a2: Axis[A2],
+      a3: Axis[A3],
+      a4: Axis[A4],
+      a5: Axis[A5]
+  )(using ev: Tuple.Size[(A1, A2, A3, A4, A5)] =:= Tuple.Size[T]): Tensor[(A1, A2, A3, A4, A5)] =
+    rearrangeImpl[(A1, A2, A3, A4, A5)](
+      Seq(
+        getLabelForRearrange[A1](0),
+        getLabelForRearrange[A2](1),
+        getLabelForRearrange[A3](2),
+        getLabelForRearrange[A4](3),
+        getLabelForRearrange[A5](4)
+      )
+    )
+
+  // Helper to get label name, trying ValueOf first, falling back to existing shape labels
+  private inline def getLabelForRearrange[L <: Label](idx: Int): String =
+    scala.compiletime.summonFrom {
+      case v: ValueOf[L] => v.value.toString
+      case _             =>
+        // Fall back to the label from the current shape at the given index
+        if idx < shape.axisLabels.length then shape.axisLabels(idx)
+        else s"dim$idx"
+    }
+
+  // Helper implementation that works at runtime
+  private def rearrangeImpl[NewOrder <: Tuple](newLabelNames: Seq[String]): Tensor[NewOrder] =
+    require(
+      newLabelNames.length == shape.dims.length,
+      s"Number of axes ${newLabelNames.length} must match tensor rank ${shape.dims.length}"
+    )
 
     // Get the current shape's axis labels
     val currentLabelNames = shape.axisLabels
@@ -210,14 +267,6 @@ class Tensor[T <: Tuple](val shape: Shape[T], val jaxValue: Jax.PyDynamic, val d
     val newShape = new Shape[NewOrder](newShapeTuple, newLabelNames.toArray)
 
     new Tensor[NewOrder](newShape, transposedJax, dtype)
-
-  // Helper to extract label names from a tuple type at compile time
-  private inline def extractLabelNamesFromAxes[T <: Tuple]: Seq[String] =
-    inline erasedValue[T] match
-      case _: EmptyTuple     => Seq.empty
-      case _: (head *: tail) =>
-        val headName = scala.compiletime.constValue[head]
-        headName.toString +: extractLabelNamesFromAxes[tail]
 
   /** Access a specific index of the tensor.
     */

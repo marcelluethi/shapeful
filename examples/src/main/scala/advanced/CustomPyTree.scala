@@ -33,7 +33,9 @@ object CustomPyTree extends App:
   // but let's see how it works with our simple structure
 
   val simpleModel = SimpleModel(
-    weight = Tensor2(Axis[Feature], Axis[Hidden],
+    weight = Tensor2(
+      Axis[Feature],
+      Axis[Hidden],
       Seq(
         Seq(0.1f, 0.2f, 0.3f),
         Seq(0.4f, 0.5f, 0.6f)
@@ -67,7 +69,9 @@ object CustomPyTree extends App:
 
   val multiLayerModel = MultiLayerModel(
     layer1 = NetworkLayer(
-      weight = Tensor2(Axis[Feature], Axis[Hidden],
+      weight = Tensor2(
+        Axis[Feature],
+        Axis[Hidden],
         Seq(
           Seq(0.1f, 0.2f),
           Seq(0.3f, 0.4f),
@@ -77,7 +81,9 @@ object CustomPyTree extends App:
       bias = Tensor1(Axis[Hidden], Seq(0.1f, 0.0f))
     ),
     layer2 = NetworkLayer(
-      weight = Tensor2(Axis[Feature], Axis[Hidden],
+      weight = Tensor2(
+        Axis[Feature],
+        Axis[Hidden],
         Seq( // Changed from Hidden, Hidden to Feature, Hidden
           Seq(0.7f, 0.8f),
           Seq(0.9f, 1.0f)
@@ -85,7 +91,9 @@ object CustomPyTree extends App:
       ),
       bias = Tensor1(Axis[Hidden], Seq(-0.1f, 0.2f))
     ),
-    outputWeight = Tensor2(Axis[Hidden], Axis[Output],
+    outputWeight = Tensor2(
+      Axis[Hidden],
+      Axis[Output],
       Seq(
         Seq(1.1f),
         Seq(1.2f)

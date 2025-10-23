@@ -1,6 +1,6 @@
 package shapeful.autodiff
 
-import shapeful.*
+import shapeful.{Tensor, Tensor1, Tensor2, Shape, Axis, Label}
 import shapeful.jax.Jax
 import me.shadaj.scalapy.py
 

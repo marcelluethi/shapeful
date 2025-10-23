@@ -243,7 +243,7 @@ class RandomTests extends FunSuite:
     val key = Random.Key(123)
 
     // Permute along Feature axis
-    val permuted = Random.permutation(Axis[Feature], key, tensor)
+    val permuted = Random.permutation(Axis[Feature])(key, tensor)
 
     // Convert both tensors to sequences and sort to verify same elements
     val originalSeq = values.sorted

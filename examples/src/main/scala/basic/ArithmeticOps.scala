@@ -45,14 +45,18 @@ object ArithmeticOps extends App:
   // 3. Matrix operations
   println("3. Matrix Operations")
 
-  val matrix1 = Tensor2(Axis[Batch], Axis[Feature],
+  val matrix1 = Tensor2(
+    Axis[Batch],
+    Axis[Feature],
     Seq(
       Seq(1.0f, 2.0f, 3.0f),
       Seq(4.0f, 5.0f, 6.0f)
     )
   )
 
-  val matrix2 = Tensor2(Axis[Batch], Axis[Feature],
+  val matrix2 = Tensor2(
+    Axis[Batch],
+    Axis[Feature],
     Seq(
       Seq(2.0f, 2.0f, 2.0f),
       Seq(3.0f, 3.0f, 3.0f)
@@ -79,7 +83,9 @@ object ArithmeticOps extends App:
   // 5. Reduction operations
   println("5. Reduction Operations")
 
-  val data = Tensor2(Axis[Batch], Axis[Feature],
+  val data = Tensor2(
+    Axis[Batch],
+    Axis[Feature],
     Seq(
       Seq(1.0f, 2.0f, 3.0f, 4.0f),
       Seq(5.0f, 6.0f, 7.0f, 8.0f),

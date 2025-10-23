@@ -55,17 +55,19 @@ object DataUtils:
 
     // Combine coordinates with noise using stack operation
     // Stack X and Y coordinates to create 2D points for each moon
-    val moon1 = (moon1X + noise1X).stack(Axis[Feature], (moon1Y + noise1Y)).transpose
-    val moon2 = (moon2X + noise2X).stack(Axis[Feature], (moon2Y_flipped + noise2Y)).transpose
+    val moon1: Tensor2[Sample, Feature] =
+      (moon1X + noise1X).stack(Axis[Feature])(moon1Y + noise1Y).rearrange(Axis[Sample], Axis[Feature])
+    val moon2: Tensor2[Sample, Feature] =
+      (moon2X + noise2X).stack(Axis[Feature])(moon2Y_flipped + noise2Y).rearrange(Axis[Sample], Axis[Feature])
 
     // Concatenate both moons along the sample dimension
-    val X = moon1.concat(Axis[Sample], moon2)
+    val X = moon1.concat(Axis[Sample])(moon2)
     val y = Tensor
       .zeros(Shape(Axis[ClassLabel] -> samplesPerMoon))
-      .concat(Axis[ClassLabel], Tensor.ones(Shape(Axis[ClassLabel] -> samplesPerMoon)))
+      .concat(Axis[ClassLabel])(Tensor.ones(Shape(Axis[ClassLabel] -> samplesPerMoon)))
 
     // Permute both X and y consistently along the Sample axis
-    val permutedX = Random.permutation(Axis[Sample], permutationKey, X)
-    val permutedY = Random.permutation(Axis[ClassLabel], permutationKey, y)
+    val permutedX = Random.permutation(Axis[Sample])(permutationKey, X)
+    val permutedY = Random.permutation(Axis[ClassLabel])(permutationKey, y)
 
     (permutedX, permutedY)

@@ -232,10 +232,8 @@ object Random:
       new Tensor[T](tensor.shape, jaxValues, tensor.dtype)
 
   inline def permutation[T <: Tuple, PermutationAxis <: Label](
-      axis: Axis[PermutationAxis],
-      key: Key,
-      tensor: Tensor[T]
-  ): Tensor[T] =
+      axis: Axis[PermutationAxis]
+  )(key: Key, tensor: Tensor[T]): Tensor[T] =
     val axisIndex = TupleHelpers.indexOf[PermutationAxis, T]
     permutation(key, tensor, axisIndex)
 

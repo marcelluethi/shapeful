@@ -1,144 +1,223 @@
 package examples.basic
 
 import shapeful.*
-import shapeful.autodiff.*
-import shapeful.nn.*
-import shapeful.jax.Jax
+import shapeful.Conversions.given
+import nn.*
+import nn.ActivationFunctions.{relu, sigmoid}
 import shapeful.random.Random
-import shapeful.optimization.GradientDescent
-import examples.DataUtils
-import examples.nn.losses.BinaryCrossEntropy
-import examples.datautils.DataLoaderOps
-import examples.datautils.MNISTLoader
-import shapeful.tensor.TensorIndexing.*
-import examples.datautils.DataLoader
-import shapeful.nn.Utils
+
 import scala.concurrent.ExecutionContext.Implicits.global
-import shapeful.tensor.Device
-import shapeful.jax.Jit
+import scala.util.Try
+import java.io.{FileInputStream, DataInputStream, BufferedInputStream}
+
+def binaryCrossEntropy[L : Label](
+  logits: Tensor1[L], label: Tensor0
+): Tensor0 =
+  val maxLogit = logits.max
+  val stableExp = (logits :- maxLogit).exp
+  val logSumExp = stableExp.sum.log + maxLogit
+  val targetLogit = logits.slice(Axis[L] -> label.toInt)
+  -(targetLogit - logSumExp)
+
 
 object MLPClassifierMNist:
 
-  type Sample = "sample"
-
-  type Feature = "feature"
-  given Dim[Feature] = Dim(28 * 28)
-
-  type Hidden1 = "hidden1"
-  given Dim[Hidden1] = Dim(256)
-
+  type TrainSample = "train-sample"
+  type TestSample = "test-sample"
+  type Height = "height"
+  type Width = "width"
+  type Hidden = "hidden"
   type Output = "output"
-  given Dim[Output] = Dim(10)
 
-  case class MLPParams(
-      layer1: Linear.Params[Feature, Hidden1],
-      output: Linear.Params[Hidden1, Output]
-  ) derives TensorTree,
-        ToPyTree
+  object MLP:
+    case class Params(
+      layer1: LinearLayer.Params[Height * Width, Hidden],
+      layer2: LinearLayer.Params[Hidden, Output],
+    ) derives TensorTree, ToPyTree
 
-  def initParams(key: Random.Key): MLPParams =
-    val keys = key.split(2)
-    MLPParams(
-      layer1 = Linear.he[Feature, Hidden1](keys(0)),
-      output = Linear.xavier[Hidden1, Output](keys(1))
-    )
+    object Params:
+      def apply(
+        layer1Dim: Dim[Height * Width], layer2Dim: Dim[Hidden], outputDim: Dim[Output]
+      )(
+        paramKey: Random.Key
+      ): Params = 
+        val (key1, key2) = paramKey.split2()
+        Params(
+          layer1 = LinearLayer.Params(key1)(layer1Dim, layer2Dim),
+          layer2 = LinearLayer.Params(key2)(layer2Dim, outputDim),
+        )
 
-  def forward(params: MLPParams, x: Tensor1[Feature]): (Tensor1[Output], Tensor1[Output]) =
-    val layer1 = Linear[Feature, Hidden1]()
-    val outputLayer = Linear[Hidden1, Output]()
+  case class MLP(params: MLP.Params) extends Function[Tensor2[Height, Width], Tensor0]:
+    
+    private val layer1 = LinearLayer(params.layer1)
+    private val layer2 = LinearLayer(params.layer2)
 
-    val mapping = layer1(params.layer1)
-      .andThen(Activation.relu)
-      .andThen(outputLayer(params.output))
+    def logits(
+      image: Tensor2[Height, Width],
+    ): Tensor1[Output] =
+      val hidden = relu(layer1(image.ravel))
+      layer2(hidden)
 
-    val logits = mapping(x)
-    val probs = Activation.softmax(Axis[Output])(logits)
-    (logits, probs)
+    override def apply(image: Tensor2[Height, Width]): Tensor0 = logits(image).argmax(Axis[Output])
+    
+  object MNISTLoader:
 
+    private type Sample = "sample"
+
+    private def readInt(dis: DataInputStream): Int = dis.readInt()
+    private def loadImagePixels(filename: String, maxImages: Option[Int] = None): Try[Tensor3[Sample, Height, Width]] =
+      Try {
+        val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
+        try
+          val magic = readInt(dis)
+          if magic != 2051 then
+            throw new IllegalArgumentException(s"Invalid magic number for images: $magic (expected 2051)")
+
+          val totalImages = readInt(dis)
+          val rows = readInt(dis)
+          val cols = readInt(dis)
+
+          val numImages = maxImages.map(max => math.min(max, totalImages)).getOrElse(totalImages)
+          println(s"Loading $numImages of $totalImages images (${rows}x${cols}) from $filename into memory as Tensor3")
+
+          // Read all pixel data at once
+          val totalPixels = numImages * rows * cols
+          val pixelBytes = new Array[Byte](totalPixels)
+          dis.readFully(pixelBytes)
+          // Convert bytes to floats with vectorized operation
+          val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
+          val shape = Shape(Axis[Sample] -> numImages, Axis[Height] -> rows, Axis[Width] -> cols)
+          val tensor = Tensor3(shape, allPixels, DType.Float32)
+          tensor.toDevice(Device.CPU)
+        finally dis.close()
+      }
+
+    private def loadLabelsArray(filename: String, maxLabels: Option[Int] = None): Try[Tensor1[Sample]] = Try {
+      val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
+      try
+        val magic = readInt(dis)
+        if magic != 2049 then
+          throw new IllegalArgumentException(s"Invalid magic number for labels: $magic (expected 2049)")
+
+        val totalLabels = readInt(dis)
+        val numLabels = maxLabels.map(max => math.min(max, totalLabels)).getOrElse(totalLabels)
+        println(s"Loading $numLabels of $totalLabels labels from $filename into memory as Tensor1")
+
+        val labels = Array.ofDim[Int](numLabels)
+        for i <- 0.until(numLabels) do labels(i) = dis.readUnsignedByte()
+
+        // Create Tensor1 from labels - specify the label type correctly
+        val tensor = Tensor1.fromInts(Axis[Sample], labels, DType.Int32)
+        tensor.toDevice(Device.CPU)
+      finally dis.close()
+    }
+
+    private def createDataset(imagesFile: String, labelsFile: String, maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(Sample, Height, Width)], Tensor1[Sample]]] =
+      for
+        imagePixels <- loadImagePixels(imagesFile, maxSamples)
+        labels <- loadLabelsArray(labelsFile, maxSamples)
+      yield
+        val numImages = imagePixels.shape(Axis[Sample])
+        val numLabels = labels.shape.size
+        if numImages != numLabels then
+          throw new IllegalArgumentException(s"Mismatch: $numImages images vs $numLabels labels")
+        println(s"Created in-memory MNIST dataset with $numImages images")
+        (imagePixels, labels)
+
+    def createTrainingDataset(dataDir: String = "data", maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(TrainSample, Height, Width)], Tensor1[TrainSample]]] =
+      val imagesFile = s"$dataDir/train-images-idx3-ubyte"
+      val labelsFile = s"$dataDir/train-labels-idx1-ubyte"
+      val dataset = createDataset(imagesFile, labelsFile, maxSamples)
+      dataset.map:
+        case (images, labels) =>
+          (images.relabel(Axis[Sample] -> Axis[TrainSample]), labels.relabel(Axis[Sample] -> Axis[TrainSample]))
+
+    def createTestDataset(dataDir: String = "data", maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(TestSample, Height, Width)], Tensor1[TestSample]]] =
+      val imagesFile = s"$dataDir/t10k-images-idx3-ubyte"
+      val labelsFile = s"$dataDir/t10k-labels-idx1-ubyte"
+      val dataset = createDataset(imagesFile, labelsFile, maxSamples)
+      dataset.map:
+        case (images, labels) =>
+          (images.relabel(Axis[Sample] -> Axis[TestSample]), labels.relabel(Axis[Sample] -> Axis[TestSample]))
+    
   def main(args: Array[String]): Unit =
+
     val learningRate = 5e-2f
-    val numSamples = 20000
+    val numSamples = 5120
     val batchSize = 512
     val numEpochs = 100
-    val key = Random.Key(42)
-    val (dataKey, shuffleKey) = key.split2()
+    val (dataKey, trainKey) = Random.Key(42).split2()
+    val (initKey, restKey) = trainKey.split2()
 
-    // Load MNIST dataset using optimized memory-mapped loader
-    val dataset = MNISTLoader
-      .createTrainingDataset()
-      .get
-    println(s"Loaded memory-mapped dataset with ${dataset.size} images")
+    val (trainX, trainY) = MNISTLoader.createTrainingDataset(maxSamples = Some(numSamples)).get
+    val (testX, testY) = MNISTLoader.createTestDataset(maxSamples = Some(1024)).get
 
-    // Split dataset indices for train/test (90/10 split)
-    val (trainingData, testData) = DataLoaderOps.split(dataset, 0.9)
-
-    // Loss function that works on a batch
-    def batchLoss(batchImages: Tensor2[Sample, Feature], batchLabels: Tensor2[Sample, Output])(
-        params: MLPParams
+    def batchLoss(batchImages: Tensor[(TrainSample, Height, Width)], batchLabels: Tensor1[TrainSample])(
+        params: MLP.Params
     ): Tensor0 =
-      val losses = batchImages.zipVmap(Axis[Sample])(batchLabels) { (sample, label) =>
-        val (logits, _) = forward(params, sample)
-        BinaryCrossEntropy(logits, label)
-      }
-      shapeful.mean(losses)
+      val model = MLP(params)
+      val losses = zipvmap(Axis[TrainSample])(batchImages, batchLabels):
+        case (image, label) =>
+          val logits = model.logits(image)
+          binaryCrossEntropy(logits, label)
+      losses.mean
 
-    val initialParams = initParams(dataKey)
-    var currentParams = initialParams
+    val initParams = MLP.Params(
+      Axis[Height * Width] -> 28 * 28,
+      Axis[Hidden] -> 128,
+      Axis[Output] -> 10
+    )(initKey)
 
-    type BatchOutput = (Sample, Output)
+    def accuracy[Sample : Label](predictions: Tensor1[Sample], targets: Tensor1[Sample]): Tensor0 =
+      val matches = zipvmap(Axis[Sample])(predictions, targets):
+        case (pred, target) => Tensor0(pred.toInt == target.toInt)
+      matches.mean
 
-    // JIT-compile accuracy calculation
-    def accuracyFn(predictions: Tensor2[Sample, Output], targets: Tensor2[Sample, Output]): Tensor0 =
-      val predClasses = predictions.vmap(Axis[Sample]) { pred => shapeful.argmax(pred) }
-      val targetClasses = targets.vmap(Axis[Sample]) { target => shapeful.argmax(target) }
-      val matches =
-        predClasses.zipVmap(Axis[Sample])(targetClasses) { (pred, target) => Tensor0(1.0f) - (pred - target).abs.sign }
-      shapeful.sum(matches)
+    def miniBatchGradientDescent(
+      imageBatches: Seq[Tensor[(TrainSample, Height, Width)]],
+      labelBatches: Seq[Tensor1[TrainSample]],
+    )(
+      params: MLP.Params
+    ): MLP.Params =
+      imageBatches.zip(labelBatches).foldLeft(params):
+        case (params, (imageBatch, labelBatch)) =>
+          val lossBatch = batchLoss(imageBatch, labelBatch)
+          val df = Autodiff.grad(lossBatch)
+          GradientDescent(df, learningRate).step(params)
+    
+    def timed[A](template: String)(block: => A): A =
+      val t0 = System.currentTimeMillis()
+      val result = block
+      println(s"$template took ${System.currentTimeMillis() - t0} ms")
+      result
 
-    val jittedAccuracy = Jit.function2(accuracyFn)
-
-    val jittedGradStep = Jit.gradientStep(
-      (params: MLPParams, flattenedImages: Tensor2[Sample, Feature], oneHotLabels: Tensor2[Sample, Output]) =>
-        val gradFn = Autodiff.grad(batchLoss(flattenedImages, oneHotLabels))
-        GradientDescent(learningRate).step(gradFn, params)
+    val trainMiniBatchGradientDescent = miniBatchGradientDescent(
+      trainX.chunk(Axis[TrainSample], batchSize),
+      trainY.chunk(Axis[TrainSample], batchSize),
     )
-
-    // Training loop with epochs and batches
-    for epoch <- 0 `until` numEpochs do
-      println(s"Epoch $epoch")
-
-      trainingData.batches[Sample](batchSize).zipWithIndex.foreach { case ((batchImages, batchLabels), batchIndex) =>
-        val actualBatchSize = batchImages.shape.dim[Sample]
-        batchImages.toDevice(Device.GPU)
-        batchLabels.toDevice(Device.GPU)
-        if actualBatchSize == batchSize then
-          if batchIndex % 30 == 0 then
-
-            val (testImages, testLabels) =
-              testData.getBatch[Sample](0, 1000) // Use first 1000 test samples for quick eval
-            val testProbs = testImages.vmap(Axis[Sample]) { image =>
-              val flattened = image.reshape(Shape(Axis[Feature] -> 28 * 28))
-              forward(currentParams, flattened)._2
-            }
-            val oneHotTestLabels =
-              Utils.oneHot[Sample, Output](testLabels.reshape(Shape(Axis[Sample] -> testLabels.shape.dim[Sample])), 10)
-
-            val correctCount = jittedAccuracy(testProbs, oneHotTestLabels)
-            val accuracy = correctCount.toFloat / 1000.0f
-
-            println(f"Test accuracy after batch $batchIndex: ${accuracy * 100}%.2f%%")
-            println("done evaluating")
-
-          // Flatten images for MLP input
-          val flattenedImages = batchImages.vmap(Axis[Sample]) { image =>
-            image.reshape(Shape(Axis[Feature] -> 28 * 28))
-          }
-          val oneHotLabels =
-            Utils.oneHot[Sample, Output](batchLabels.reshape(Shape(Axis[Sample] -> batchLabels.shape.dim[Sample])), 10)
-
-          // Use JIT-compiled gradient step - FAST! 10-50x speedup!
-          currentParams = jittedGradStep(currentParams, flattenedImages, oneHotLabels)
-        else println(s"Skipping incomplete batch of size $actualBatchSize")
-      }
+    val jitTrainMiniBatchGradientDescent = jit2(trainMiniBatchGradientDescent)
+    val trainTrajectory = Iterator.iterate(initParams)( currentParams => 
+      timed("Training"):
+        trainMiniBatchGradientDescent(currentParams)
+        // jitTrainMiniBatchGradientDescent(currentParams) // worse on CPU... TODO test on a GPU
+    )
+    val finalParams = trainTrajectory
+      .zipWithIndex
+      .tapEach:
+        case (params, epoch) =>
+          timed("Evaluation"):
+            val model = MLP(params)
+            val testPreds = testX.vmap(Axis[TestSample])(model)
+            val testAccuracy = accuracy(testPreds, testY).toFloat
+            val trainPreds = trainX.vmap(Axis[TrainSample])(model)
+            val trainAccuracy = accuracy(trainPreds, trainY).toFloat
+            println(List(
+              s"Epoch $epoch",
+              f"Test accuracy: ${testAccuracy * 100}%.2f%%",
+              f"Train accuracy: ${trainAccuracy * 100}%.2f%%"
+            ).mkString(", "))
+      .map((params, _) => params)
+      .drop(numEpochs)
+      .next()
 
     println("\nTraining complete!")

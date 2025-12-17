@@ -1,39 +1,28 @@
 package examples.basic
 
 import shapeful.*
-import shapeful.autodiff.*
-import shapeful.nn.*
-import shapeful.jax.Jax
+import nn.*
+import nn.ActivationFunctions.{relu, sigmoid}
+import shapeful.Conversions.given
 import shapeful.random.Random
-import shapeful.optimization.GradientDescent
-import examples.DataUtils
-import io.github.quafadas.table.*
-import scala.compiletime.constValueTuple
-import scala.collection.immutable.ArraySeq
 
 object LogisticRegression:
 
   type Sample = "sample"
   type Feature = "feature"
-  type Output = "output"
 
-  case class Params(
-      weights: Tensor1[Feature],
-      bias: Tensor0
-  ) derives TensorTree,
-        ToPyTree
+  object BinaryLogisticRegression:
+    case class Params(
+      linearMap: LinearMap.Params[Feature]
+    ) derives TensorTree, ToPyTree
 
-  def initParams(key: Random.Key)(using featureDim: Dim[Feature]): Params =
-    val keys = key.split(2)
-    Params(
-      weights = Tensor.zeros(Shape(Axis[Feature] -> featureDim.dim)),
-      bias = Tensor.zeros(Shape0)
-    )
-
-  def forward(params: Params, x: Tensor1[Feature]): (Tensor0, Tensor0) =
-    val logits = x.dot(params.weights) + params.bias
-    val probs = logits.sigmoid
-    (logits, probs)
+  case class BinaryLogisticRegression(
+    params: BinaryLogisticRegression.Params,
+  ) extends Function[Tensor1[Feature], Tensor0]:
+    private val linear = LinearMap(params.linearMap)
+    def logits(input: Tensor1[Feature]): Tensor0 = linear(input)
+    def probits(input: Tensor1[Feature]): Tensor0 = sigmoid(logits(input))
+    def apply(input: Tensor1[Feature]): Tensor0 = logits(input) >= Tensor0(0f)
 
   def main(args: Array[String]): Unit =
 
@@ -45,69 +34,81 @@ object LogisticRegression:
 
     val dfShuffled = scala.util.Random.shuffle(df)
 
-    val learningRate = 3e-1f
-    val numSamples = 1000
-    val key = Random.Key(42)
-
-    val numFeatures = 4
-    given Dim[Feature] = Dim(numFeatures)
-
-    val (dataKey, trainKey) = Random.Key(42).split2()
-    val featureData = dfShuffled
-      .map { row =>
+    val featureData = dfShuffled.map { row =>
         Array(
           row.flipper_length_mm.toFloat,
           row.bill_length_mm.toFloat,
           row.bill_depth_mm.toFloat,
           row.body_mass_g.toFloat
         )
-      }
-      .toArray
-      .flatten
+      }.toArray
     val labelData = dfShuffled.column["species"].toArray.map(_.toFloat)
 
-    val trainingDataUnnormalized = Tensor2.fromArray(
-      Shape(Axis[Sample] -> df.length, Axis[Feature] -> numFeatures),
-      ArraySeq.unsafeWrapArray(featureData)
-    )
-    val labels = Tensor1.fromArray(Axis[Sample], ArraySeq.unsafeWrapArray(labelData))
+    val dataUnnormalized = Tensor2(Axis[Sample], Axis[Feature], featureData)
+    val dataLabels = Tensor1(Axis[Sample], labelData)
 
-    def standardize(t: Tensor2[Sample, Feature]): Tensor2[Sample, Feature] =
-      val mean = t.vmap(Axis[Feature]) { _.mean }
-      val std = t.zipVmap(Axis[Feature])(mean) { (x, m) => (x - m).pow(Tensor0(2f)).mean.sqrt + Tensor0(1e-6f) }
-      t.vmap(Axis[Sample]) { (x) => (x - mean) / std }
-    val trainingData = standardize(trainingDataUnnormalized)
+    // TODO implement split
+    val (trainingDataUnnormalized, valDataUnnormalized) = (dataUnnormalized, dataUnnormalized)
+    val (trainLabels, valLabels) = (dataLabels, dataLabels)
 
+    def calcMeanAndStd(t: Tensor2[Sample, Feature]): (Tensor1[Feature], Tensor1[Feature]) =
+      val mean = t.vmap(Axis[Feature])(_.mean)
+      val std = zipvmap(Axis[Feature])(t, mean):
+        case (x, m) => 
+          val epsilon = 1e-6f
+          (x :- m).pow(2).mean.sqrt + epsilon
+          // x.vmap(Axis[Sample])(xi => (xi - m).pow(2)).mean.sqrt + epsilon
+      (mean, std)
+
+    def standardizeData(mean: Tensor1[Feature], std: Tensor1[Feature])(data: Tensor2[Sample, Feature]): Tensor2[Sample, Feature] =
+      data.vapply(Axis[Feature])(feature => (feature - mean) / std)
+      // (data :- mean) :/ std
+
+    val (trainMean, trainStd) = calcMeanAndStd(trainingDataUnnormalized)
+    val trainingData = standardizeData(trainMean, trainStd)(trainingDataUnnormalized)
+    val valData = standardizeData(trainMean, trainStd)(valDataUnnormalized)
+
+    val (dataKey, trainKey) = Random.Key(42).split2()
     val (initKey, restKey) = trainKey.split2()
     val (lossKey, sampleKey) = restKey.split2()
 
-    def loss(p: Params): Tensor0 =
-      val losses = trainingData.zipVmap(Axis[Sample])(labels) { (sample, label) =>
-        val (logits, probs) = forward(p, sample)
-        (logits.relu - logits * label + ((logits.abs * Tensor0(-1f)).exp + Tensor0(1f)).log)
-      }
+    def loss(data: Tensor2[Sample, Feature])(params: BinaryLogisticRegression.Params): Tensor0 =
+      val model = BinaryLogisticRegression(params)
+      val losses = zipvmap(Axis[Sample])(data, trainLabels):
+        case (sample, label) =>
+          val logits = model.logits(sample)
+          relu(logits) - logits * label + ((-logits.abs).exp + 1f).log
       losses.mean
 
-    val initialParams = initParams(initKey)
+    val initParams = BinaryLogisticRegression.Params(
+      LinearMap.Params(initKey)(dataUnnormalized.dim(Axis[Feature]))
+    )
 
-    val gradFn = Autodiff.grad(loss)
-    val finalParams = GradientDescent(learningRate)
-      .optimize(gradFn, initialParams)
+    val trainLoss = loss(trainingData)
+    val valLoss = loss(valData)
+    val learningRate = 3e-1f
+    val gd = GradientDescent(Autodiff.grad(trainLoss), learningRate)
+    
+    val trainTrajectory = Iterator.iterate(initParams)(gd.step)
+    val finalParams = trainTrajectory
       .zipWithIndex
-      .map((params, i) =>
-        if i % 10 == 0 then
-          println("loss: " + loss(params))
-          val outputs = trainingData.vmap(Axis[Sample]) { x => forward(params, x)._2 }
-          println("acc: " + (Tensor0(1f) - (outputs - labels).abs.mean))
-        end if
-        params
-      )
-      .take(2500)
-      .toSeq
-      .last
+      .tapEach:
+        case (params, index) =>
+          val model = BinaryLogisticRegression(params)
+          val trainPreds = trainingData.vmap(Axis[Sample])(model)
+          val valPreds = valData.vmap(Axis[Sample])(model)
+          println(List(
+            "epoch: " + index,
+            "trainAcc: " + (1 - (trainPreds - trainLabels).abs.mean),
+            "valAcc: " + (1 - (valPreds - valLabels).abs.mean)
+          ).mkString(", "))
+      .map((params, _) => params)
+      .drop(2500)
+      .next()
 
-    val predictions = trainingData.vmap(Axis[Sample]) { x => forward(finalParams, x)._2 }
+    val finalModel = BinaryLogisticRegression(finalParams)
+    val predictions = trainingData.vmap(Axis[Sample])(finalModel.probits)
     println(predictions)
-    val predictionClasses = predictions.vmap(Axis[Sample]) { p => p.argmax }
+    val predictionClasses = trainingData.vmap(Axis[Sample])(x => finalModel(x))
 
     println("\nTraining complete. Optimized parameters:" + finalParams)

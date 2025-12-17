@@ -1,0 +1,32 @@
+package object shapeful:
+
+  import scala.compiletime.ops.string.+
+
+  object StringLabelMath:
+    infix type *[A <: String, B <: String] = A + "*" + B
+
+  // Export tensor and related types
+  export shapeful.tensor.{Tensor, Tensor0, Tensor1, Tensor2, Tensor3}
+  export shapeful.tensor.{Shape, Shape0, Shape1, Shape2, Shape3}
+  export shapeful.tensor.{DType, Device}
+  export shapeful.tensor.{Label, Labels, Axis, AxisIndex, AxisIndices, Dim}
+  
+  // Export type helpers
+  export shapeful.tensor.Axis.UnwrapAxes
+  export shapeful.tensor.TupleHelpers.*
+  export shapeful.tensor.Broadcast
+  export StringLabelMath.`*`
+  
+  // Export operations
+  export shapeful.tensor.TensorOps.*
+  
+  // Export automatic differentiation
+  export shapeful.autodiff.{Autodiff, TensorTree, ToPyTree}
+
+  // Export Just-in-Time compilation
+  export shapeful.jax.Jit.{jit, jit2}
+
+  // Export implicit conversions
+  object Conversions:
+    export shapeful.tensor.Tensor0.{given_Conversion_Int_Tensor0, given_Conversion_Float_Tensor0}
+

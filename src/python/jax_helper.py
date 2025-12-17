@@ -23,7 +23,24 @@ def vmap(f, dims):
     # Create vmap with the wrapper
     return jax.vmap(python_wrapper, in_axes=dims)
             
-
+def apply_over_axes(f, axis):
+    """
+    Applies a function `f` over specified axes using JAX's vmap functionality.
+    
+    Args:
+        f: Function that takes one argument (x)
+        axis: Axis or tuple of axes to map over
+    
+    It is wrapped in a Python function to ensure that the function, as otherwise
+    jax will crash upon inspection.
+    """
+                
+    # Wrap the ScalaPy function in a pure Python wrapper
+    def python_wrapper(x):
+        return f(x)
+            
+    # Create vmap with the wrapper
+    return jnp.apply_over_axes(python_wrapper, axis)
 
 def vmap2(f, dims):
     """
@@ -104,6 +121,12 @@ def jacrev(f):
         return f(x)
     
     return jax_jacrev(python_wrapper)
+
+def jacobian(f):
+    from jax import jacobian as jax_jacobian
+    def python_wrapper(x):
+        return f(x)
+    return jax_jacobian(python_wrapper)
 
 def jit(f):
     """

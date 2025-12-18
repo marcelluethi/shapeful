@@ -16,7 +16,7 @@ lazy val root = (project in file("."))
 
 lazy val core = (project in file("core"))
   .settings(
-    name := "core",
+    name := "shapeful-core",
     libraryDependencies ++= Seq(
       "dev.scalapy" %% "scalapy-core" % "0.5.3",
       "org.scalameta" %% "munit" % "1.0.0" % Test
@@ -26,7 +26,7 @@ lazy val core = (project in file("core"))
 
 lazy val nn = (project in file("nn"))
   .settings(
-    name := "nn",
+    name := "shapeful-nn",
   )
   .dependsOn(core)
 

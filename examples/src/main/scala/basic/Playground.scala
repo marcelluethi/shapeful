@@ -94,8 +94,8 @@ import shapeful.*
     ))
     val d = X.rearrange(
       (
-        Axis[Batch * Frame],
-        Axis[Width * Height],
+        Axis[Batch |*| Frame],
+        Axis[Width |*| Height],
         Axis[Channel]
       )
     )
@@ -403,8 +403,8 @@ import shapeful.*
       }
       res.rearrange((
         Axis["Sequence"],
-        Axis["Heads" * "NewValue"],
-      )).relabel(Axis["Heads" * "NewValue"] -> Axis["Value"])
+        Axis["Heads" |*| "NewValue"],
+      )).relabel(Axis["Heads" |*| "NewValue"] -> Axis["Value"])
     }
     println(Xnew.shape)
   }

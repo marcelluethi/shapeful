@@ -1,0 +1,377 @@
+package examples.basic
+
+import shapeful.* 
+import shapeful.Conversions.given
+
+import nn.ActivationFunctions.*
+
+// Dimensions
+type Vocab = "Vocab"         // 50257
+type Embedding = "Embedding" // 768
+type Context = "Context"     // 1024
+type Inner = "Inner"         // 3072
+
+type Batch = "Batch"
+
+case class LNParams(
+    weight: Tensor1[Embedding], 
+    bias: Tensor1[Embedding]
+)
+
+case class LinearParams[In, Out](
+    weight: Tensor2[In, Out], 
+    bias: Tensor1[Out]
+)
+
+// Values stored as Query, Key, Value triplets
+// type QKV[L <: String] = L * L * L 
+// case class AttentionParams(
+    // Fused Q,K,V projection (768 -> 2304)
+//    cAttn: LinearParams[Embedding, QKV[Embedding]], 
+    // Output projection (768 -> 768)
+//    cProj: LinearParams[Embedding, Embedding]
+//)
+
+
+type Heads = "Heads"
+type Key = "Key"
+type Query = "Query"
+type NewValue = "NewValue"
+
+case class MultiHeadAttentionParams[Value](
+    WK : Tensor3[Heads, Value, Key],
+    WKBias: Tensor2[Heads, Key],
+    WQ : Tensor3[Heads, Value, Query],
+    WQBias: Tensor2[Heads, Query],
+    WV : Tensor3[Heads, Value, NewValue],
+    WVBias: Tensor2[Heads, NewValue],
+    proj: LinearParams[Heads |*| NewValue, Value],
+) derives ToPyTree
+
+type QKV = Heads |*| Query |*| Heads |*| Key |*| Heads |*| NewValue
+
+object MultiHeadAttentionParams:
+    def apply(
+        cAttn: LinearParams[Embedding, QKV], 
+        cProj: LinearParams[Heads |*| NewValue, Embedding],
+        numHeads: Int,
+    ): MultiHeadAttentionParams[Embedding] =
+        val qkvLength = cAttn.weight.shape(Axis[QKV])
+        require(qkvLength % 3 == 0, s"QKV length $qkvLength not divisible by 3")
+        val (qLength, kLength, vLength) = (qkvLength / 3, qkvLength / 3, qkvLength / 3)
+        // cAttn.bias
+        val wq = cAttn.weight.slice(Axis[QKV] -> (0 until qLength)).relabel(Axis[QKV] -> Axis[Heads |*| Query])
+        val wkb = cAttn.bias.slice(Axis[QKV] -> (qLength until qLength + kLength)).relabel(Axis[QKV] -> Axis[Heads |*| Key])
+        val wk = cAttn.weight.slice(Axis[QKV] -> (qLength until qLength + kLength)).relabel(Axis[QKV] -> Axis[Heads |*| Key])
+        val wqb = cAttn.bias.slice(Axis[QKV] -> (0 until qLength)).relabel(Axis[QKV] -> Axis[Heads |*| Query])
+        val wv = cAttn.weight.slice(Axis[QKV] -> (qLength + kLength until qkvLength)).relabel(Axis[QKV] -> Axis[Heads |*| NewValue])
+        val wvb = cAttn.bias.slice(Axis[QKV] -> (qLength + kLength until qkvLength)).relabel(Axis[QKV] -> Axis[Heads |*| NewValue])
+        require(qLength % numHeads == 0, s"Q length $qLength not divisible by numHeads $numHeads")
+        // TODO add rearrange unit tests for such cases
+        /*def splitToHeads[L <: String](tensor: Tensor2[Embedding, Heads |*| L], numHeads: Int)( // TODO make this work
+            using label: Label[L]
+        ): Tensor3[Heads, Embedding, L] = 
+            val tLength = tensor.shape(Axis[Heads |*| L])
+            require(tLength % numHeads == 0, s"T length $tLength not divisible by numHeads $numHeads")
+            ??? 
+            tensor.rearrange(
+                (Axis[Heads], Axis[Embedding], Axis[L]), 
+                (Axis[Heads] -> numHeads, Axis[L] ->(tLength / numHeads)),
+            )*/
+        val wqh = wq.rearrange(
+            (Axis[Heads], Axis[Embedding], Axis[Query]), 
+            (Axis[Heads] -> numHeads, Axis[Query] ->(qLength / numHeads)),
+        )
+        val wqbh = wqb.rearrange(
+            (Axis[Heads], Axis[Query]), 
+            (Axis[Heads] -> numHeads, Axis[Query] ->(qLength / numHeads)),
+        )
+        val wkh = wk.rearrange(
+            (Axis[Heads], Axis[Embedding], Axis[Key]), 
+            (Axis[Heads] -> numHeads, Axis[Key] ->(kLength / numHeads)),
+        )
+        val wkbh = wkb.rearrange(
+            (Axis[Heads], Axis[Key]), 
+            (Axis[Heads] -> numHeads, Axis[Key] ->(kLength / numHeads)),
+        )
+        val wvh = wv.rearrange(
+            (Axis[Heads], Axis[Embedding], Axis[NewValue]), 
+            (Axis[Heads] -> numHeads, Axis[NewValue] ->(vLength / numHeads)),
+        )
+        val wvbh = wvb.rearrange(
+            (Axis[Heads], Axis[NewValue]), 
+            (Axis[Heads] -> numHeads, Axis[NewValue] ->(vLength / numHeads)),
+        )
+        // val wo = cProj.asInstanceOf[Tensor2[Heads * NewValue, Embedding]]
+        // val wo = cProj.relabel((Axis[Heads * NewValue], Axis[Embedding]))
+        MultiHeadAttentionParams(
+            WK = wkh,
+            WKBias = wkbh,
+            WQ = wqh,
+            WQBias = wqbh,
+            WV = wvh,
+            WVBias = wvbh,
+            proj = cProj,
+        )
+
+
+case class MLPParams(
+    c_fc: LinearParams[Embedding, Inner],       // 768 -> 3072
+    c_proj: LinearParams[Inner, Embedding]      // 3072 -> 768
+)
+
+type WTEParams = Tensor2[Vocab, Embedding]
+type WPEParams = Tensor2[Context, Embedding]
+
+case class HiddenParams(
+   ln1 : LNParams,
+   attn : MultiHeadAttentionParams[Embedding],
+   ln2 : LNParams,
+   mlp: MLPParams
+)
+
+case class GPT2Params(
+    wpe: WPEParams,    
+    wte: WTEParams,
+    layers: List[HiddenParams], 
+    ln_f : LNParams
+)
+
+case class GPT2(params: GPT2Params):
+
+    private case class LinearLayer[In : Label, Out : Label](params: LinearParams[In, Out]) extends Function[Tensor1[In], Tensor1[Out]]:
+        override def apply(x: Tensor1[In]): Tensor1[Out] = x.contract(Axis[In])(params.weight) :+ params.bias
+
+    private case class MLP(params: MLPParams) extends Function[Tensor2[Context, Embedding], Tensor2[Context, Embedding]]:
+
+        private val hiddenLayer = LinearLayer(params.c_fc)
+        private val outputLayer = LinearLayer(params.c_proj)
+        // TODO add dropout
+
+        def apply(in: Tensor2[Context, Embedding]): Tensor2[Context, Embedding] = 
+            in.vmap(Axis[Context])(x => 
+                val hidden = gelu(hiddenLayer(x))
+                outputLayer(hidden)
+            )
+
+    private case class MultiHeadAttention[Value : Label](params: MultiHeadAttentionParams[Value]) extends Function[Tensor2[Context, Value], Tensor2[Context, Value]]:
+
+        private val projection = LinearLayer(params.proj)
+        
+        def apply(X : Tensor2[Context, Value]): Tensor2[Context, Value] =
+            val heads = zipvmap(Axis[Heads])(params.WQ, params.WK, params.WV) { (WQi, WKi, WVi) =>
+                attention(WQi, WKi, WVi)(X)
+            }
+            heads.vmap(Axis[Context])(heads => projection(heads.ravel))
+
+        private def attention(
+            WQ : Tensor2[Value, Query], 
+            WK : Tensor2[Value, Key], 
+            WV : Tensor2[Value, NewValue])
+        (X : Tensor2[Context, Value]): Tensor2[Context, NewValue] =
+            type SourceSequence = "SourceSequence"
+            val Q = X.contract(Axis[Value])(WQ)
+            val K = X.contract(Axis[Value])(WK)
+                .relabel(Axis[Context] -> Axis[SourceSequence])
+            val V = X.contract(Axis[Value])(WV)
+                .relabel(Axis[Context] -> Axis[SourceSequence])
+            val dk = Tensor0(Math.sqrt(K.shape(Axis[Key])).toFloat)
+            val attnWeights = (Q.contract(Axis[Query] -> Axis[Key])(K) :/ dk)
+                .vmap(Axis[Context])(softmax)
+            attnWeights.contract(Axis[SourceSequence])(V)
+
+    private case class LayerNorm(params: LNParams) extends Function[Tensor1[Embedding], Tensor1[Embedding]]:
+
+        private def standardize(x: Tensor1[Embedding]): Tensor1[Embedding] =
+            val mean = x.mean
+            val x0 = x :- mean
+            val variance = x0.pow(2).mean
+            val epsilon = 1e-6f
+            x0 :/ (variance + epsilon).sqrt
+
+        def apply(x: Tensor1[Embedding]): Tensor1[Embedding] =
+            val normalized = standardize(x)
+            normalized * params.weight + params.bias
+
+    private case class TransformerLayer(params: HiddenParams) extends Function[Tensor2[Context, Embedding], Tensor2[Context, Embedding]]:
+
+        private val mlp = MLP(params.mlp)
+        private val multiHeadAttention = MultiHeadAttention[Embedding](params.attn)
+        private val preNormalization = LayerNorm(params.ln1)
+        private val postNormalization = LayerNorm(params.ln2)
+        
+        def apply(t: Tensor2[Context, Embedding]): Tensor2[Context, Embedding] =
+            val attnDelta = multiHeadAttention(t.vmap(Axis[Context])(preNormalization))
+            val t2 = t + attnDelta
+            val mlpDelta = mlp(t2.vmap(Axis[Context])(postNormalization))
+            t2 + mlpDelta
+
+    private case class Transformer(layers: List[TransformerLayer]) extends Function[Tensor2[Context, Embedding], Tensor2[Context, Embedding]]:
+        override def apply(t: Tensor2[Context, Embedding]): Tensor2[Context, Embedding] =
+            layers.foldLeft(t) { (acc, layer) => layer(acc) }
+
+    private val transformer = Transformer(params.layers.map(layerParams => TransformerLayer(layerParams)))
+    private val finalNormalization = LayerNorm(params.ln_f)
+    private val outputLayer = LinearLayer(LinearParams(
+        weight = params.wte.transpose,
+        bias = Tensor.zeros(Shape(params.wte.shape.dim(Axis[Vocab]))),
+    ))
+
+    // type Int32Tensor1[L <: String] = Tensor1[L] { type DType = DType.UInt32.type }
+
+    private def embedder(tokens: Tensor1[Context]): Tensor2[Context, Embedding] =
+        tokens.vmap(Axis[Context])(token => params.wte.slice(Axis[Vocab] -> token.toInt))
+
+    private def addPositionEncoding(embeddings: Tensor2[Context, Embedding]): Tensor2[Context, Embedding] = 
+        embeddings + params.wpe
+
+    def logits(inputTokens: Tensor[(Batch, Context)]): Tensor[(Batch, Context, Vocab)] = 
+        inputTokens.vmap(Axis[Batch])(tokens => 
+            val startEmbeddings = addPositionEncoding(embedder(tokens))
+            val endEmbeddings = transformer(startEmbeddings)
+            endEmbeddings.vmap(Axis[Context])(x => 
+                val xNorm = finalNormalization(x)
+                outputLayer(xNorm)    
+            )
+        )
+
+    def probits(inputTokens: Tensor[(Batch, Context)]): Tensor[(Batch, Context, Vocab)] = 
+        logits(inputTokens).vapply(Axis[Vocab])(softmax)
+
+    def apply(inputTokens: Tensor[(Batch, Context)]): Tensor[(Batch, Context)] =
+        logits(inputTokens).argmax(Axis[Vocab])
+    
+
+object GPT2Inference:
+
+    import java.io.RandomAccessFile
+    import java.nio.channels.FileChannel
+    import java.nio.{ByteBuffer, ByteOrder}
+    import java.nio.charset.StandardCharsets
+    import shapeful.jax.Jax
+    import shapeful.tensor.DType
+    import me.shadaj.scalapy.py
+    import me.shadaj.scalapy.py.SeqConverters
+
+    case class TensorInfo(dtype: String, shape: List[Int], start: Long, end: Long)
+
+    object SafeTensorsReader:
+        import me.shadaj.scalapy.py.SeqConverters
+        import java.util.Base64
+
+        // A compact Python loader that decodes Base64 back to a tensor
+        // Defined as a single line to completely avoid IndentationErrors
+        private val pythonLoader = py.eval("""lambda b64, dtype, shape: (__import__('numpy').frombuffer(__import__('base64').b64decode(b64), dtype={'F32':__import__('numpy').float32,'I32':__import__('numpy').int32,'I64':__import__('numpy').int64}[dtype]).reshape(shape))""")
+
+        def readHeader(filePath: String): (Map[String, TensorInfo], Long) = 
+            // ... (Keep your existing header parsing code exactly as it is) ...
+            // (I omitted it here for brevity, but copy-paste your previous working readHeader)
+            val file = new RandomAccessFile(filePath, "r")
+            val channel = file.getChannel
+            try
+                val headerSizeBuffer = ByteBuffer.allocate(8)
+                headerSizeBuffer.order(ByteOrder.LITTLE_ENDIAN)
+                channel.read(headerSizeBuffer)
+                headerSizeBuffer.flip()
+                val headerSize = headerSizeBuffer.getLong
+
+                val jsonBuffer = ByteBuffer.allocate(headerSize.toInt)
+                channel.read(jsonBuffer)
+                jsonBuffer.flip()
+                val jsonString = new String(jsonBuffer.array(), StandardCharsets.UTF_8)
+
+                val json = ujson.read(jsonString)
+                val meta = json.obj
+                
+                val tensorMap = meta.filterKeys(_ != "__metadata__").map { case (name, data) =>
+                    val offsets = data("data_offsets").arr.map(_.num.toLong)
+                    val shape = data("shape").arr.map(_.num.toInt).toList
+                    val dtype = data("dtype").str
+                    name -> TensorInfo(dtype, shape, offsets(0), offsets(1))
+                }.toMap
+                
+                val dataStartPos = 8 + headerSize
+                (tensorMap, dataStartPos)
+            finally
+                file.close()
+
+        def loadTensor(filePath: String, info: TensorInfo, dataStartPos: Long): Jax.PyDynamic = 
+            // 1. Read bytes in JVM (Fast file IO)
+            val file = new RandomAccessFile(filePath, "r")
+            try
+                val len = (info.end - info.start).toInt
+                val bytes = new Array[Byte](len)
+                
+                file.seek(dataStartPos + info.start)
+                file.readFully(bytes) // Reads entire chunk at once
+
+                // 2. Encode to Base64 (Fast JVM native operation)
+                // This turns 500MB of bytes into one String, avoiding the "List of Ints" bottleneck
+                val b64String = Base64.getEncoder.encodeToString(bytes)
+
+                // 3. Pass to Python
+                val result = pythonLoader(b64String, info.dtype, info.shape.toPythonProxy)
+                
+                Jax.jnp.array(result)
+            finally
+                file.close()
+    def main(args: Array[String]): Unit =
+        val filePath = "data/gpt.safetensors"
+        
+        // Read header to get tensor info
+        val (tensorMap, dataStartPos) = SafeTensorsReader.readHeader(filePath)
+        
+        println("Tensors in the file:")
+        tensorMap.foreach:
+            case (name, info) =>
+                println(s"Name: $name, Dtype: ${info.dtype}, Shape: ${
+                    info.shape.mkString("x")
+                    }, Start: ${info.start}, End: ${info.end}")
+        
+        def load1[L](name: String, axis: Axis[L])(using Label[L]): Tensor1[L] =
+            val info = tensorMap(name)
+            val jaxArray = SafeTensorsReader.loadTensor(filePath, info, dataStartPos)
+            Tensor.fromPy(jaxArray)
+
+        def load2[L1, L2](name: String, axis1: Axis[L1], axis2: Axis[L2])(using Label[L1], Label[L2]): Tensor2[L1, L2] =
+            val info = tensorMap(name)
+            val jaxArray = SafeTensorsReader.loadTensor(filePath, info, dataStartPos)
+            Tensor.fromPy(jaxArray)
+
+        def loadLinear[In, Out](prefix: String, inAxis: Axis[In], outAxis: Axis[Out])(using Label[In], Label[Out]): LinearParams[In, Out] =
+            val w = load2(s"$prefix.weight", inAxis, outAxis)
+            val b = load1(s"$prefix.bias", outAxis)
+            LinearParams(w, b)
+
+        def loadLN(prefix: String): LNParams =
+            val w = load1(s"$prefix.weight", Axis[Embedding])
+            val b = load1(s"$prefix.bias", Axis[Embedding])
+            LNParams(w, b)
+
+        val wpe = load2("wpe.weight", Axis[Context], Axis[Embedding])
+        println("Successfully loaded WPE parameters")
+        val wte = load2("wte.weight", Axis[Vocab], Axis[Embedding])
+        println("Successfully loaded WTE parameters")
+        val ln_f = loadLN("ln_f")
+        println("Successfully loaded final LayerNorm parameters")
+
+        val layers = (0 until 12).map { i => 
+            val prefix = s"h.$i"
+            val ln1 = loadLN(s"$prefix.ln_1")
+            val ln2 = loadLN(s"$prefix.ln_2")
+            
+            val cAttn = loadLinear(s"$prefix.attn.c_attn", Axis[Embedding], Axis[QKV])
+            val cProj = loadLinear(s"$prefix.attn.c_proj", Axis[Heads |*| NewValue], Axis[Embedding])
+            val attn = MultiHeadAttentionParams(cAttn, cProj, numHeads = 12)
+            
+            val c_fc = loadLinear(s"$prefix.mlp.c_fc", Axis[Embedding], Axis[Inner])
+            val c_proj = loadLinear(s"$prefix.mlp.c_proj", Axis[Inner], Axis[Embedding])
+            val mlp = MLPParams(c_fc, c_proj)
+            println(s"Successfully loaded layer $i parameters")
+
+            HiddenParams(ln1, attn, ln2, mlp)
+        }.toList
+        println("Successfully loaded all layers parameters")
+
+        val params = GPT2Params(wpe, wte, layers, ln_f)
+        println("Successfully loaded GPT2Params")

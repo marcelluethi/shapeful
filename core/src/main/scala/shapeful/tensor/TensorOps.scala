@@ -291,7 +291,7 @@ object TensorOps:
         case h *: EmptyTuple => h
         case h *: t => Op[h, TupleReduce[t, Op]]
 
-      type JoinNames[T <: Tuple] = TupleReduce[T, shapeful.StringLabelMath.*]
+      type JoinNames[T <: Tuple] = TupleReduce[T, shapeful.StringLabelMath.|*|]
 
       trait DimExtractor[T]:
         def extract(t: T): Map[String, Int]

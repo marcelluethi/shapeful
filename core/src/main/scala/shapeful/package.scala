@@ -3,7 +3,7 @@ package object shapeful:
   import scala.compiletime.ops.string.+
 
   object StringLabelMath:
-    infix type *[A <: String, B <: String] = A + "*" + B
+    infix type |*|[A <: String, B <: String] = A + "*" + B
 
   // Export tensor and related types
   export shapeful.tensor.{Tensor, Tensor0, Tensor1, Tensor2, Tensor3}
@@ -15,7 +15,7 @@ package object shapeful:
   export shapeful.tensor.Axis.UnwrapAxes
   export shapeful.tensor.TupleHelpers.*
   export shapeful.tensor.Broadcast
-  export StringLabelMath.`*`
+  export StringLabelMath.`|*|`
   
   // Export operations
   export shapeful.tensor.TensorOps.*

@@ -1,11 +1,27 @@
 package shapeful.tensor
 
 import shapeful.tensor.TupleHelpers.{RemoverAll, Replacer}
+import scala.compiletime.*
+import scala.quoted.*
 
 trait Label[T]:
     def name: String
 
-object Label:
+private trait LabelLowPriority:
+    inline given derivedGiven[T]: Label[T] = Label.derived[T]
+
+object Label extends LabelLowPriority:
+    inline def derived[T]: Label[T] = ${ derivedMacro[T] }
+    
+    private def derivedMacro[T: Type](using Quotes): Expr[Label[T]] =
+      import quotes.reflect.*
+      val tpe = TypeRepr.of[T]
+      val simpleName = tpe.typeSymbol.name
+      '{
+        new Label[T]:
+          def name: String = ${ Expr(simpleName) }
+      }
+    
     given [T](using valueOf: ValueOf[T]): Label[T] with
         def name: String = valueOf.value.toString
 

@@ -22,22 +22,22 @@ def binaryCrossEntropy[L : Label](
 
 object MLPClassifierMNist:
 
-  type TrainSample = "train-sample"
-  type TestSample = "test-sample"
-  type Height = "height"
-  type Width = "width"
-  type Hidden = "hidden"
-  type Output = "output"
+  trait TrainSample derives Label
+  trait TestSample derives Label
+  trait Height derives Label
+  trait Width derives Label
+  trait Hidden derives Label
+  trait Output derives Label
 
   object MLP:
     case class Params(
-      layer1: LinearLayer.Params[Height * Width, Hidden],
+      layer1: LinearLayer.Params[Combined[Height, Width], Hidden],
       layer2: LinearLayer.Params[Hidden, Output],
     ) derives TensorTree, ToPyTree
 
     object Params:
       def apply(
-        layer1Dim: Dim[Height * Width], layer2Dim: Dim[Hidden], outputDim: Dim[Output]
+        layer1Dim: Dim[Combined[Height, Width]], layer2Dim: Dim[Hidden], outputDim: Dim[Output]
       )(
         paramKey: Random.Key
       ): Params = 
@@ -163,7 +163,7 @@ object MLPClassifierMNist:
       losses.mean
 
     val initParams = MLP.Params(
-      Axis[Height * Width] -> 28 * 28,
+      Axis[Combined[Height, Width]] -> 28 * 28,
       Axis[Hidden] -> 128,
       Axis[Output] -> 10
     )(initKey)

@@ -104,6 +104,29 @@ import shapeful.*
     println(e.shape)
   }
   {
+    println("Einops rearrange with trait-based labels")
+    trait Batch derives Label
+    trait Frame derives Label
+    trait Width derives Label
+    trait Height derives Label
+    trait Channel derives Label
+    val X = Tensor.zeros(Shape(
+      Axis[Batch] -> 32,
+      Axis[Frame] -> 64,
+      Axis[Width] -> 256,
+      Axis[Height] -> 256,
+      Axis[Channel] -> 3,
+    ))
+    val d = X.rearrange(
+      (
+        Axis[Batch * Frame],
+        Axis[Width * Height],
+        Axis[Channel]
+      )
+    )
+    println(d.shape)
+  }
+  {
     println("Contraction with overlapping axes")
     import scala.util.NotGiven
     def f[L1: Label, L2: Label, L3: Label](

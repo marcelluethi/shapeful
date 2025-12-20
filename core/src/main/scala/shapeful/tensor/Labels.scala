@@ -25,6 +25,9 @@ object Label extends LabelLowPriority:
     given [T](using valueOf: ValueOf[T]): Label[T] with
         def name: String = valueOf.value.toString
 
+    given combinedLabel[A, B](using labelA: Label[A], labelB: Label[B]): Label[shapeful.LabelMath.Combined[A, B]] with
+        def name: String = s"${labelA.name}*${labelB.name}"
+
 trait Labels[T]:
     def names: List[String]
 

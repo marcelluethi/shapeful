@@ -5,6 +5,10 @@ package object shapeful:
   object StringLabelMath:
     infix type *[A <: String, B <: String] = A + "*" + B
 
+  object LabelMath:
+    case class Combined[A, B]()
+    infix type *[A, B] = Combined[A, B]
+
   // Export tensor and related types
   export shapeful.tensor.{Tensor, Tensor0, Tensor1, Tensor2, Tensor3}
   export shapeful.tensor.{Shape, Shape0, Shape1, Shape2, Shape3}
@@ -15,7 +19,7 @@ package object shapeful:
   export shapeful.tensor.Axis.UnwrapAxes
   export shapeful.tensor.TupleHelpers.*
   export shapeful.tensor.Broadcast
-  export StringLabelMath.`*`
+  export LabelMath.{Combined, `*`}
   
   // Export operations
   export shapeful.tensor.TensorOps.*

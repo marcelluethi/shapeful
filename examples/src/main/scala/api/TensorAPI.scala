@@ -373,7 +373,7 @@ def tensorAPI(): Unit =
       py.exec("res = einops.rearrange(abcd, 'a b c d -> (b a) c d')") // einops variant
       py.exec("res = jnp.reshape(abcd.transpose((1, 0, 2, 3)), (abcd.shape[0]*abcd.shape[1], abcd.shape[2], abcd.shape[3]))") // pure JAX variant
       ABCD.rearrange(
-        (Axis["B" * "A"], Axis["C"], Axis["D"])
+        (Axis["B" |*| "A"], Axis["C"], Axis["D"])
       )
     }
     opBlock("rearrange ABCD unflatten AB") {
@@ -381,7 +381,7 @@ def tensorAPI(): Unit =
       py.exec("res = einops.rearrange(tmp, '(b a) c d -> a b c d', a=abcd.shape[0], b=abcd.shape[1])") // einops variant
       py.exec("res = jnp.reshape(tmp, (abcd.shape[0], abcd.shape[1], tmp.shape[1], tmp.shape[2])).transpose((1, 0, 2, 3))") // pure JAX variant
       val ABCDFlat = ABCD.rearrange(
-        ( Axis["B" * "A"], Axis["C"], Axis["D"] )
+        ( Axis["B" |*| "A"], Axis["C"], Axis["D"] )
       )
       ABCDFlat.rearrange(
         ( Axis["A"], Axis["B"], Axis["C"], Axis["D"] ),

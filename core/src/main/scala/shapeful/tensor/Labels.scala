@@ -3,6 +3,7 @@ package shapeful.tensor
 import shapeful.tensor.TupleHelpers.{RemoverAll, Replacer}
 import scala.compiletime.*
 import scala.quoted.*
+import shapeful.tensor.TupleHelpers.PrimeConcat
 
 trait Label[T]:
     def name: String
@@ -26,9 +27,6 @@ object Label extends LabelLowPriority:
     given [T](using valueOf: ValueOf[T]): Label[T] with
         def name: String = valueOf.value.toString
 
-    given combinedLabel[A, B](using labelA: Label[A], labelB: Label[B]): Label[shapeful.LabelMath.Combined[A, B]] with
-        def name: String = s"${labelA.name}*${labelB.name}"
-        
 trait Labels[T]:
     def names: List[String]
 
@@ -48,7 +46,7 @@ object Labels extends LabelsLowPriority:
     given [A, B, C, D, E](using  a: Labels[A], b: Labels[B], c: Labels[C], d: Labels[D], e: Labels[E]): Labels[(A, B, C, D, E)] = new LabelsImpl[(A, B, C, D, E)](a.names ++ b.names ++ c.names ++ d.names ++ e.names)
     given [A, B, C, D, E, F](using  a: Labels[A], b: Labels[B], c: Labels[C], d: Labels[D], e: Labels[E], f: Labels[F]): Labels[(A, B, C, D, E, F)] = new LabelsImpl[(A, B, C, D, E, F)](a.names ++ b.names ++ c.names ++ d.names ++ e.names ++ f.names)  
     
-    given [head, tail <: Tuple](
+    given concat[head, tail <: Tuple](
       using 
       v: Label[head],
       t: Labels[tail],
@@ -76,3 +74,16 @@ object Labels extends LabelsLowPriority:
         n1: Labels[T1],
         n2: Labels[T2],
       ): Labels[Tuple.Concat[T1, T2]] = new LabelsImpl(n1.names ++ n2.names)
+    
+    object ForPrimeConcat:
+      given derivePrimeConcat[T1 <: Tuple, T2 <: Tuple](
+        using
+        primeConcat: PrimeConcat[T1, T2],
+        n1: Labels[T1],
+        n2: Labels[T2],
+      ): Labels[primeConcat.Out] =
+        val n1Names = n1.names.toSet
+        val newN2Names = n2.names.map { name =>
+          if n1Names.contains(name) then s"${name}'" else name
+        }
+        new LabelsImpl(n1.names ++ newN2Names)

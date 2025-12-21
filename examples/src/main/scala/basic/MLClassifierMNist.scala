@@ -32,13 +32,13 @@ object MLPClassifierMNist:
 
   object MLP:
     case class Params(
-      layer1: LinearLayer.Params[Combined[Height, Width], Hidden],
+      layer1: LinearLayer.Params[Height |*| Width, Hidden],
       layer2: LinearLayer.Params[Hidden, Output],
     ) derives TensorTree, ToPyTree
 
     object Params:
       def apply(
-        layer1Dim: Dim[Combined[Height, Width]], layer2Dim: Dim[Hidden], outputDim: Dim[Output]
+        layer1Dim: Dim[Height |*| Width], layer2Dim: Dim[Hidden], outputDim: Dim[Output]
       )(
         paramKey: Random.Key
       ): Params = 
@@ -156,7 +156,7 @@ object MLPClassifierMNist:
       losses.mean
 
     val initParams = MLP.Params(
-      Axis[Combined[Height, Width]] -> 28 * 28,
+      Axis[Height |*| Width] -> 28 * 28,
       Axis[Hidden] -> 128,
       Axis[Output] -> 10
     )(initKey)

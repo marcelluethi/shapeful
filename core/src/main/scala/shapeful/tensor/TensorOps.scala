@@ -10,6 +10,9 @@ import scala.util.NotGiven
 import scala.collection.View.Empty
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters
+import shapeful.tensor.TupleHelpers.PrimeConcat
+import shapeful.{~, `|*|`}
+
 
 trait Broadcast[T1 <: Tuple, T2 <: Tuple, Out <: Tuple]:
   def broadcast(t1: Tensor[T1], t2: Tensor[T2]): (Tensor[Out], Tensor[Out])
@@ -185,6 +188,79 @@ object TensorOps:
         val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
 
         Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
+
+      @targetName("contractOn")
+      def contract[
+        ContractAxisA,
+        ContractAxisB,
+        OtherShape <: Tuple,
+        R1 <: Tuple,
+        R2 <: Tuple,
+      ]
+      (axis: Axis[ContractAxisA ~ ContractAxisB])
+      (other: Tensor[OtherShape])(using
+        remover: RemoverAll.Aux[T, ContractAxisA *: EmptyTuple, R1],
+        otherRemover: RemoverAll.Aux[OtherShape, ContractAxisB *: EmptyTuple, R2],
+        axisIndex: AxisIndex[T, ContractAxisA],
+        otherAxisIndex: AxisIndex[OtherShape, ContractAxisB],
+        r1Labels: Labels[R1],
+        r2Labels: Labels[R2],
+      ): Tensor[Tuple.Concat[R1, R2]] = 
+        import Labels.ForConcat.given
+        val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
+        val axesTuple2 = Jax.Dynamic.global.tuple(Seq(otherAxisIndex.value).toPythonProxy)
+        val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
+        Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
+        
+      def contractPrime[
+        ContractAxis,
+        OtherShape <: Tuple,
+        R1 <: Tuple,
+        R2 <: Tuple,
+        Out <: Tuple
+      ]
+      (axis: Axis[ContractAxis])
+      (other: Tensor[OtherShape])(using
+        remover: RemoverAll.Aux[T, ContractAxis *: EmptyTuple, R1],
+        otherRemover: RemoverAll.Aux[OtherShape, ContractAxis *: EmptyTuple, R2],
+        axisIndex: AxisIndex[T, ContractAxis],
+        otherAxisIndex: AxisIndex[OtherShape, ContractAxis],
+        primeConcat: PrimeConcat.Aux[R1, R2, Out],
+        r1Labels: Labels[R1],
+        r2Labels: Labels[R2],
+      ): Tensor[Out] =
+        import Labels.ForPrimeConcat.given
+        val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
+        val axesTuple2 = Jax.Dynamic.global.tuple(Seq(otherAxisIndex.value).toPythonProxy)
+        val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
+
+        Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
+  
+      @targetName("contractOnPrime")
+      def contractPrime[
+        ContractAxisA,
+        ContractAxisB,
+        OtherShape <: Tuple,
+        R1 <: Tuple,
+        R2 <: Tuple,
+        Out <: Tuple
+      ]
+      (axis: Axis[ContractAxisA ~ ContractAxisB])
+      (other: Tensor[OtherShape])(using
+        remover: RemoverAll.Aux[T, ContractAxisA *: EmptyTuple, R1],
+        otherRemover: RemoverAll.Aux[OtherShape, ContractAxisB *: EmptyTuple, R2],
+        axisIndex: AxisIndex[T, ContractAxisA],
+        otherAxisIndex: AxisIndex[OtherShape, ContractAxisB],
+        primeConcat: PrimeConcat.Aux[R1, R2, Out],
+        r1Labels: Labels[R1],
+        r2Labels: Labels[R2],
+      ): Tensor[Out] =
+        import Labels.ForPrimeConcat.given
+        val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
+        val axesTuple2 = Jax.Dynamic.global.tuple(Seq(otherAxisIndex.value).toPythonProxy)
+        val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
+
+        Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
   
   end Contraction
 
@@ -285,8 +361,8 @@ object TensorOps:
       type TupleCombine[T <: Tuple] = T match
         case EmptyTuple => EmptyTuple
         case h *: EmptyTuple => h
-        case h *: (h2 *: EmptyTuple) => shapeful.LabelMath.Combined[h, h2]
-        case h *: t => shapeful.LabelMath.Combined[h, TupleCombine[t]]
+        case h *: (h2 *: EmptyTuple) => h |*| h2
+        case h *: t => h |*| TupleCombine[t]
 
       type TupleUnion[T <: Tuple] = T match
         case EmptyTuple => EmptyTuple
@@ -531,7 +607,9 @@ object TensorOps:
         Tensor(tensor.jaxValue)(using newLabels)
 
       // TODO rename this as as[] is defined in Any and is taken in Scala
-      def as[newT <: Tuple](using 
+      def as[newT <: Tuple](
+        newAxes: newT,
+      )(using 
         newLabels: Labels[UnwrapAxes[newT]],
         @implicitNotFound("Cannot convert tensor of shape ${T} to shape ${newT} due to size mismatch.")
         evSameSize: Tuple.Size[newT] =:= Tuple.Size[T],
@@ -771,6 +849,8 @@ object TensorOps:
       def innerDot(other: Tensor1[L]): Tensor0 = t.contract(Axis[L])(other)
       def outerDot[OtherLabel : Label](other: Tensor1[OtherLabel]): Tensor2[L, OtherLabel] = 
         t.outerProduct(other)
+
+      def relabelTo[NewL : Label](newAxis: Axis[NewL]): Tensor1[NewL] = Tensor[Tuple1[NewL]](t.jaxValue)
 
   object MatrixOps:
     extension [L1 : Label, L2 : Label](t: Tensor2[L1, L2])

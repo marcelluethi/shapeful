@@ -94,13 +94,13 @@ import shapeful.*
     ))
     val d = X.rearrange(
       (
-        Axis[Batch * Frame],
-        Axis[Width * Height],
+        Axis[Batch |*| Frame],
+        Axis[Width |*| Height],
         Axis[Channel]
       )
     )
     println(d.shape)
-    val e = d.as[(Axis[Frame], Axis["pixel"], Axis[Channel])]
+    val e = d.as((Axis[Frame], Axis["pixel"], Axis[Channel]))
     println(e.shape)
   }
   {
@@ -119,8 +119,8 @@ import shapeful.*
     ))
     val d = X.rearrange(
       (
-        Axis[Batch * Frame],
-        Axis[Width * Height],
+        Axis[Batch |*| Frame],
+        Axis[Width |*| Height],
         Axis[Channel]
       )
     )
@@ -369,40 +369,47 @@ import shapeful.*
       val sumExp = expTensor.sum
       expTensor.vmap(Axis[L]) { _ / sumExp }
 
+    case class Attention[Value: Label, Query: Label, Key: Label](
+      wk: Tensor2[Value, Key],
+      wq: Tensor2[Value, Query],
+      wv: Tensor2[Value, Prime[Value]],
+    ):
+      private trait AttnWeights derives Label
+
+      def apply[Context: Label](x: Tensor2[Context, Value]): Tensor2[Context, Value] = 
+        val k = x.contract(Axis[Value])(wk)
+        val q = x.contract(Axis[Value])(wq)
+        val v = x.contract(Axis[Value])(wv)
+        val dk = Tensor0(Math.sqrt(k.shape(Axis[Key])).toFloat)
+        // With contractPrime
+        val attnWeightsPrime = q.contractPrime(Axis[Query ~ Key])(k)
+          .vmap(Axis[Context])(x => softmax(x).relabelTo(Axis[AttnWeights])) // added relabelTo
+        val resPrime = attnWeightsPrime.contract(Axis[AttnWeights ~ Context])(v)
+        resPrime.dropPrimes
+        // Before
+        trait `Context'` extends  Prime[Context] derives Label
+        val attnWeights = (q.contract(Axis[Query ~ Key])(k) :/ dk)
+          .as((Axis[`Context'`], Axis[AttnWeights]))
+          .vmap(Axis[`Context'`])(softmax)
+        val res = attnWeights.contract(Axis[AttnWeights ~ Context])(v)
+        res.dropPrimes
+
     trait Batch derives Label
     trait Sequence derives Label
-    trait Weights derives Label
+
     trait Value derives Label
+
     trait Key derives Label
     trait Query derives Label
 
-    trait `Sequence'` extends Prime[Sequence] derives Label
-    trait `Value'` extends Prime[Value] derives Label
-
-    val X = Tensor.ones(
-      Shape(Axis[Batch] -> 32, Axis[Sequence] -> 128, Axis[Value] -> 64)
+    val x = Tensor.ones(Shape(Axis[Batch] -> 32, Axis[Sequence] -> 128, Axis[Value] -> 64))
+    val attention = Attention(
+      Tensor.ones(Shape(Axis[Value] -> 64, Axis[Key] -> 64)),
+      Tensor.ones(Shape(Axis[Value] -> 64, Axis[Query] -> 64)),
+      Tensor.ones(Shape(Axis[Value] -> 64, Axis[Prime[Value]] -> 64)),
     )
-    val WK = Tensor.ones(
-      Shape(Axis[Value] -> 64, Axis[Key] -> 64)
-    )
-    val WQ = Tensor.ones(
-      Shape(Axis[Value] -> 64, Axis[Query] -> 64)
-    )
-    val WV = Tensor.ones(
-      Shape(Axis[Value] -> 64, Axis[`Value'`] -> 64)
-    )
-    val Xnew = X.vmap(Axis[Batch]) { Xi => 
-      val K = Xi.contract(Axis[Value])(WK)
-      val Q = Xi.contract(Axis[Value])(WQ)
-      val V = Xi.contract(Axis[Value])(WV)
-      val dk = Tensor0(Math.sqrt(K.shape(Axis[Key])).toFloat)
-      val AttnWeights = (Q.contract(Axis[Query | Key])(K) :/ dk)
-        .as[(Axis[`Sequence'`], Axis[Weights])]
-        .vmap(Axis[`Sequence'`])(softmax)
-      val res = AttnWeights.contract(Axis[Weights | Sequence])(V)
-      res.dropPrimes
-    }
-    println(Xnew.shape)
+    val newX = x.vmap(Axis[Batch])(attention(_))
+    println(newX.shape)
   }
   {
     println("Attention")
@@ -430,8 +437,8 @@ import shapeful.*
       val V = Xi.contract(Axis["Value"])(WV)
       val res = zipvmap(Axis["Heads"])(Q, K, V) { (Qi, Ki, Vi) =>
         val dk = Tensor0(Math.sqrt(Ki.shape(Axis["Key"])).toFloat)
-        val AttnWeights = (Qi.contract(Axis["Query" | "Key"])(Ki) :/ dk)
-          .as[(Axis["NewSequence"], Axis["Weights"])]
+        val AttnWeights = (Qi.contract(Axis["Query" ~ "Key"])(Ki) :/ dk)
+          .as((Axis["NewSequence"], Axis["Weights"]))
           .vmap(Axis["NewSequence"])(softmax)
         AttnWeights
           .contract(Axis["Weights" | "Sequence"])(Vi)
@@ -439,8 +446,53 @@ import shapeful.*
       }
       res.rearrange((
         Axis["Sequence"],
-        Axis["Heads" * "NewValue"],
-      )).relabel(Axis["Heads" * "NewValue"] -> Axis["Value"])
+        Axis["Heads" |*| "NewValue"],
+      )).relabel(Axis["Heads" |*| "NewValue"] -> Axis["Value"])
     }
     println(Xnew.shape)
+  }
+  {
+    trait A derives Label
+    trait B derives Label
+    trait C derives Label
+    trait D derives Label
+    type AxisAB1 = Axis[A] | Axis[B]
+    type AxisAB2 = Axis[A | B]
+    type exists = Axis[A & B]
+
+    val ab = Tensor.ones(Shape(Axis[A] -> 2, Axis[B] -> 2))
+    val ba = Tensor.ones(Shape(Axis[B] -> 2, Axis[A] -> 2))
+    val cd = Tensor.ones(Shape(Axis[C] -> 2, Axis[D] -> 2))
+    
+    val res2 = ab.slice(Axis[A | C] -> 1)
+
+    val axis1 = Axis[A |*| B]
+    val axis2 = Axis[B |*| A]
+
+    type axisType = Axis[A | B]
+    val axis3: axisType = Axis[A | B]
+    val axis4: axisType = Axis[B | A] // <-- This should not work as A | B != B | A for rearrange
+
+    val contractAxis = Axis[B | C]
+    val res = ab.contract(contractAxis)(cd)
+    val cab1 = ab.contract(Axis[A])(ba)
+    val cab2 = ab.contract(Axis[A | B])(ba)
+    val cab3 = ab.contract(Axis[B | A])(ba)
+    // type axisT = Axis[A] | Axis[B]
+    // val axis: axisT = Axis[A]
+    // val cab4 = ab.contract(axis)(ba)
+
+    val xxx = Label.union[A, B](using
+      summon[Label[A]],
+      summon[Label[B]],
+    )
+    val yyy = Labels.concat(using
+      xxx, Labels.namesOfEmpty
+    )
+    given Labels[(A | B) *: EmptyTuple] = yyy
+    val aorb = Tensor.ones(Shape(Axis[A | B] -> 2)(using xxx))
+    val lala = summon[Label[A]]
+    // val r3 = aorb.slice(Axis[A] -> 1)
+    val r3 = aorb.slice(Axis[A | B] -> 1)
+    println(r3.shape)
   }

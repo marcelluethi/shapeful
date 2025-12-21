@@ -8,8 +8,8 @@ import shapeful.random.Random
 
 object LogisticRegression:
 
-  type Sample = "sample"
-  type Feature = "feature"
+  trait Sample derives Label
+  trait Feature derives Label
 
   object BinaryLogisticRegression:
     case class Params(

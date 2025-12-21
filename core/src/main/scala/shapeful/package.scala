@@ -1,3 +1,5 @@
+
+import scala.annotation.targetName
 package object shapeful:
 
   import scala.compiletime.ops.string.+
@@ -23,9 +25,17 @@ package object shapeful:
             oldLabels.names.toList.map(_.replace("'", ""))
         Tensor.fromPy(tensor.jaxValue)
 
-  object LabelMath:
-    case class Combined[A, B]()
-    infix type *[A, B] = Combined[A, B]
+  @targetName("On") 
+  infix trait ~[A, B]
+  object `~`:
+    given [A, B](using labelA: Label[A], labelB: Label[B]): Label[A ~ B] with
+      val name: String = s"${labelA.name}_on_${labelB.name}"
+  
+  @targetName("Combined")
+  infix trait |*|[A, B]
+  object `|*|`:
+    given [A, B](using labelA: Label[A], labelB: Label[B]): Label[A |*| B] with
+      val name: String = s"${labelA.name}*${labelB.name}"
 
   // Export tensor and related types
   export shapeful.tensor.{Tensor, Tensor0, Tensor1, Tensor2, Tensor3}
@@ -37,7 +47,6 @@ package object shapeful:
   export shapeful.tensor.Axis.UnwrapAxes
   export shapeful.tensor.TupleHelpers.*
   export shapeful.tensor.Broadcast
-  export LabelMath.{Combined, `*`}
   export Prime.*
   
   // Export operations

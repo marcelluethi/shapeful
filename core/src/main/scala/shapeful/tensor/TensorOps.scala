@@ -120,7 +120,11 @@ object TensorOps:
       def sum: Tensor0 = Tensor0(Jax.jnp.sum(t.jaxValue))
       def sum[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.sum(axes = Tuple1(axis))
       def sum[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.sum(t.jaxValue, axesIndices.values.toPythonProxy))
-      
+
+      def prod: Tensor0 = Tensor0(Jax.jnp.prod(t.jaxValue))
+      def prod[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.prod(axes = Tuple1(axis))
+      def prod[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.prod(t.jaxValue, axesIndices.values.toPythonProxy))
+
       def mean: Tensor0 = Tensor0(Jax.jnp.mean(t.jaxValue))
       def mean[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.mean(axes = Tuple1(axis))
       def mean[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.mean(t.jaxValue, axesIndices.values.toPythonProxy))

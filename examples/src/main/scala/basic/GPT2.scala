@@ -220,15 +220,24 @@ case class GPT2(params: GPT2Params):
     // type Int32Tensor1[L <: String] = Tensor1[L] { type DType = DType.UInt32.type }
 
     private def embedder(tokens: Tensor1[Context]): Tensor2[Context, Embedding] =
-        tokens.vmap(Axis[Context])(token => params.wte.slice(Axis[Vocab] -> token.toInt))
+        println(("B2", params.wte.shape))
+        tokens.vmap(Axis[Context])(token => 
+            println("B2a")
+            params.wte.slice(Axis[Vocab] -> 0)
+        )
 
     private def addPositionEncoding(embeddings: Tensor2[Context, Embedding]): Tensor2[Context, Embedding] = 
+        println(("B3", embeddings.shape, params.wpe.shape))
         embeddings + params.wpe
 
     def logits(inputTokens: Tensor[(Batch, Context)]): Tensor[(Batch, Context, Vocab)] = 
+        println(("A", inputTokens))
         inputTokens.vmap(Axis[Batch])(tokens => 
+            println(("B"))
             val startEmbeddings = addPositionEncoding(embedder(tokens))
+            println("C")
             val endEmbeddings = transformer(startEmbeddings)
+            println("D")
             endEmbeddings.vmap(Axis[Context])(x => 
                 val xNorm = finalNormalization(x)
                 outputLayer(xNorm)    
@@ -241,6 +250,37 @@ case class GPT2(params: GPT2Params):
     def apply(inputTokens: Tensor[(Batch, Context)]): Tensor[(Batch, Context)] =
         logits(inputTokens).argmax(Axis[Vocab])
     
+
+import me.shadaj.scalapy.py
+import me.shadaj.scalapy.py.SeqConverters
+lazy val tiktoken = py.module("tiktoken")
+
+case class Tokenizer(enc: py.Dynamic):
+    def encode(s: String): List[Int] = 
+        val pythonSet = py.Dynamic.global.set(Seq("<|endoftext|>").toPythonProxy)
+        enc.encode(s, allowed_special=pythonSet).as[List[Int]]
+
+    def decode(l: List[Int]): String = 
+        enc.decode(l.toPythonProxy).as[String]
+
+case class Inference(gpt2: GPT2, tokenizer: Tokenizer):
+
+    def apply(input: String): LazyList[String] = 
+        val tokenIds = tokenizer.encode(input)
+        def loop(currentTokens: List[Int]): LazyList[String] = 
+            println(s"Current tokens: $currentTokens")
+            val inputTensor = Tensor(
+                Shape((Axis[Batch] -> 1, Axis[Context] -> currentTokens.length)),
+                currentTokens.map(_.toFloat).toArray,
+                // DType.Int32,
+            )
+            val nextTokenTensor = gpt2(inputTensor)
+            val nextTokenId = nextTokenTensor.slice(Axis[Batch] -> 0).slice(Axis[Context] -> (currentTokens.length - 1)).toInt
+            val newTokens = currentTokens :+ nextTokenId
+            val decoded = tokenizer.decode(newTokens)
+            LazyList.cons(decoded, loop(newTokens))
+        loop(tokenIds)
+        
 
 object GPT2Inference:
 
@@ -321,13 +361,6 @@ object GPT2Inference:
         // Read header to get tensor info
         val (tensorMap, dataStartPos) = SafeTensorsReader.readHeader(filePath)
         
-        println("Tensors in the file:")
-        tensorMap.foreach:
-            case (name, info) =>
-                println(s"Name: $name, Dtype: ${info.dtype}, Shape: ${
-                    info.shape.mkString("x")
-                    }, Start: ${info.start}, End: ${info.end}")
-        
         def load1[L](name: String, axis: Axis[L])(using Label[L]): Tensor1[L] =
             val info = tensorMap(name)
             val jaxArray = SafeTensorsReader.loadTensor(filePath, info, dataStartPos)
@@ -374,4 +407,7 @@ object GPT2Inference:
         println("Successfully loaded all layers parameters")
 
         val params = GPT2Params(wpe, wte, layers, ln_f)
-        println("Successfully loaded GPT2Params")
+        val gpt2 = GPT2(params)
+        val inference = Inference(gpt2, Tokenizer(tiktoken.get_encoding("gpt2")))
+        val stream = inference("Hello, my name is")
+        stream.foreach(println)

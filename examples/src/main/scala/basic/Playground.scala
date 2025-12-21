@@ -371,12 +371,13 @@ import shapeful.*
 
     trait Batch derives Label
     trait Sequence derives Label
-    trait `Sequence'` derives Label
     trait Weights derives Label
     trait Value derives Label
-    trait `Value'` derives Label
     trait Key derives Label
     trait Query derives Label
+
+    trait `Sequence'` extends Prime[Sequence] derives Label
+    trait `Value'` extends Prime[Value] derives Label
 
     val X = Tensor.ones(
       Shape(Axis[Batch] -> 32, Axis[Sequence] -> 128, Axis[Value] -> 64)
@@ -399,9 +400,7 @@ import shapeful.*
         .as[(Axis[`Sequence'`], Axis[Weights])]
         .vmap(Axis[`Sequence'`])(softmax)
       val res = AttnWeights.contract(Axis[Weights | Sequence])(V)
-      res
-        .relabel(Axis[`Sequence'`] -> Axis[Sequence])
-        .relabel(Axis[`Value'`] -> Axis[Value])
+      res.dropPrimes
     }
     println(Xnew.shape)
   }

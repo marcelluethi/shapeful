@@ -5,6 +5,24 @@ package object shapeful:
   object StringLabelMath:
     infix type *[A <: String, B <: String] = A + "*" + B
 
+  trait Prime[T]
+  object Prime:
+    given[L](using label: Label[L]): Label[Prime[L]] with
+      val name: String = s"${label.name}'"
+
+    type RemovePrimes[T <: Tuple] <: Tuple = T match
+      case EmptyTuple => EmptyTuple
+      case Prime[l] *: tail => l *: RemovePrimes[tail]
+      case h *: tail => h *: RemovePrimes[tail]
+
+    extension[T <: Tuple : Labels](tensor: Tensor[T])
+      def dropPrimes: Tensor[RemovePrimes[T]] =
+        given newLabels: Labels[RemovePrimes[T]] with
+          val names: List[String] = 
+            val oldLabels = summon[Labels[T]]
+            oldLabels.names.toList.map(_.replace("'", ""))
+        Tensor.fromPy(tensor.jaxValue)
+
   object LabelMath:
     case class Combined[A, B]()
     infix type *[A, B] = Combined[A, B]
@@ -20,6 +38,7 @@ package object shapeful:
   export shapeful.tensor.TupleHelpers.*
   export shapeful.tensor.Broadcast
   export LabelMath.{Combined, `*`}
+  export Prime.*
   
   // Export operations
   export shapeful.tensor.TensorOps.*

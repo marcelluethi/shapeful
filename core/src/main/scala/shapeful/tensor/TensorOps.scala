@@ -522,9 +522,9 @@ object TensorOps:
         Tensor(Jax.jnp.broadcast_to(reshapedJax, newShape.dimensions.toPythonProxy))
 
       def relabel[OldLabel : Label, NewLabel : Label](
-        axis: (Axis[OldLabel], Axis[NewLabel]),
-      )(
-        using replacer: Replacer[T, OldLabel, NewLabel],
+        rename: (Axis[OldLabel], Axis[NewLabel]),
+      )(using
+        replacer: Replacer[T, OldLabel, NewLabel]
       ): Tensor[replacer.Out] = Tensor(tensor.jaxValue)
 
       def retag[newT <: Tuple](using newLabels: Labels[newT]): Tensor[newT] = 

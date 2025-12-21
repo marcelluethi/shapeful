@@ -22,8 +22,9 @@ def binaryCrossEntropy[L : Label](
 
 object MLPClassifierMNist:
 
-  trait TrainSample derives Label
-  trait TestSample derives Label
+  trait Sample derives Label
+  trait TrainSample extends Sample derives Label
+  trait TestSample extends Sample derives Label
   trait Height derives Label
   trait Width derives Label
   trait Hidden derives Label
@@ -62,10 +63,8 @@ object MLPClassifierMNist:
     
   object MNISTLoader:
 
-    private type Sample = "sample"
-
     private def readInt(dis: DataInputStream): Int = dis.readInt()
-    private def loadImagePixels(filename: String, maxImages: Option[Int] = None): Try[Tensor3[Sample, Height, Width]] =
+    private def loadImagePixels[S <: Sample](filename: String, maxImages: Option[Int] = None): Try[Tensor3[S, Height, Width]] =
       Try {
         val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
         try
@@ -86,13 +85,13 @@ object MLPClassifierMNist:
           dis.readFully(pixelBytes)
           // Convert bytes to floats with vectorized operation
           val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
-          val shape = Shape(Axis[Sample] -> numImages, Axis[Height] -> rows, Axis[Width] -> cols)
+          val shape = Shape(Axis[S] -> numImages, Axis[Height] -> rows, Axis[Width] -> cols)
           val tensor = Tensor3(shape, allPixels, DType.Float32)
           tensor.toDevice(Device.CPU)
         finally dis.close()
       }
 
-    private def loadLabelsArray(filename: String, maxLabels: Option[Int] = None): Try[Tensor1[Sample]] = Try {
+    private def loadLabelsArray[S <: Sample](filename: String, maxLabels: Option[Int] = None): Try[Tensor1[S]] = Try {
       val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
       try
         val magic = readInt(dis)
@@ -107,17 +106,17 @@ object MLPClassifierMNist:
         for i <- 0.until(numLabels) do labels(i) = dis.readUnsignedByte()
 
         // Create Tensor1 from labels - specify the label type correctly
-        val tensor = Tensor1.fromInts(Axis[Sample], labels, DType.Int32)
+        val tensor = Tensor1.fromInts(Axis[S], labels, DType.Int32)
         tensor.toDevice(Device.CPU)
       finally dis.close()
     }
 
-    private def createDataset(imagesFile: String, labelsFile: String, maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(Sample, Height, Width)], Tensor1[Sample]]] =
+    private def createDataset[S <: Sample](imagesFile: String, labelsFile: String, maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(S, Height, Width)], Tensor1[S]]] =
       for
-        imagePixels <- loadImagePixels(imagesFile, maxSamples)
-        labels <- loadLabelsArray(labelsFile, maxSamples)
+        imagePixels <- loadImagePixels[S](imagesFile, maxSamples)
+        labels <- loadLabelsArray[S](labelsFile, maxSamples)
       yield
-        val numImages = imagePixels.shape(Axis[Sample])
+        val numImages = imagePixels.shape(Axis[S])
         val numLabels = labels.shape.size
         if numImages != numLabels then
           throw new IllegalArgumentException(s"Mismatch: $numImages images vs $numLabels labels")
@@ -127,18 +126,12 @@ object MLPClassifierMNist:
     def createTrainingDataset(dataDir: String = "data", maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(TrainSample, Height, Width)], Tensor1[TrainSample]]] =
       val imagesFile = s"$dataDir/train-images-idx3-ubyte"
       val labelsFile = s"$dataDir/train-labels-idx1-ubyte"
-      val dataset = createDataset(imagesFile, labelsFile, maxSamples)
-      dataset.map:
-        case (images, labels) =>
-          (images.relabel(Axis[Sample] -> Axis[TrainSample]), labels.relabel(Axis[Sample] -> Axis[TrainSample]))
+      createDataset[TrainSample](imagesFile, labelsFile, maxSamples)
 
     def createTestDataset(dataDir: String = "data", maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(TestSample, Height, Width)], Tensor1[TestSample]]] =
       val imagesFile = s"$dataDir/t10k-images-idx3-ubyte"
       val labelsFile = s"$dataDir/t10k-labels-idx1-ubyte"
-      val dataset = createDataset(imagesFile, labelsFile, maxSamples)
-      dataset.map:
-        case (images, labels) =>
-          (images.relabel(Axis[Sample] -> Axis[TestSample]), labels.relabel(Axis[Sample] -> Axis[TestSample]))
+      createDataset[TestSample](imagesFile, labelsFile, maxSamples)
     
   def main(args: Array[String]): Unit =
 
@@ -168,8 +161,8 @@ object MLPClassifierMNist:
       Axis[Output] -> 10
     )(initKey)
 
-    def accuracy[Sample : Label](predictions: Tensor1[Sample], targets: Tensor1[Sample]): Tensor0 =
-      val matches = zipvmap(Axis[Sample])(predictions, targets):
+    def accuracy[S <: Sample](predictions: Tensor1[S], targets: Tensor1[S]): Tensor0 =
+      val matches = zipvmap(Axis[S])(predictions, targets):
         case (pred, target) => Tensor0(pred.toInt == target.toInt)
       matches.mean
 
@@ -208,13 +201,13 @@ object MLPClassifierMNist:
           timed("Evaluation"):
             val model = MLP(params)
             val testPreds = testX.vmap(Axis[TestSample])(model)
-            val testAccuracy = accuracy(testPreds, testY).toFloat
+            val testAccuracy = accuracy(testPreds, testY)
             val trainPreds = trainX.vmap(Axis[TrainSample])(model)
-            val trainAccuracy = accuracy(trainPreds, trainY).toFloat
+            val trainAccuracy = accuracy(trainPreds, trainY)
             println(List(
               s"Epoch $epoch",
-              f"Test accuracy: ${testAccuracy * 100}%.2f%%",
-              f"Train accuracy: ${trainAccuracy * 100}%.2f%%"
+              f"Test accuracy: ${testAccuracy.toFloat * 100}%.2f%%",
+              f"Train accuracy: ${trainAccuracy.toFloat * 100}%.2f%%"
             ).mkString(", "))
       .map((params, _) => params)
       .drop(numEpochs)

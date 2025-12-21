@@ -1,5 +1,7 @@
 package shapeful.tensor
 
+import scala.util.NotGiven
+
 object TupleHelpers:
 
   trait Subset[T <: Tuple, SubsetT <: Tuple]:
@@ -26,28 +28,43 @@ object TupleHelpers:
 
   type Remover[T <: Tuple, ToRemoveElement] = RemoverAll[T, ToRemoveElement *: EmptyTuple]
 
+  object Remover:
+    type Aux[T <: Tuple, ToRemoveElement, O <: Tuple] = RemoverAll.Aux[T, ToRemoveElement *: EmptyTuple, O]
+
   trait RemoverAll[T <: Tuple, ToRemove <: Tuple]:
     type Out <: Tuple
 
-  object RemoverAll:
+  object RemoverAll extends LowPriorityRemoverAll:
+    
+    // 0. The Aux type alias forces the compiler to resolve 'O' explicitly
+    type Aux[T <: Tuple, ToRemove <: Tuple, O <: Tuple] = 
+      RemoverAll[T, ToRemove] { type Out = O }
 
-    given emptyKeys[T <: Tuple]: RemoverAll[T, EmptyTuple] with
-      type Out = T
+    // 1. Base Case: Empty keys -> Return input as is
+    given emptyKeys[T <: Tuple]: Aux[T, EmptyTuple, T] = 
+      new RemoverAll[T, EmptyTuple] { type Out = T }
 
+    // 2. Chain Case: Process K1, then K2...
+    // We use Aux to capture 'Inter' and 'O' explicitly
     given chain[T <: Tuple, K1, K2, Rest <: Tuple, Inter <: Tuple, O <: Tuple](using
-      r1: RemoverAll[T, K1 *: EmptyTuple] { type Out = Inter },
-      r2: RemoverAll[Inter, K2 *: Rest] { type Out = O }
-    ): RemoverAll[T, K1 *: K2 *: Rest] with
-      type Out = r2.Out
+      r1: Aux[T, K1 *: EmptyTuple, Inter],
+      r2: Aux[Inter, K2 *: Rest, O]
+    ): Aux[T, K1 *: K2 *: Rest, O] = 
+      new RemoverAll[T, K1 *: K2 *: Rest] { type Out = O }
 
-    given singleFound[K, Tail <: Tuple]: RemoverAll[K *: Tail, K *: EmptyTuple] with
-      type Out = Tail
+    // 3. Found Case: H is a subtype of K
+    // We explicitly return 'Tail' as the output
+    given singleFound[H, Tail <: Tuple, K](using H <:< K): Aux[H *: Tail, K *: EmptyTuple, Tail] = 
+      new RemoverAll[H *: Tail, K *: EmptyTuple] { type Out = Tail }
 
+  trait LowPriorityRemoverAll:
+    // 4. Search Case: Recurse
+    // We capture 'TailOut' as a type parameter to ensure it is fully resolved
     given singleSearch[H, Tail <: Tuple, K, TailOut <: Tuple](using
-      next: RemoverAll[Tail, K *: EmptyTuple] { type Out = TailOut }
-    ): RemoverAll[H *: Tail, K *: EmptyTuple] with
-      type Out = H *: TailOut
-
+      next: RemoverAll.Aux[Tail, K *: EmptyTuple, TailOut]
+    ): RemoverAll.Aux[H *: Tail, K *: EmptyTuple, H *: TailOut] = 
+      new RemoverAll[H *: Tail, K *: EmptyTuple] { type Out = H *: TailOut }
+    
   trait Replacer[T <: Tuple, Target, Replacement]:
     type Out <: Tuple
 

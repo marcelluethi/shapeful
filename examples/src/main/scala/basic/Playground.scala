@@ -369,32 +369,44 @@ import shapeful.*
       val sumExp = expTensor.sum
       expTensor.vmap(Axis[L]) { _ / sumExp }
 
+    trait Batch derives Label
+    trait Sequence derives Label
+    trait `Sequence'` derives Label
+    trait Weights derives Label
+    trait Value derives Label
+    trait `Value'` derives Label
+    trait Key derives Label
+    trait Query derives Label
+
     val X = Tensor.ones(
-      Shape(Axis["Batch"] -> 32, Axis["Sequence"] -> 128, Axis["Value"] -> 64)
+      Shape(Axis[Batch] -> 32, Axis[Sequence] -> 128, Axis[Value] -> 64)
     )
     val WK = Tensor.ones(
-      Shape(Axis["Value"] -> 64, Axis["Key"] -> 64)
+      Shape(Axis[Value] -> 64, Axis[Key] -> 64)
     )
     val WQ = Tensor.ones(
-      Shape(Axis["Value"] -> 64, Axis["Query"] -> 64)
+      Shape(Axis[Value] -> 64, Axis[Query] -> 64)
     )
     val WV = Tensor.ones(
-      Shape(Axis["Value"] -> 64, Axis["NewValue"] -> 64)
+      Shape(Axis[Value] -> 64, Axis[`Value'`] -> 64)
     )
-    val Xnew = X.vmap(Axis["Batch"]) { Xi => 
-      val K = Xi.contract(Axis["Value"])(WK)
-      val Q = Xi.contract(Axis["Value"])(WQ)
-      val V = Xi.contract(Axis["Value"])(WV)
-      val dk = Tensor0(Math.sqrt(K.shape(Axis["Key"])).toFloat)
-      val AttnWeights = (Q.contract(Axis["Query"] -> Axis["Key"])(K) :/ dk)
-        .as[(Axis["Sequence"], Axis["Weights"])]
-        .vmap(Axis["Sequence"])(softmax)
-      val res = AttnWeights.contract(Axis["Weights"] -> Axis["Sequence"])(V)
-      res.relabel(Axis["NewValue"] -> Axis["Value"])
+    val Xnew = X.vmap(Axis[Batch]) { Xi => 
+      val K = Xi.contract(Axis[Value])(WK)
+      val Q = Xi.contract(Axis[Value])(WQ)
+      val V = Xi.contract(Axis[Value])(WV)
+      val dk = Tensor0(Math.sqrt(K.shape(Axis[Key])).toFloat)
+      val AttnWeights = (Q.contract(Axis[Query | Key])(K) :/ dk)
+        .as[(Axis[`Sequence'`], Axis[Weights])]
+        .vmap(Axis[`Sequence'`])(softmax)
+      val res = AttnWeights.contract(Axis[Weights | Sequence])(V)
+      res
+        .relabel(Axis[`Sequence'`] -> Axis[Sequence])
+        .relabel(Axis[`Value'`] -> Axis[Value])
     }
     println(Xnew.shape)
   }
   {
+    println("Attention")
     // multi-head attention mechanism example
     def softmax[L: Label](tensor: Tensor1[L]): Tensor1[L] =
       val expTensor = tensor.exp
@@ -419,10 +431,12 @@ import shapeful.*
       val V = Xi.contract(Axis["Value"])(WV)
       val res = zipvmap(Axis["Heads"])(Q, K, V) { (Qi, Ki, Vi) =>
         val dk = Tensor0(Math.sqrt(Ki.shape(Axis["Key"])).toFloat)
-        val AttnWeights = (Qi.contract(Axis["Query"] -> Axis["Key"])(Ki) :/ dk)
-          .as[(Axis["Sequence"], Axis["Weights"])]
-          .vmap(Axis["Sequence"])(softmax)
-        AttnWeights.contract(Axis["Weights"] -> Axis["Sequence"])(Vi)
+        val AttnWeights = (Qi.contract(Axis["Query" | "Key"])(Ki) :/ dk)
+          .as[(Axis["NewSequence"], Axis["Weights"])]
+          .vmap(Axis["NewSequence"])(softmax)
+        AttnWeights
+          .contract(Axis["Weights" | "Sequence"])(Vi)
+          .relabel(Axis["NewSequence"] -> Axis["Sequence"])
       }
       res.rearrange((
         Axis["Sequence"],

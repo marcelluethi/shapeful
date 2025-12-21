@@ -21,7 +21,7 @@ object Axis:
 sealed trait Axis[A]
 class AxisImpl[A] extends Axis[A]
 
-trait AxisIndex[Shape <: Tuple, Axis]:
+trait AxisIndex[Shape <: Tuple, +Axis]:
   def value: Int
 
 object AxisIndex:

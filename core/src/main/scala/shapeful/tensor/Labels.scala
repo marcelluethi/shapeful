@@ -8,7 +8,8 @@ trait Label[T]:
     def name: String
 
 private trait LabelLowPriority:
-    inline given derivedGiven[T]: Label[T] = Label.derived[T]
+  given union[A, B](using a: Label[A], b: Label[B]): Label[A | B] with
+      def name: String = a.name + "|" + b.name
 
 object Label extends LabelLowPriority:
     inline def derived[T]: Label[T] = ${ derivedMacro[T] }
@@ -27,22 +28,13 @@ object Label extends LabelLowPriority:
 
     given combinedLabel[A, B](using labelA: Label[A], labelB: Label[B]): Label[shapeful.LabelMath.Combined[A, B]] with
         def name: String = s"${labelA.name}*${labelB.name}"
-
+        
 trait Labels[T]:
     def names: List[String]
 
 private class LabelsImpl[T](val names: List[String]) extends Labels[T]
 
-private trait LabelsLowPriority:
-  given derivedAllRemover[T <: Tuple, ToRemove <: Tuple, O <: Tuple](using
-    removerAll: RemoverAll[T, ToRemove] { type Out = O },
-    labels: Labels[T],
-    toRemoveLabels: Labels[ToRemove],
-  ): Labels[O] = 
-    val namesToRemove = toRemoveLabels.names.toSet
-    LabelsImpl[O](
-      labels.names.filterNot(namesToRemove.contains)
-    )
+private trait LabelsLowPriority
 
 object Labels extends LabelsLowPriority:
 

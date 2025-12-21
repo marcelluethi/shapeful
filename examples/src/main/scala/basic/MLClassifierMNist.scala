@@ -64,7 +64,7 @@ object MLPClassifierMNist:
   object MNISTLoader:
 
     private def readInt(dis: DataInputStream): Int = dis.readInt()
-    private def loadImagePixels[S <: Sample](filename: String, maxImages: Option[Int] = None): Try[Tensor3[S, Height, Width]] =
+    private def loadImagePixels[S <: Sample : Label](filename: String, maxImages: Option[Int] = None): Try[Tensor3[S, Height, Width]] =
       Try {
         val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
         try
@@ -91,7 +91,7 @@ object MLPClassifierMNist:
         finally dis.close()
       }
 
-    private def loadLabelsArray[S <: Sample](filename: String, maxLabels: Option[Int] = None): Try[Tensor1[S]] = Try {
+    private def loadLabelsArray[S <: Sample : Label](filename: String, maxLabels: Option[Int] = None): Try[Tensor1[S]] = Try {
       val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
       try
         val magic = readInt(dis)
@@ -111,7 +111,7 @@ object MLPClassifierMNist:
       finally dis.close()
     }
 
-    private def createDataset[S <: Sample](imagesFile: String, labelsFile: String, maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(S, Height, Width)], Tensor1[S]]] =
+    private def createDataset[S <: Sample : Label](imagesFile: String, labelsFile: String, maxSamples: Option[Int] = None): Try[Tuple2[Tensor[(S, Height, Width)], Tensor1[S]]] =
       for
         imagePixels <- loadImagePixels[S](imagesFile, maxSamples)
         labels <- loadLabelsArray[S](labelsFile, maxSamples)
@@ -161,7 +161,7 @@ object MLPClassifierMNist:
       Axis[Output] -> 10
     )(initKey)
 
-    def accuracy[S <: Sample](predictions: Tensor1[S], targets: Tensor1[S]): Tensor0 =
+    def accuracy[S <: Sample : Label](predictions: Tensor1[S], targets: Tensor1[S]): Tensor0 =
       val matches = zipvmap(Axis[S])(predictions, targets):
         case (pred, target) => Tensor0(pred.toInt == target.toInt)
       matches.mean

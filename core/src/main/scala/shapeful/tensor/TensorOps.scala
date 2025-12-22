@@ -157,8 +157,10 @@ object TensorOps:
 
     extension [T <: Tuple : Labels](tensor: Tensor[T])
       
-      def outerProduct[OtherShape <: Tuple : Labels](other: Tensor[OtherShape]): Tensor[Tuple.Concat[T, OtherShape]] =
-        import Labels.ForConcat.given
+      def outerProduct[OtherShape <: Tuple : Labels, Out <: Tuple](other: Tensor[OtherShape])(
+        using primeConcat: PrimeConcat.Aux[T, OtherShape, Out],
+      ): Tensor[Out] =
+        import Labels.ForPrimeConcat.given
         Tensor(
           // Jax outer product flattens, reshape required
           Jax.jnp.reshape(
@@ -168,51 +170,6 @@ object TensorOps:
         )
 
       def contract[
-        ContractAxis,
-        OtherShape <: Tuple,
-        R1 <: Tuple,
-        R2 <: Tuple,
-      ]
-      (axis: Axis[ContractAxis])
-      (other: Tensor[OtherShape])(using
-        remover: RemoverAll.Aux[T, ContractAxis *: EmptyTuple, R1],
-        otherRemover: RemoverAll.Aux[OtherShape, ContractAxis *: EmptyTuple, R2],
-        axisIndex: AxisIndex[T, ContractAxis],
-        otherAxisIndex: AxisIndex[OtherShape, ContractAxis],
-        r1Labels: Labels[R1],
-        r2Labels: Labels[R2],
-      ): Tensor[Tuple.Concat[R1, R2]] =
-        import Labels.ForConcat.given
-        val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
-        val axesTuple2 = Jax.Dynamic.global.tuple(Seq(otherAxisIndex.value).toPythonProxy)
-        val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
-
-        Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
-
-      @targetName("contractOn")
-      def contract[
-        ContractAxisA,
-        ContractAxisB,
-        OtherShape <: Tuple,
-        R1 <: Tuple,
-        R2 <: Tuple,
-      ]
-      (axis: Axis[ContractAxisA ~ ContractAxisB])
-      (other: Tensor[OtherShape])(using
-        remover: RemoverAll.Aux[T, ContractAxisA *: EmptyTuple, R1],
-        otherRemover: RemoverAll.Aux[OtherShape, ContractAxisB *: EmptyTuple, R2],
-        axisIndex: AxisIndex[T, ContractAxisA],
-        otherAxisIndex: AxisIndex[OtherShape, ContractAxisB],
-        r1Labels: Labels[R1],
-        r2Labels: Labels[R2],
-      ): Tensor[Tuple.Concat[R1, R2]] = 
-        import Labels.ForConcat.given
-        val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
-        val axesTuple2 = Jax.Dynamic.global.tuple(Seq(otherAxisIndex.value).toPythonProxy)
-        val axesPair = Jax.Dynamic.global.tuple(Seq(axesTuple1, axesTuple2).toPythonProxy)
-        Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
-        
-      def contractPrime[
         ContractAxis,
         OtherShape <: Tuple,
         R1 <: Tuple,
@@ -236,8 +193,8 @@ object TensorOps:
 
         Tensor(Jax.jnp.tensordot(tensor.jaxValue, other.jaxValue, axes = axesPair))
   
-      @targetName("contractOnPrime")
-      def contractPrime[
+      @targetName("contractOn")
+      def contract[
         ContractAxisA,
         ContractAxisB,
         OtherShape <: Tuple,
@@ -252,8 +209,7 @@ object TensorOps:
         axisIndex: AxisIndex[T, ContractAxisA],
         otherAxisIndex: AxisIndex[OtherShape, ContractAxisB],
         primeConcat: PrimeConcat.Aux[R1, R2, Out],
-        r1Labels: Labels[R1],
-        r2Labels: Labels[R2],
+        outLabels: Labels[Out],
       ): Tensor[Out] =
         import Labels.ForPrimeConcat.given
         val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
@@ -379,13 +335,18 @@ object TensorOps:
           def extract(t: EmptyTuple) = Map.empty
 
         given [L, Tail <: Tuple](using
-          labelValue: ValueOf[L],
+          label: Label[L],
           tailExtractor: DimExtractor[Tail]
         ): DimExtractor[(Axis[L], Int) *: Tail] with
           def extract(t: (Axis[L], Int) *: Tail) =
             val (_, size) = t.head
-            Map(labelValue.value.toString -> size) ++ tailExtractor.extract(t.tail)
+            Map(label.name -> size) ++ tailExtractor.extract(t.tail)
         
+      @implicitNotFound("The axis ${L} is already present in the tensor shape ${T}.")
+      trait AxisAbsent[T, L]
+      object AxisAbsent:
+        given [T <: Tuple, L](using NotGiven[Tuple.Contains[T, L] =:= true]): AxisAbsent[T, L] = new AxisAbsent[T, L] {}
+
     import Util.*
 
     object TensorWhere:
@@ -606,8 +567,7 @@ object TensorOps:
       def retag[newT <: Tuple](using newLabels: Labels[newT]): Tensor[newT] = 
         Tensor(tensor.jaxValue)(using newLabels)
 
-      // TODO rename this as as[] is defined in Any and is taken in Scala
-      def as[newT <: Tuple](
+      def relabelAll[newT <: Tuple](
         newAxes: newT,
       )(using 
         newLabels: Labels[UnwrapAxes[newT]],
@@ -639,12 +599,12 @@ object TensorOps:
           def names = List(summon[Labels[T]].names.mkString("*"))
         Tensor(Jax.jnp.ravel(tensor.jaxValue))
 
-      def appendAxis[L : Label](axis: Axis[L]): Tensor[Tuple.Concat[T, Tuple1[L]]] =
+      def appendAxis[L : Label](axis: Axis[L])(using AxisAbsent[T, L]): Tensor[Tuple.Concat[T, Tuple1[L]]] =
         import Labels.ForConcat.given
         val newShape = tensor.shape.dimensions :+ 1
         Tensor(Jax.jnp.reshape(tensor.jaxValue, newShape.toPythonProxy))
 
-      def prependAxis[L : Label](axis: Axis[L]): Tensor[Tuple.Concat[Tuple1[L], T]] =
+      def prependAxis[L : Label](axis: Axis[L])(using AxisAbsent[T, L]): Tensor[Tuple.Concat[Tuple1[L], T]] =
         import Labels.ForConcat.given
         val newShape = 1 +: tensor.shape.dimensions
         Tensor(Jax.jnp.reshape(tensor.jaxValue, newShape.toPythonProxy))
@@ -848,7 +808,8 @@ object TensorOps:
       def dot(other: Tensor1[L]): Tensor0 = t.innerDot(other)
       def innerDot(other: Tensor1[L]): Tensor0 = t.contract(Axis[L])(other)
       def outerDot[OtherLabel : Label](other: Tensor1[OtherLabel]): Tensor2[L, OtherLabel] = 
-        t.outerProduct(other)
+        val result = t.outerProduct(other)
+        result
 
       def relabelTo[NewL : Label](newAxis: Axis[NewL]): Tensor1[NewL] = Tensor[Tuple1[NewL]](t.jaxValue)
 
@@ -857,28 +818,24 @@ object TensorOps:
       def transpose: Tensor2[L2, L1] = t.rearrange((Axis[L2], Axis[L1]))
 
       @targetName("tensor2MatmulTensor2")
-      def matmul[L3 : Label, R1 <: Tuple, R2 <: Tuple](other: Tensor2[L2, L3])(using 
-        remover: Remover.Aux[(L1, L2), L2, R1],
-        otherRemover: Remover.Aux[(L2, L3), L2, R2],
+      def matmul[L3 : Label](other: Tensor2[L2, L3])(using 
+        remover: Remover.Aux[(L1, L2), L2, Tuple1[L1]],
+        otherRemover: Remover.Aux[(L2, L3), L2, Tuple1[L3]],
         idx1: AxisIndex[(L1, L2), L2],
         idx2: AxisIndex[(L2, L3), L2],
-        l1: Labels[R1],
-        l2: Labels[R2]
-      ): Tensor[Tuple.Concat[R1, R2]] =
-        import Labels.ForConcat.given
-        t.contract(Axis[L2])(other)
+      ): Tensor2[L1, L3] =
+        val result = t.contract(Axis[L2])(other)
+        result
 
       @targetName("tensor2MatmulTensor1")
-      def matmul[R1 <: Tuple, R2 <: Tuple](other: Tensor1[L2])(using 
-        remover: Remover.Aux[(L1, L2), L2, R1],
-        otherRemover: Remover.Aux[Tuple1[L2], L2, R2],
+      def matmul(other: Tensor1[L2])(using 
+        remover: Remover.Aux[(L1, L2), L2, Tuple1[L1]],
+        otherRemover: Remover.Aux[Tuple1[L2], L2, EmptyTuple],
         idx1: AxisIndex[(L1, L2), L2],
         idx2: AxisIndex[Tuple1[L2], L2],
-        l1: Labels[R1],
-        l2: Labels[R2]
-      ): Tensor[Tuple.Concat[R1, R2]] =
-        import Labels.ForConcat.given
-        t.contract(Axis[L2])(other)
+      ): Tensor[Tuple1[L1]] =
+        val result = t.contract(Axis[L2])(other)
+        result
 
   export ScalarOps.*
   export VectorOps.*

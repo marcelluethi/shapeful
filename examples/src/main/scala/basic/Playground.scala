@@ -101,7 +101,7 @@ import scala.util.NotGiven
       )
     )
     println(d.shape)
-    val e = d.as((Axis[Frame], Axis["pixel"], Axis[Channel]))
+    val e = d.relabelAll((Axis[Frame], Axis["pixel"], Axis[Channel]))
     println(e.shape)
   }
   {
@@ -387,9 +387,9 @@ import scala.util.NotGiven
         val q = x.contract(Axis[Value])(wq)
         val v = x.contract(Axis[Value])(wv)
         val dk = Tensor0(Math.sqrt(k.shape(Axis[Key])).toFloat)
-        val attnWeightsPrime = q.contractPrime(Axis[Query ~ Key])(k)
+        val attnWeightsPrime = q.contract(Axis[Query ~ Key])(k)
           .vmap(Axis[Context])(x => softmax(x).relabelTo(Axis[AttnWeights]))
-        val resPrime = attnWeightsPrime.contractPrime(Axis[AttnWeights ~ Context])(v)
+        val resPrime = attnWeightsPrime.contract(Axis[AttnWeights ~ Context])(v)
         resPrime.relabel(Axis[Prime[Value]] -> Axis[Value])
 
     trait Batch derives Label
@@ -430,7 +430,7 @@ import scala.util.NotGiven
       val res = zipvmap(Axis["Heads"])(Q, K, V) { (Qi, Ki, Vi) =>
         val dk = Tensor0(Math.sqrt(Ki.shape(Axis["Key"])).toFloat)
         val AttnWeights = (Qi.contract(Axis["Query" ~ "Key"])(Ki) :/ dk)
-          .as((Axis["NewSequence"], Axis["Weights"]))
+          .relabelAll((Axis["NewSequence"], Axis["Weights"]))
           .vmap(Axis["NewSequence"])(softmax)
         AttnWeights
           .contract(Axis["Weights" | "Sequence"])(Vi)
@@ -487,4 +487,21 @@ import scala.util.NotGiven
     // val r3 = aorb.slice(Axis[A] -> 1)
     val r3 = aorb.slice(Axis[A | B] -> 1)
     println(r3.shape)
+  }
+  {
+    val t1 = Tensor.ones(Shape(
+      Axis["A"] -> 2,
+      Axis["B"] -> 3,
+      Axis["C"] -> 4,
+    ))
+    val t2 = t1.appendAxis(Axis["D"])
+    // val t3 = t1.appendAxis(Axis["A"]) // should not compile
+    def f[T <: Tuple : Labels](t: Tensor[T]) =
+      t.appendAxis(Axis["D"])
+    def f2[T <: Tuple : Labels](t: Tensor[T]) =
+      t.appendAxis(Axis["A"])
+    val t3 = f(t1)
+    println(t3.shape)
+    val t4 = f2(t1)
+    println(t4.shape)
   }

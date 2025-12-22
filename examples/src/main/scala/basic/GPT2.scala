@@ -6,12 +6,12 @@ import shapeful.Conversions.given
 import nn.ActivationFunctions.*
 
 // Dimensions
-type Vocab = "Vocab"         // 50257
-type Embedding = "Embedding" // 768
-type Context = "Context"     // 1024
-type Inner = "Inner"         // 3072
+trait Vocab derives Label           // 50257
+trait Embedding derives Label       // 768
+trait Context derives Label         // 1024
+trait Inner derives Label           // 3072
 
-type Batch = "Batch"
+trait Batch derives Label
 
 case class LNParams(
     weight: Tensor1[Embedding], 
@@ -33,84 +33,61 @@ case class LinearParams[In, Out](
 //)
 
 
-type Heads = "Heads"
-type Key = "Key"
-type Query = "Query"
-type NewValue = "NewValue"
+trait Heads derives Label
+trait Key derives Label
+trait Query derives Label
+trait Value derives Label
 
-case class MultiHeadAttentionParams[Value](
-    WK : Tensor3[Heads, Value, Key],
+case class MultiHeadAttentionParams(
+    WK : Tensor3[Heads, Embedding, Key],
     WKBias: Tensor2[Heads, Key],
-    WQ : Tensor3[Heads, Value, Query],
+    WQ : Tensor3[Heads, Embedding, Query],
     WQBias: Tensor2[Heads, Query],
-    WV : Tensor3[Heads, Value, NewValue],
-    WVBias: Tensor2[Heads, NewValue],
-    proj: LinearParams[Heads |*| NewValue, Value],
+    WV : Tensor3[Heads, Embedding, Value],
+    WVBias: Tensor2[Heads, Value],
+    proj: LinearParams[Heads |*| Value, Embedding],
 ) derives ToPyTree
 
-type QKV = Heads |*| Query |*| Heads |*| Key |*| Heads |*| NewValue
+type QKV = Heads |*| Query |*| Heads |*| Key |*| Heads |*| Value
 
 object MultiHeadAttentionParams:
     def apply(
         cAttn: LinearParams[Embedding, QKV], 
-        cProj: LinearParams[Heads |*| NewValue, Embedding],
+        cProj: LinearParams[Heads |*| Value, Embedding],
         numHeads: Int,
-    ): MultiHeadAttentionParams[Embedding] =
+    ): MultiHeadAttentionParams =
+        def splitWeightToHeads[L](t: Tensor2[Embedding, Heads |*| L], numHeads: Int)(using label: Label[L]): Tensor3[Heads, Embedding, L] = 
+            val tLength = t.shape(Axis[Heads |*| L])
+            require(tLength % numHeads == 0, s"T length $tLength not divisible by numHeads $numHeads")
+            t.rearrange(
+                (Axis[Heads], Axis[Embedding], Axis[L]), 
+                (Axis[Heads] -> numHeads, Axis[L] ->(tLength / numHeads)),
+            )
+        def splitBiasToHeads[L](t: Tensor1[Heads |*| L], numHeads: Int)(using label: Label[L]): Tensor2[Heads, L] = 
+            val tLength = t.shape(Axis[Heads |*| L])
+            require(tLength % numHeads == 0, s"T length $tLength not divisible by numHeads $numHeads")
+            t.rearrange(
+                (Axis[Heads], Axis[L]), 
+                (Axis[Heads] -> numHeads, Axis[L] ->(tLength / numHeads)),
+            )
         val qkvLength = cAttn.weight.shape(Axis[QKV])
         require(qkvLength % 3 == 0, s"QKV length $qkvLength not divisible by 3")
         val (qLength, kLength, vLength) = (qkvLength / 3, qkvLength / 3, qkvLength / 3)
-        // cAttn.bias
+        
         val wq = cAttn.weight.slice(Axis[QKV] -> (0 until qLength)).relabel(Axis[QKV] -> Axis[Heads |*| Query])
         val wkb = cAttn.bias.slice(Axis[QKV] -> (qLength until qLength + kLength)).relabel(Axis[QKV] -> Axis[Heads |*| Key])
         val wk = cAttn.weight.slice(Axis[QKV] -> (qLength until qLength + kLength)).relabel(Axis[QKV] -> Axis[Heads |*| Key])
         val wqb = cAttn.bias.slice(Axis[QKV] -> (0 until qLength)).relabel(Axis[QKV] -> Axis[Heads |*| Query])
-        val wv = cAttn.weight.slice(Axis[QKV] -> (qLength + kLength until qkvLength)).relabel(Axis[QKV] -> Axis[Heads |*| NewValue])
-        val wvb = cAttn.bias.slice(Axis[QKV] -> (qLength + kLength until qkvLength)).relabel(Axis[QKV] -> Axis[Heads |*| NewValue])
-        require(qLength % numHeads == 0, s"Q length $qLength not divisible by numHeads $numHeads")
-        // TODO add rearrange unit tests for such cases
-        /*def splitToHeads[L <: String](tensor: Tensor2[Embedding, Heads |*| L], numHeads: Int)( // TODO make this work
-            using label: Label[L]
-        ): Tensor3[Heads, Embedding, L] = 
-            val tLength = tensor.shape(Axis[Heads |*| L])
-            require(tLength % numHeads == 0, s"T length $tLength not divisible by numHeads $numHeads")
-            ??? 
-            tensor.rearrange(
-                (Axis[Heads], Axis[Embedding], Axis[L]), 
-                (Axis[Heads] -> numHeads, Axis[L] ->(tLength / numHeads)),
-            )*/
-        val wqh = wq.rearrange(
-            (Axis[Heads], Axis[Embedding], Axis[Query]), 
-            (Axis[Heads] -> numHeads, Axis[Query] ->(qLength / numHeads)),
-        )
-        val wqbh = wqb.rearrange(
-            (Axis[Heads], Axis[Query]), 
-            (Axis[Heads] -> numHeads, Axis[Query] ->(qLength / numHeads)),
-        )
-        val wkh = wk.rearrange(
-            (Axis[Heads], Axis[Embedding], Axis[Key]), 
-            (Axis[Heads] -> numHeads, Axis[Key] ->(kLength / numHeads)),
-        )
-        val wkbh = wkb.rearrange(
-            (Axis[Heads], Axis[Key]), 
-            (Axis[Heads] -> numHeads, Axis[Key] ->(kLength / numHeads)),
-        )
-        val wvh = wv.rearrange(
-            (Axis[Heads], Axis[Embedding], Axis[NewValue]), 
-            (Axis[Heads] -> numHeads, Axis[NewValue] ->(vLength / numHeads)),
-        )
-        val wvbh = wvb.rearrange(
-            (Axis[Heads], Axis[NewValue]), 
-            (Axis[Heads] -> numHeads, Axis[NewValue] ->(vLength / numHeads)),
-        )
-        // val wo = cProj.asInstanceOf[Tensor2[Heads * NewValue, Embedding]]
-        // val wo = cProj.relabel((Axis[Heads * NewValue], Axis[Embedding]))
+        val wv = cAttn.weight.slice(Axis[QKV] -> (qLength + kLength until qkvLength)).relabel(Axis[QKV] -> Axis[Heads |*| Value])
+        val wvb = cAttn.bias.slice(Axis[QKV] -> (qLength + kLength until qkvLength)).relabel(Axis[QKV] -> Axis[Heads |*| Value])
+        
         MultiHeadAttentionParams(
-            WK = wkh,
-            WKBias = wkbh,
-            WQ = wqh,
-            WQBias = wqbh,
-            WV = wvh,
-            WVBias = wvbh,
+            WQ = splitWeightToHeads(wq, numHeads),
+            WQBias = splitBiasToHeads(wqb, numHeads),
+            WK = splitWeightToHeads(wk, numHeads),
+            WKBias = splitBiasToHeads(wkb, numHeads),
+            WV = splitWeightToHeads(wv, numHeads),
+            WVBias = splitBiasToHeads(wvb, numHeads),
             proj = cProj,
         )
 
@@ -125,7 +102,7 @@ type WPEParams = Tensor2[Context, Embedding]
 
 case class HiddenParams(
    ln1 : LNParams,
-   attn : MultiHeadAttentionParams[Embedding],
+   attn : MultiHeadAttentionParams,
    ln2 : LNParams,
    mlp: MLPParams
 )
@@ -140,7 +117,8 @@ case class GPT2Params(
 case class GPT2(params: GPT2Params):
 
     private case class LinearLayer[In : Label, Out : Label](params: LinearParams[In, Out]) extends Function[Tensor1[In], Tensor1[Out]]:
-        override def apply(x: Tensor1[In]): Tensor1[Out] = x.contract(Axis[In])(params.weight) :+ params.bias
+        override def apply(x: Tensor1[In]): Tensor1[Out] = 
+            x.contract(Axis[In])(params.weight) + params.bias
 
     private case class MLP(params: MLPParams) extends Function[Tensor2[Context, Embedding], Tensor2[Context, Embedding]]:
 
@@ -154,31 +132,29 @@ case class GPT2(params: GPT2Params):
                 outputLayer(hidden)
             )
 
-    private case class MultiHeadAttention[Value : Label](params: MultiHeadAttentionParams[Value]) extends Function[Tensor2[Context, Value], Tensor2[Context, Value]]:
+    private case class MultiHeadAttention(params: MultiHeadAttentionParams) extends Function[Tensor2[Context, Embedding], Tensor2[Context, Embedding]]:
 
         private val projection = LinearLayer(params.proj)
         
-        def apply(X : Tensor2[Context, Value]): Tensor2[Context, Value] =
-            val heads = zipvmap(Axis[Heads])(params.WQ, params.WK, params.WV) { (WQi, WKi, WVi) =>
-                attention(WQi, WKi, WVi)(X)
-            }
+        def apply(X : Tensor2[Context, Embedding]): Tensor2[Context, Embedding] =
+            val heads = zipvmap(Axis[Heads])(params.WQ, params.WK, params.WV): (wqi, wki, wvi) =>
+                attention(wqi, wki, wvi)(X)
             heads.vmap(Axis[Context])(heads => projection(heads.ravel))
 
         private def attention(
-            WQ : Tensor2[Value, Query], 
-            WK : Tensor2[Value, Key], 
-            WV : Tensor2[Value, NewValue])
-        (X : Tensor2[Context, Value]): Tensor2[Context, NewValue] =
-            type SourceSequence = "SourceSequence"
-            val Q = X.contract(Axis[Value])(WQ)
-            val K = X.contract(Axis[Value])(WK)
-                .relabel(Axis[Context] -> Axis[SourceSequence])
-            val V = X.contract(Axis[Value])(WV)
-                .relabel(Axis[Context] -> Axis[SourceSequence])
-            val dk = Tensor0(Math.sqrt(K.shape(Axis[Key])).toFloat)
-            val attnWeights = (Q.contract(Axis[Query] -> Axis[Key])(K) :/ dk)
-                .vmap(Axis[Context])(softmax)
-            attnWeights.contract(Axis[SourceSequence])(V)
+            wq : Tensor2[Embedding, Query], 
+            wk : Tensor2[Embedding, Key], 
+            wv : Tensor2[Embedding, Value])
+        (x : Tensor2[Context, Embedding]): Tensor2[Context, Value] =
+            trait AttnWeights derives Label
+            val q = x.contract(Axis[Embedding])(wq)
+            val k = x.contract(Axis[Embedding])(wk)
+            val v = x.contract(Axis[Embedding])(wv)
+            val dk = Tensor0(Math.sqrt(k.shape(Axis[Key])).toFloat)
+            val attnWeights = (q.contract(Axis[Query ~ Key])(k) :/ dk)
+                .vmap(Axis[Context])(x => softmax(x).relabelTo(Axis[AttnWeights]))
+            val result = attnWeights.contract(Axis[AttnWeights ~ Context])(v)
+            result
 
     private case class LayerNorm(params: LNParams) extends Function[Tensor1[Embedding], Tensor1[Embedding]]:
 
@@ -196,7 +172,7 @@ case class GPT2(params: GPT2Params):
     private case class TransformerLayer(params: HiddenParams) extends Function[Tensor2[Context, Embedding], Tensor2[Context, Embedding]]:
 
         private val mlp = MLP(params.mlp)
-        private val multiHeadAttention = MultiHeadAttention[Embedding](params.attn)
+        private val multiHeadAttention = MultiHeadAttention(params.attn)
         private val preNormalization = LayerNorm(params.ln1)
         private val postNormalization = LayerNorm(params.ln2)
         
@@ -220,24 +196,17 @@ case class GPT2(params: GPT2Params):
     // type Int32Tensor1[L <: String] = Tensor1[L] { type DType = DType.UInt32.type }
 
     private def embedder(tokens: Tensor1[Context]): Tensor2[Context, Embedding] =
-        println(("B2", params.wte.shape))
         tokens.vmap(Axis[Context])(token => 
-            println("B2a")
-            params.wte.slice(Axis[Vocab] -> 0)
+            params.wte.slice(Axis[Vocab] -> token.toInt)
         )
 
     private def addPositionEncoding(embeddings: Tensor2[Context, Embedding]): Tensor2[Context, Embedding] = 
-        println(("B3", embeddings.shape, params.wpe.shape))
         embeddings + params.wpe
 
     def logits(inputTokens: Tensor[(Batch, Context)]): Tensor[(Batch, Context, Vocab)] = 
-        println(("A", inputTokens))
         inputTokens.vmap(Axis[Batch])(tokens => 
-            println(("B"))
             val startEmbeddings = addPositionEncoding(embedder(tokens))
-            println("C")
             val endEmbeddings = transformer(startEmbeddings)
-            println("D")
             endEmbeddings.vmap(Axis[Context])(x => 
                 val xNorm = finalNormalization(x)
                 outputLayer(xNorm)    
@@ -394,7 +363,7 @@ object GPT2Inference:
             val ln2 = loadLN(s"$prefix.ln_2")
             
             val cAttn = loadLinear(s"$prefix.attn.c_attn", Axis[Embedding], Axis[QKV])
-            val cProj = loadLinear(s"$prefix.attn.c_proj", Axis[Heads |*| NewValue], Axis[Embedding])
+            val cProj = loadLinear(s"$prefix.attn.c_proj", Axis[Heads |*| Value], Axis[Embedding])
             val attn = MultiHeadAttentionParams(cAttn, cProj, numHeads = 12)
             
             val c_fc = loadLinear(s"$prefix.mlp.c_fc", Axis[Embedding], Axis[Inner])
@@ -409,5 +378,5 @@ object GPT2Inference:
         val params = GPT2Params(wpe, wte, layers, ln_f)
         val gpt2 = GPT2(params)
         val inference = Inference(gpt2, Tokenizer(tiktoken.get_encoding("gpt2")))
-        val stream = inference("Hello, my name is")
-        stream.foreach(println)
+        // val stream = inference("Hello, my name is")
+        // stream.foreach(println)

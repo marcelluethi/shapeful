@@ -62,7 +62,7 @@ def autoDiffAPI(): Unit =
     println(delta.shape)
   }
   {
-    def f(x: Tensor1["A"]): Tensor2["A", "A"] = x.outerProduct(x)
+    def f(x: Tensor1["A"]) = x.outerProduct(x)
     val df = Autodiff.jacobian(f)
     val delta = df(Tensor1(Axis["A"], Array.fill(10)(1.0f)))
     println(delta.shape)

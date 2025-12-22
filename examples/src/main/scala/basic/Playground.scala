@@ -1,6 +1,7 @@
 package examples.basic
 
 import shapeful.*
+import scala.util.NotGiven
 
 
 @main def playground(): Unit =
@@ -369,40 +370,31 @@ import shapeful.*
       val sumExp = expTensor.sum
       expTensor.vmap(Axis[L]) { _ / sumExp }
 
-    case class Attention[Value: Label, Query: Label, Key: Label](
+    trait Value derives Label
+    trait Key derives Label
+    trait Query derives Label
+    trait Context derives Label
+
+    case class Attention(
       wk: Tensor2[Value, Key],
       wq: Tensor2[Value, Query],
       wv: Tensor2[Value, Prime[Value]],
     ):
       private trait AttnWeights derives Label
 
-      def apply[Context: Label](x: Tensor2[Context, Value]): Tensor2[Context, Value] = 
+      def apply(x: Tensor2[Context, Value]): Tensor2[Context, Value] = 
         val k = x.contract(Axis[Value])(wk)
         val q = x.contract(Axis[Value])(wq)
         val v = x.contract(Axis[Value])(wv)
         val dk = Tensor0(Math.sqrt(k.shape(Axis[Key])).toFloat)
-        // With contractPrime
         val attnWeightsPrime = q.contractPrime(Axis[Query ~ Key])(k)
-          .vmap(Axis[Context])(x => softmax(x).relabelTo(Axis[AttnWeights])) // added relabelTo
-        val resPrime = attnWeightsPrime.contract(Axis[AttnWeights ~ Context])(v)
-        resPrime.dropPrimes
-        // Before
-        trait `Context'` extends  Prime[Context] derives Label
-        val attnWeights = (q.contract(Axis[Query ~ Key])(k) :/ dk)
-          .as((Axis[`Context'`], Axis[AttnWeights]))
-          .vmap(Axis[`Context'`])(softmax)
-        val res = attnWeights.contract(Axis[AttnWeights ~ Context])(v)
-        res.dropPrimes
+          .vmap(Axis[Context])(x => softmax(x).relabelTo(Axis[AttnWeights]))
+        val resPrime = attnWeightsPrime.contractPrime(Axis[AttnWeights ~ Context])(v)
+        resPrime.relabel(Axis[Prime[Value]] -> Axis[Value])
 
     trait Batch derives Label
-    trait Sequence derives Label
 
-    trait Value derives Label
-
-    trait Key derives Label
-    trait Query derives Label
-
-    val x = Tensor.ones(Shape(Axis[Batch] -> 32, Axis[Sequence] -> 128, Axis[Value] -> 64))
+    val x = Tensor.ones(Shape(Axis[Batch] -> 32, Axis[Context] -> 128, Axis[Value] -> 64))
     val attention = Attention(
       Tensor.ones(Shape(Axis[Value] -> 64, Axis[Key] -> 64)),
       Tensor.ones(Shape(Axis[Value] -> 64, Axis[Query] -> 64)),

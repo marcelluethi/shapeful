@@ -84,7 +84,6 @@ object TupleHelpers:
   import scala.compiletime.ops.boolean._
   import scala.compiletime.ops.boolean._
 
-  // 1. Membership Check (Keep as Match Type, it's fine here)
   type Member[X, T <: Tuple] <: Boolean = T match
     case EmptyTuple => false
     case X *: t     => true
@@ -93,28 +92,33 @@ object TupleHelpers:
   trait PrimeRest[Fixed <: Tuple, Incoming <: Tuple]:
     type Out <: Tuple
 
-  object PrimeRest:
+  trait PrimeRestLowPriority:
+    /** If nothing found, we can't proof Member (e.g. for generics), just assume they are different. */
+    given assumeAbsent[Fixed <: Tuple, H, T <: Tuple, TailOut <: Tuple](using
+      tail: PrimeRest.Aux[Fixed, T, TailOut],
+    ): PrimeRest.Aux[Fixed, H *: T, H *: TailOut] = 
+      new PrimeRest[Fixed, H *: T] { type Out = H *: TailOut }
+    
+
+  object PrimeRest extends PrimeRestLowPriority:
     type Aux[Fixed <: Tuple, Incoming <: Tuple, O <: Tuple] = 
       PrimeRest[Fixed, Incoming] { type Out = O }
 
-    // Case 1: Base case (End of tuple)
     given empty[Fixed <: Tuple]: PrimeRest.Aux[Fixed, EmptyTuple, EmptyTuple] = 
       new PrimeRest[Fixed, EmptyTuple] { type Out = EmptyTuple }
 
-    // Case 2: Head IS in Fixed -> Wrap it in Prime
     given present[Fixed <: Tuple, H, T <: Tuple, TailOut <: Tuple](using
-      ev: Member[H, Fixed] =:= true,        // Check condition
-      tail: PrimeRest.Aux[Fixed, T, TailOut] // Recurse
+      ev: Member[H, Fixed] =:= true,
+      tail: PrimeRest.Aux[Fixed, T, TailOut],
     ): PrimeRest.Aux[Fixed, H *: T, Prime[H] *: TailOut] = 
       new PrimeRest[Fixed, H *: T] { type Out = Prime[H] *: TailOut }
 
-    // Case 3: Head is NOT in Fixed -> Keep it as is
     given absent[Fixed <: Tuple, H, T <: Tuple, TailOut <: Tuple](using
-      ev: Member[H, Fixed] =:= false,       // Check condition
-      tail: PrimeRest.Aux[Fixed, T, TailOut] // Recurse
+      ev: Member[H, Fixed] =:= false,
+      tail: PrimeRest.Aux[Fixed, T, TailOut],
     ): PrimeRest.Aux[Fixed, H *: T, H *: TailOut] = 
       new PrimeRest[Fixed, H *: T] { type Out = H *: TailOut }
-
+    
   trait PrimeConcat[R1 <: Tuple, R2 <: Tuple]:
     type Out <: Tuple
 
@@ -122,7 +126,6 @@ object TupleHelpers:
     type Aux[R1 <: Tuple, R2 <: Tuple, O <: Tuple] = 
       PrimeConcat[R1, R2] { type Out = O }
 
-    // We need evidence for PrimeRest to calculate the suffix
     given [R1 <: Tuple, R2 <: Tuple, Suffix <: Tuple](using
       rest: PrimeRest.Aux[R1, R2, Suffix]
     ): PrimeConcat.Aux[R1, R2, Tuple.Concat[R1, Suffix]] = 

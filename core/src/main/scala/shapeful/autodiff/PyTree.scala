@@ -18,9 +18,9 @@ object ToPyTree:
   def apply[P](using pt: ToPyTree[P]): ToPyTree[P] = pt
 
   // Keep the tensor instance
-  given [T <: Tuple : Labels, V : Value]: ToPyTree[Tensor[T, V]] with
+  given [T <: Tuple: Labels, V: Value]: ToPyTree[Tensor[T, V]] with
     def toPyTree(t: Tensor[T, V]): Jax.PyAny = t.jaxValue
-    def fromPyTree(p: Jax.PyAny): Tensor[T, V] = 
+    def fromPyTree(p: Jax.PyAny): Tensor[T, V] =
       Tensor.fromPy(p.as[Jax.PyDynamic])(using summon[Labels[T]], summon[Value[V]])
 
   // Tuple instances - these should have lower priority than specific case classes
@@ -58,11 +58,13 @@ object ToPyTree:
 
   inline def reconstructField[T](pyElem: py.Dynamic): T =
     inline erasedValue[T] match
-      case _: Tensor[t, v] => 
-        Tensor.fromPy(pyElem.as[Jax.PyDynamic])(
-          using compiletime.summonInline[Labels[t]], 
-          compiletime.summonInline[Value[v]]
-        ).asInstanceOf[T]
+      case _: Tensor[t, v] =>
+        Tensor
+          .fromPy(pyElem.as[Jax.PyDynamic])(using
+            compiletime.summonInline[Labels[t]],
+            compiletime.summonInline[Value[v]]
+          )
+          .asInstanceOf[T]
       case _: String =>
         pyElem.as[String].asInstanceOf[T]
       case _: Int =>

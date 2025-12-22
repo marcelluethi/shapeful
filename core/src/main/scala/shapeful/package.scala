@@ -10,16 +10,16 @@ package object shapeful:
   export shapeful.tensor.{Shape, Shape0, Shape1, Shape2, Shape3}
   export shapeful.tensor.{DType, Device}
   export shapeful.tensor.{Label, Labels, Axis, AxisIndex, AxisIndices, Dim}
-  
+
   // Export type helpers
   export shapeful.tensor.Axis.UnwrapAxes
   export shapeful.tensor.TupleHelpers.*
   export shapeful.tensor.Broadcast
   export StringLabelMath.`*`
-  
+
   // Export operations
   export shapeful.tensor.TensorOps.*
-  
+
   // Export automatic differentiation
   export shapeful.autodiff.{Autodiff, TensorTree, ToPyTree}
 
@@ -27,4 +27,3 @@ package object shapeful:
   export shapeful.jax.Jit.{jit, jit2}
 
   // Note: Implicit conversions were removed in the Value refactoring
-

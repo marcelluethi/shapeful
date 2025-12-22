@@ -1,11 +1,17 @@
 package nn
 
 import shapeful.*
-import shapeful.Conversions.given
+import shapeful.tensor.Value
 
 case class GradientDescent[Params](df: Params => Params, lr: Float):
-    def step(params: Params)(using paramTree: TensorTree[Params]) =
-        val gradients = df(params)
-        paramTree.zipMap(gradients, params, [T <: Tuple] => (n: Labels[T]) ?=> (g: Tensor[T], p: Tensor[T]) => 
-            p - (g :* lr)
-        )
+  def step(params: Params)(using paramTree: TensorTree[Params]) =
+    val gradients = df(params)
+    paramTree.zipMap(
+      gradients,
+      params,
+      [T <: Tuple, V] =>
+        (n: Labels[T], v: Value[V]) ?=>
+          (g: Tensor[T, V], p: Tensor[T, V]) =>
+            val lrTensor = Tensor0(lr)(using v)
+            p - (g :* lrTensor)
+    )

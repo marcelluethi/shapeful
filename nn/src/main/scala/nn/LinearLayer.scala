@@ -1,44 +1,45 @@
 package nn
 
 import shapeful.*
-import shapeful.Conversions.given
+import shapeful.tensor.Value
 import shapeful.random.Random.Key
 
 object LinearLayer:
 
-    case class Params[In, Out](weight: Tensor2[In, Out], bias: Tensor1[Out])
+  case class Params[In, Out, V](weight: Tensor2[In, Out, V], bias: Tensor1[Out, V])
 
-    object Params:
-        given [I : Label, O : Label]: TensorTree[Params[I, O]] = TensorTree.derived
-        given [I : Label, O : Label]: ToPyTree[Params[I, O]] = ToPyTree.derived
+  object Params:
+    given [I: Label, O: Label, V]: TensorTree[Params[I, O, V]] = TensorTree.derived
+    // given [I : Label, O : Label, V]: ToPyTree[Params[I, O, V]] = ToPyTree.derived
 
-        def apply[In : Label, Out : Label](paramKey: Key)(
-            inputDim: Dim[In],
-            outputDim: Dim[Out],
-        ): Params[In, Out] = Params(
-            weight = Tensor.randn(Shape(inputDim, outputDim), paramKey),
-            bias = Tensor.zeros(Shape(outputDim)),
-        )
+    def apply[In: Label, Out: Label, V: Value](paramKey: Key)(
+        inputDim: Dim[In],
+        outputDim: Dim[Out]
+    ): Params[In, Out, V] = Params(
+      weight = Tensor.of[V].randn(Shape(inputDim, outputDim), paramKey),
+      bias = Tensor.of[V].zeros(Shape(outputDim))
+    )
 
-case class LinearLayer[In : Label,Out : Label](params: LinearLayer.Params[In, Out]) extends Function[Tensor1[In], Tensor1[Out]]:
-    override def apply(x: Tensor1[In]): Tensor1[Out] =
-        import params.{weight, bias}
-        x.contract(Axis[In])(weight) + bias
+case class LinearLayer[In: Label, Out: Label, V: Value](params: LinearLayer.Params[In, Out, V])
+    extends Function[Tensor1[In, V], Tensor1[Out, V]]:
+  override def apply(x: Tensor1[In, V]): Tensor1[Out, V] =
+    import params.{weight, bias}
+    x.contract(Axis[In])(weight) + bias
 
 object LinearMap:
 
-    case class Params[In](weight: Tensor1[In], bias: Tensor0)
+  case class Params[In, V](weight: Tensor1[In, V], bias: Tensor0[V])
 
-    object Params:
-        given [In : Label]: TensorTree[Params[In]] = TensorTree.derived
-        given [In : Label]: ToPyTree[Params[In]] = ToPyTree.derived
+  object Params:
+    given [In: Label, V]: TensorTree[Params[In, V]] = TensorTree.derived
+    // given [In : Label, V]: ToPyTree[Params[In, V]] = ToPyTree.derived
 
-        def apply[In : Label](paramKey: Key)(inputDim: Dim[In]): Params[In] = Params(
-            weight = Tensor.randn(Shape(inputDim), paramKey),
-            bias = Tensor0(0.0f),
-        )
+    def apply[In: Label, V: Value](paramKey: Key)(inputDim: Dim[In]): Params[In, V] = Params(
+      weight = Tensor.of[V].randn(Shape(inputDim), paramKey),
+      bias = Tensor0(0.0f)(using summon[Value[V]])
+    )
 
-case class LinearMap[In : Label](params: LinearMap.Params[In]) extends Function[Tensor1[In], Tensor0]:
-    override def apply(x: Tensor1[In]): Tensor0 = 
-        import params.{weight, bias}
-        x.contract(Axis[In])(weight) + bias
+case class LinearMap[In: Label, V: Value](params: LinearMap.Params[In, V]) extends Function[Tensor1[In, V], Tensor0[V]]:
+  override def apply(x: Tensor1[In, V]): Tensor0[V] =
+    import params.{weight, bias}
+    x.contract(Axis[In])(weight) + bias

@@ -6,15 +6,18 @@ import shapeful.tensor.{Labels, Label}
 
 /** Represents the (typed) Shape of a tensor with runtime labels
   */
-final case class Shape[T <: Tuple : Labels] @publicInBinary private (
-  val dimensions: List[Int],
+final case class Shape[T <: Tuple: Labels] @publicInBinary private (
+    val dimensions: List[Int]
 ):
 
   lazy val labels: List[String] = summon[Labels[T]].names
 
-  require(dimensions.size == labels.size, s"Dimensions and labels must have the same size but got ${dimensions.size} dims and ${labels.size} labels, overall shape: $this")
+  require(
+    dimensions.size == labels.size,
+    s"Dimensions and labels must have the same size but got ${dimensions.size} dims and ${labels.size} labels, overall shape: $this"
+  )
   require(dimensions.forall(_ > 0), "All dimensions must be positive")
-   // TODO maybe same Axis must means symetric along these axes? => same length
+  // TODO maybe same Axis must means symetric along these axes? => same length
   // require(labels.distinct.size == labels.size, "Labels must be unique")
 
   def rank: Int = dimensions.size
@@ -27,7 +30,8 @@ final case class Shape[T <: Tuple : Labels] @publicInBinary private (
     new Shape(other.dimensions ++ dimensions)
 
   override def toString: String =
-    labels.zip(dimensions)
+    labels
+      .zip(dimensions)
       .map((label, dim) => s"$label=$dim")
       .mkString("Shape(", ", ", ")")
 
@@ -37,37 +41,37 @@ final case class Shape[T <: Tuple : Labels] @publicInBinary private (
 
   override def hashCode(): Int = dimensions.hashCode() ^ labels.hashCode()
 
-  def ++[U <: Tuple : Labels](other: Shape[U]): Shape[Tuple.Concat[U, T]] =
+  def ++[U <: Tuple: Labels](other: Shape[U]): Shape[Tuple.Concat[U, T]] =
     import Labels.ForConcat.given
     new Shape(other.dimensions ++ dimensions)
 
-  def +:[NewL : Label](dim: (Axis[NewL], Int)): Shape[NewL *: T] = 
+  def +:[NewL: Label](dim: (Axis[NewL], Int)): Shape[NewL *: T] =
     new Shape(dim._2 :: dimensions)
 
 object Shape:
 
   def empty: Shape[EmptyTuple] = new Shape(Nil)
-  
+
   type ExtractLabels[Args <: Tuple] <: Tuple = Args match
-    case EmptyTuple => EmptyTuple
+    case EmptyTuple             => EmptyTuple
     case (Axis[l], Int) *: tail => l *: ExtractLabels[tail]
 
-  def apply[L : Label](dim: (Axis[L], Int)): Shape[L *: EmptyTuple]=
+  def apply[L: Label](dim: (Axis[L], Int)): Shape[L *: EmptyTuple] =
     Shape.fromTuple(Tuple1(dim))
 
-  def apply[A <: Tuple](args: A)(
-    using n: Labels[ExtractLabels[A]] 
+  def apply[A <: Tuple](args: A)(using
+      n: Labels[ExtractLabels[A]]
   ): Shape[ExtractLabels[A]] = Shape.fromTuple(args)
 
-  def fromTuple[A <: Tuple](args: A)(
-    using n: Labels[ExtractLabels[A]] 
+  def fromTuple[A <: Tuple](args: A)(using
+      n: Labels[ExtractLabels[A]]
   ): Shape[ExtractLabels[A]] =
-    val sizes = args.toList.collect {
-      case (_, s: Int) => s
+    val sizes = args.toList.collect { case (_, s: Int) =>
+      s
     }
     new Shape(sizes)
 
-  private[tensor] def fromList[T <: Tuple : Labels](dims: List[Int]) = new Shape[T](dims)
+  private[tensor] def fromList[T <: Tuple: Labels](dims: List[Int]) = new Shape[T](dims)
 
 type Shape0 = Shape[EmptyTuple]
 type Shape1[L] = Shape[L *: EmptyTuple]
@@ -80,7 +84,7 @@ object Shape1:
   def apply[L](dim: (Axis[L], Int))(using v: ValueOf[L]): Shape[Tuple1[L]] = Shape(dim)
 
 object Shape2:
-  def apply[L1 : Label, L2 : Label](
+  def apply[L1: Label, L2: Label](
       dim1: (Axis[L1], Int),
       dim2: (Axis[L2], Int)
   ): Shape[(L1, L2)] = Shape.fromTuple(dim1, dim2)
@@ -89,7 +93,7 @@ object Test:
   val x = Shape2(Axis["A"] -> 3, Axis["B"] -> 4)
 
 object Shape3:
-  def apply[L1 : Label, L2 : Label, L3 : Label](
+  def apply[L1: Label, L2: Label, L3: Label](
       dim1: (Axis[L1], Int),
       dim2: (Axis[L2], Int),
       dim3: (Axis[L3], Int)

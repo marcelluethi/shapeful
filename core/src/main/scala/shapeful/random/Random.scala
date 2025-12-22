@@ -49,7 +49,7 @@ object Random:
     */
 
   /** Normal distribution with specified mean and standard deviation */
-  def normal[T <: Tuple : Labels, V : Value](
+  def normal[T <: Tuple: Labels, V: Value](
       key: Key,
       shape: Shape[T],
       mean: Tensor0[V],
@@ -63,9 +63,9 @@ object Random:
     )
     val standardNormal = Tensor.fromPy[T, V](jaxValues)
     standardNormal :* std :+ mean
-  
+
   /** Normal distribution with mean=0 and std=1 */
-  def normal[T <: Tuple : Labels, V : Value](
+  def normal[T <: Tuple: Labels, V: Value](
       key: Key,
       shape: Shape[T],
       dtype: DType
@@ -76,14 +76,14 @@ object Random:
     normal(key, shape, zero, one, dtype)
 
   /** Uniform distribution in [0, 1) */
-  def uniform[T <: Tuple : Labels, V : Value](
+  def uniform[T <: Tuple: Labels, V: Value](
       key: Key,
       shape: Shape[T],
       dtype: DType = DType.Float32
   ): Tensor[T, V] = uniform(key, shape, Tensor0(0f)(using summon[Value[V]]), Tensor0(1f)(using summon[Value[V]]), dtype)
 
   /** Uniform distribution in [minval, maxval) */
-  def uniform[T <: Tuple : Labels, V : Value](
+  def uniform[T <: Tuple: Labels, V: Value](
       key: Key,
       shape: Shape[T],
       minval: Tensor0[V],
@@ -98,4 +98,3 @@ object Random:
       dtype = JaxDType.jaxDtype(dtype)
     )
     Tensor.fromPy[T, V](jaxValues)
-

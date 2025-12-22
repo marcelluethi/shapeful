@@ -24,24 +24,47 @@ trait Value[V]:
   def dtype: DType
 
 object Value:
+  // Type aliases for simpler syntax
+  type Float32 = Float32.type
+  type Float64 = Float64.type
+  type Int32 = Int32.type
+  type Int64 = Int64.type
+  type Bool = Bool.type
+
+  // Support for automatic derivation from traits with dType type member
+  // Usage: trait Y { type dType = DType.Float64.type } derives Value
+  inline def derived[V]: Value[V] =
+    new Value[V]:
+      def dtype: DType =
+        inline scala.compiletime.erasedValue[V] match
+          case _: { type dType = DType.Float32.type } => DType.Float32
+          case _: { type dType = DType.Float64.type } => DType.Float64
+          case _: { type dType = DType.Int32.type }   => DType.Int32
+          case _: { type dType = DType.Int64.type }   => DType.Int64
+          case _: { type dType = DType.Bool.type }    => DType.Bool
+          case _                                      =>
+            scala.compiletime.error(
+              "Type must have a dType type member set to one of: DType.Float32.type, DType.Float64.type, DType.Int32.type, DType.Int64.type, or DType.Bool.type"
+            )
+
   // Singleton value objects for use with Value[X] syntax
-  object Float32 extends Value[Float32.type]:
+  given Float32: Value[Float32.type] with
     def dtype: DType = DType.Float32
-  
-  object Float64 extends Value[Float64.type]:
+
+  given Float64: Value[Float64.type] with
     def dtype: DType = DType.Float64
-  
-  object Int32 extends Value[Int32.type]:
+
+  given Int32: Value[Int32.type] with
     def dtype: DType = DType.Int32
-  
-  object Int64 extends Value[Int64.type]:
+
+  given Int64: Value[Int64.type] with
     def dtype: DType = DType.Int64
-  
-  object Bool extends Value[Bool.type]:
+
+  given Bool: Value[Bool.type] with
     def dtype: DType = DType.Bool
 
   // Apply method to enable Value[X] pattern extraction
-  def apply[V](value: Value[V]): ValueBuilder[V] = new ValueBuilder[V](value)
+  def apply[V](using value: Value[V]): ValueBuilder[V] = new ValueBuilder[V](value)
 
   // For custom value types, users should provide a given Value[MyType] with the appropriate dtype
   // Example:
@@ -50,31 +73,37 @@ object Value:
   //   def dtype: DType = DType.Float32
 
 class ValueBuilder[V](val evidence: Value[V]):
-  def zeros[T <: Tuple : Labels](shape: Shape[T])(using Value[V]): Tensor[T, V] =
-    Tensor(Jax.jnp.zeros(shape.dimensions.toPythonProxy, dtype = evidence.dtype.jaxType))(using summon[Labels[T]], summon[Value[V]])
-  
-  def ones[T <: Tuple : Labels](shape: Shape[T])(using Value[V]): Tensor[T, V] =
-    Tensor(Jax.jnp.ones(shape.dimensions.toPythonProxy, dtype = evidence.dtype.jaxType))(using summon[Labels[T]], summon[Value[V]])
-  
-  def randn[T <: Tuple : Labels](shape: Shape[T], key: Random.Key)(using Value[V]): Tensor[T, V] =
+  def zeros[T <: Tuple: Labels](shape: Shape[T])(using Value[V]): Tensor[T, V] =
+    Tensor(Jax.jnp.zeros(shape.dimensions.toPythonProxy, dtype = evidence.dtype.jaxType))(using
+      summon[Labels[T]],
+      summon[Value[V]]
+    )
+
+  def ones[T <: Tuple: Labels](shape: Shape[T])(using Value[V]): Tensor[T, V] =
+    Tensor(Jax.jnp.ones(shape.dimensions.toPythonProxy, dtype = evidence.dtype.jaxType))(using
+      summon[Labels[T]],
+      summon[Value[V]]
+    )
+
+  def randn[T <: Tuple: Labels](shape: Shape[T], key: Random.Key)(using Value[V]): Tensor[T, V] =
     Random.normal(key, shape, dtype = evidence.dtype)(using summon[Labels[T]], summon[Value[V]])
 
-class Tensor[T <: Tuple : Labels, V : Value] private[tensor](
-  val jaxValue: Jax.PyDynamic,
+class Tensor[T <: Tuple: Labels, V: Value] private[tensor] (
+    val jaxValue: Jax.PyDynamic
 ):
 
   lazy val axes: List[String] = shape.labels
   lazy val dtype: DType = JaxDType.fromJaxDtype(jaxValue.dtype)
   lazy val shape: Shape[T] = Shape.fromList[T](jaxValue.shape.as[Seq[Int]].toList)
 
-  lazy val device: Device = Device.values.find(
-    d => Jax.device_get(jaxValue).equals(d.jaxDevice)
-  ).getOrElse(Device.Other(Jax.device_get(jaxValue).name.as[String]))
+  lazy val device: Device = Device.values
+    .find(d => Jax.device_get(jaxValue).equals(d.jaxDevice))
+    .getOrElse(Device.Other(Jax.device_get(jaxValue).name.as[String]))
 
-  def asType(newDType: DType): Tensor[T, V] = 
+  def asType(newDType: DType): Tensor[T, V] =
     Tensor(jaxValue = Jax.jnp.astype(jaxValue, JaxDType.jaxDtype(newDType)))
 
-  def toDevice(newDevice: Device): Tensor[T, V] = 
+  def toDevice(newDevice: Device): Tensor[T, V] =
     Tensor(jaxValue = Jax.device_put(jaxValue, newDevice.jaxDevice))
 
   def equals(other: Tensor[T, V]): Boolean =
@@ -86,41 +115,42 @@ class Tensor[T <: Tuple : Labels, V : Value] private[tensor](
 
   private def jaxArray: Jax.PyDynamic = jaxValue.block_until_ready()
 
-  def dim[L](axis: Axis[L])(using axisIndex: AxisIndex[T, L]): Dim[L] = 
+  def dim[L](axis: Axis[L])(using axisIndex: AxisIndex[T, L]): Dim[L] =
     shape.dim(axis)
 
 object Tensor:
 
-  type IndicesOf[T <: Tuple] = Tuple.Map[T, [ _ ] =>> Int]
+  type IndicesOf[T <: Tuple] = Tuple.Map[T, [_] =>> Int]
 
-  private[tensor] def apply[T <: Tuple : Labels, V : Value](jaxValue: Jax.PyDynamic): Tensor[T, V] = new Tensor[T, V](jaxValue)
+  private[tensor] def apply[T <: Tuple: Labels, V: Value](jaxValue: Jax.PyDynamic): Tensor[T, V] =
+    new Tensor[T, V](jaxValue)
 
-  def fromPy[T <: Tuple : Labels, V : Value](jaxValue: Jax.PyDynamic): Tensor[T, V] = Tensor(jaxValue)
+  def fromPy[T <: Tuple: Labels, V: Value](jaxValue: Jax.PyDynamic): Tensor[T, V] = Tensor(jaxValue)
 
-  // Main API: Tensor.of(Value[X]).ones(...)
-  def of[V : Value]: TensorFactory[V] = new TensorFactory[V]()
+  // Main API: Tensor.of[MyValueType].ones(...)
+  def of[V: Value]: TensorFactory[V] = new TensorFactory[V]()
+  def of[V: Value](v: Value[V]): TensorFactory[V] = new TensorFactory[V]()
 
-class TensorFactory[V : Value]:
-  def zeros[T <: Tuple : Labels](shape: Shape[T]): Tensor[T, V] =
+class TensorFactory[V: Value]:
+  def zeros[T <: Tuple: Labels](shape: Shape[T]): Tensor[T, V] =
     Tensor(Jax.jnp.zeros(shape.dimensions.toPythonProxy, dtype = summon[Value[V]].dtype.jaxType))
-  
-  def ones[T <: Tuple : Labels](shape: Shape[T]): Tensor[T, V] =
+
+  def ones[T <: Tuple: Labels](shape: Shape[T]): Tensor[T, V] =
     Tensor(Jax.jnp.ones(shape.dimensions.toPythonProxy, dtype = summon[Value[V]].dtype.jaxType))
-  
-  def randn[T <: Tuple : Labels](shape: Shape[T], key: Random.Key): Tensor[T, V] =
+
+  def randn[T <: Tuple: Labels](shape: Shape[T], key: Random.Key): Tensor[T, V] =
     Random.normal(key, shape, dtype = summon[Value[V]].dtype)(using summon[Labels[T]], summon[Value[V]])
-  
-  def apply[T <: Tuple : Labels](shape: Shape[T], values: Array[Float], device: Device = Device.default): Tensor[T, V] =
+
+  def apply[T <: Tuple: Labels](shape: Shape[T], values: Array[Float], device: Device = Device.default): Tensor[T, V] =
     require(values.length == shape.size, s"Values length ${values.length} does not match shape size ${shape.size}")
     val jaxValues = Jax.jnp
       .array(
         values.toPythonProxy,
         dtype = summon[Value[V]].dtype.jaxType,
-        device = device.jaxDevice,
+        device = device.jaxDevice
       )
       .reshape(shape.dimensions.toPythonProxy)
     Tensor(jaxValues)
-
 
 type Tensor0[V] = Tensor[EmptyTuple, V]
 type Tensor1[L, V] = Tensor[Tuple1[L], V]
@@ -135,79 +165,79 @@ object Tensor0:
   // given Conversion[Float, Tensor0[Float]] = (x: Float) => Tensor0(x)
   // given Conversion[Int, Tensor0[Int]] = (x: Int) => Tensor0(x)
 
-  def apply[V : Value](jaxValue: Jax.PyDynamic): Tensor0[V] = Tensor(jaxValue)
+  def apply[V: Value](jaxValue: Jax.PyDynamic): Tensor0[V] = Tensor(jaxValue)
 
-  def apply[V : Value](value: Float | Int | Boolean): Tensor0[V] =
+  def apply[V: Value](value: Float | Int | Boolean): Tensor0[V] =
     value match
-      case v: Float   => Tensor0(Jax.jnp.array(v, dtype=DType.Float32.jaxType))
-      case v: Int     => Tensor0(Jax.jnp.array(v, dtype=DType.Int32.jaxType))
-      case v: Boolean => Tensor0(Jax.jnp.array(v, dtype=DType.Bool.jaxType))
+      case v: Float   => Tensor0(Jax.jnp.array(v, dtype = DType.Float32.jaxType))
+      case v: Int     => Tensor0(Jax.jnp.array(v, dtype = DType.Int32.jaxType))
+      case v: Boolean => Tensor0(Jax.jnp.array(v, dtype = DType.Bool.jaxType))
 
 object Tensor1:
 
-  def apply[L : Label, V : Value](axis: Axis[L], values: Array[Float], dtype: DType = DType.Float32): Tensor1[L, V] =
+  def apply[L: Label, V: Value](axis: Axis[L], values: Array[Float], dtype: DType = DType.Float32): Tensor1[L, V] =
     Tensor(Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxType))
 
-  def fromInts[L : Label, V : Value](axis: Axis[L], values: Array[Int], dtype: DType = DType.Int32): Tensor1[L, V] =
+  def fromInts[L: Label, V: Value](axis: Axis[L], values: Array[Int], dtype: DType = DType.Int32): Tensor1[L, V] =
     Tensor(Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxType))
 
 object Tensor2:
 
-  def apply[L1 : Label, L2 : Label, V : Value](
+  def apply[L1: Label, L2: Label, V: Value](
       shape: Shape2[L1, L2],
       values: Array[Float],
-      dtype: DType,
-  ): Tensor2[L1, L2, V] = 
+      dtype: DType
+  ): Tensor2[L1, L2, V] =
     val jaxValues = Jax.jnp
       .array(values.toPythonProxy, dtype = dtype.jaxType)
       .reshape(shape.dimensions.toPythonProxy)
     Tensor(jaxValues)
 
-  def apply[L1 : Label, L2 : Label, V : Value](
+  def apply[L1: Label, L2: Label, V: Value](
       shape: Shape2[L1, L2],
-      values: Array[Float],
+      values: Array[Float]
   ): Tensor2[L1, L2, V] = Tensor2(shape, values, summon[Value[V]].dtype)
 
-  def apply[L1 : Label, L2 : Label, V : Value](
+  def apply[L1: Label, L2: Label, V: Value](
       axis1: Axis[L1],
       axis2: Axis[L2],
       values: Array[Array[Float]],
-      dtype: DType = DType.Float32,
+      dtype: DType = DType.Float32
   ): Tensor[(L1, L2), V] =
     val rows = values.length
     val cols = values.headOption.map(_.length).getOrElse(0)
     require(values.forall(_.length == cols), "All rows must have the same length")
     Tensor2(Shape(axis1 -> rows, axis2 -> cols), values.flatten, dtype)
 
-  def eye[L : Label, V : Value](axis: Axis[L])(dim: Int, dtype: DType = DType.Float32): Tensor2[L, L, V] = 
+  def eye[L: Label, V: Value](axis: Axis[L])(dim: Int, dtype: DType = DType.Float32): Tensor2[L, L, V] =
     Tensor(Jax.jnp.eye(dim, dtype = dtype.jaxType))
 
-  def diag[L : Label, V : Value](diag: Tensor1[L, V]): Tensor2[L, L, V] =
+  def diag[L: Label, V: Value](diag: Tensor1[L, V]): Tensor2[L, L, V] =
     Tensor(Jax.jnp.diag(diag.jaxValue))
 
 object Tensor3:
 
-  def apply[L1 : Label, L2 : Label, L3 : Label, V : Value ](
+  def apply[L1: Label, L2: Label, L3: Label, V: Value](
       shape: Shape3[L1, L2, L3],
       values: Array[Float],
-      dtype: DType,
-  ): Tensor3[L1, L2, L3, V] = 
+      dtype: DType
+  ): Tensor3[L1, L2, L3, V] =
     val jaxValues = Jax.jnp
       .array(values.toPythonProxy, dtype = dtype.jaxType)
       .reshape(shape.dimensions.toPythonProxy)
     Tensor(jaxValues)
 
-  def apply[L1 : Label, L2 : Label, L3 : Label, V : Value](
+  def apply[L1: Label, L2: Label, L3: Label, V: Value](
       shape: Shape3[L1, L2, L3],
-      values: Array[Float],
+      values: Array[Float]
   ): Tensor3[L1, L2, L3, V] = Tensor3(shape, values, DType.Float32)
 
-  def apply[L1 : Label, L2 : Label, L3 : Label, V : Value](
+  def apply[L1: Label, L2: Label, L3: Label, V: Value](
       axis1: Axis[L1],
       axis2: Axis[L2],
       axis3: Axis[L3],
       values: Array[Array[Array[Float]]],
-      dtype: DType = DType.Float32,
+      dtype: DType = DType.Float32
   ): Tensor3[L1, L2, L3, V] =
     val dim1 = values.length
     val dim2 = values.headOption.map(_.length).getOrElse(0)
@@ -217,5 +247,5 @@ object Tensor3:
     Tensor3(
       Shape(axis1 -> dim1, axis2 -> dim2, axis3 -> dim3),
       values.flatten.flatten,
-      dtype,
+      dtype
     )

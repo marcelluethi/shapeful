@@ -11,8 +11,8 @@ object TupleHelpers:
       type Out = EmptyTuple
 
     given chain[T <: Tuple, K1, K2, Rest <: Tuple, Inter <: Tuple, O <: Tuple](using
-      s1: Subset[T, K1 *: EmptyTuple] { type Out = Inter },
-      s2: Subset[Inter, K2 *: Rest] { type Out = O }
+        s1: Subset[T, K1 *: EmptyTuple] { type Out = Inter },
+        s2: Subset[Inter, K2 *: Rest] { type Out = O }
     ): Subset[T, K1 *: K2 *: Rest] with
       type Out = s2.Out
 
@@ -20,7 +20,7 @@ object TupleHelpers:
       type Out = Tail
 
     given singleSearch[H, Tail <: Tuple, K, TailOut <: Tuple](using
-      next: Subset[Tail, K *: EmptyTuple] { type Out = TailOut }
+        next: Subset[Tail, K *: EmptyTuple] { type Out = TailOut }
     ): Subset[H *: Tail, K *: EmptyTuple] with
       type Out = H *: TailOut
 
@@ -35,8 +35,8 @@ object TupleHelpers:
       type Out = T
 
     given chain[T <: Tuple, K1, K2, Rest <: Tuple, Inter <: Tuple, O <: Tuple](using
-      r1: RemoverAll[T, K1 *: EmptyTuple] { type Out = Inter },
-      r2: RemoverAll[Inter, K2 *: Rest] { type Out = O }
+        r1: RemoverAll[T, K1 *: EmptyTuple] { type Out = Inter },
+        r2: RemoverAll[Inter, K2 *: Rest] { type Out = O }
     ): RemoverAll[T, K1 *: K2 *: Rest] with
       type Out = r2.Out
 
@@ -44,7 +44,7 @@ object TupleHelpers:
       type Out = Tail
 
     given singleSearch[H, Tail <: Tuple, K, TailOut <: Tuple](using
-      next: RemoverAll[Tail, K *: EmptyTuple] { type Out = TailOut }
+        next: RemoverAll[Tail, K *: EmptyTuple] { type Out = TailOut }
     ): RemoverAll[H *: Tail, K *: EmptyTuple] with
       type Out = H *: TailOut
 
@@ -58,6 +58,6 @@ object TupleHelpers:
 
   trait ReplacerLowPriority:
     given recurse[Head, Tail <: Tuple, Target, Replacement, TailOut <: Tuple](using
-      next: Replacer[Tail, Target, Replacement] { type Out = TailOut }
+        next: Replacer[Tail, Target, Replacement] { type Out = TailOut }
     ): Replacer[Head *: Tail, Target, Replacement] with
       type Out = Head *: TailOut

@@ -1,9 +1,41 @@
+
+import scala.annotation.targetName
 package object shapeful:
 
   import scala.compiletime.ops.string.+
 
   object StringLabelMath:
     infix type *[A <: String, B <: String] = A + "*" + B
+
+  trait Prime[T]
+  object Prime:
+    given[L](using label: Label[L]): Label[Prime[L]] with
+      val name: String = s"${label.name}'"
+
+    type RemovePrimes[T <: Tuple] <: Tuple = T match
+      case EmptyTuple => EmptyTuple
+      case Prime[l] *: tail => l *: RemovePrimes[tail]
+      case h *: tail => h *: RemovePrimes[tail]
+
+    extension[T <: Tuple : Labels](tensor: Tensor[T])
+      def dropPrimes: Tensor[RemovePrimes[T]] =
+        given newLabels: Labels[RemovePrimes[T]] with
+          val names: List[String] = 
+            val oldLabels = summon[Labels[T]]
+            oldLabels.names.toList.map(_.replace("'", ""))
+        Tensor.fromPy(tensor.jaxValue)
+
+  @targetName("On") 
+  infix trait ~[A, B]
+  object `~`:
+    given [A, B](using labelA: Label[A], labelB: Label[B]): Label[A ~ B] with
+      val name: String = s"${labelA.name}_on_${labelB.name}"
+  
+  @targetName("Combined")
+  infix trait |*|[A, B]
+  object `|*|`:
+    given [A, B](using labelA: Label[A], labelB: Label[B]): Label[A |*| B] with
+      val name: String = s"${labelA.name}*${labelB.name}"
 
   // Export tensor and related types
   export shapeful.tensor.{Tensor, Tensor0, Tensor1, Tensor2, Tensor3}
@@ -15,7 +47,7 @@ package object shapeful:
   export shapeful.tensor.Axis.UnwrapAxes
   export shapeful.tensor.TupleHelpers.*
   export shapeful.tensor.Broadcast
-  export StringLabelMath.`*`
+  export Prime.*
   
   // Export operations
   export shapeful.tensor.TensorOps.*

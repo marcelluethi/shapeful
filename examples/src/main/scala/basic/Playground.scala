@@ -1,6 +1,7 @@
 package examples.basic
 
 import shapeful.*
+import scala.util.NotGiven
 
 
 @main def playground(): Unit =
@@ -94,14 +95,37 @@ import shapeful.*
     ))
     val d = X.rearrange(
       (
-        Axis[Batch * Frame],
-        Axis[Width * Height],
+        Axis[Batch |*| Frame],
+        Axis[Width |*| Height],
         Axis[Channel]
       )
     )
     println(d.shape)
-    val e = d.as[(Axis[Frame], Axis["pixel"], Axis[Channel])]
+    val e = d.relabelAll((Axis[Frame], Axis["pixel"], Axis[Channel]))
     println(e.shape)
+  }
+  {
+    println("Einops rearrange with trait-based labels")
+    trait Batch derives Label
+    trait Frame derives Label
+    trait Width derives Label
+    trait Height derives Label
+    trait Channel derives Label
+    val X = Tensor.zeros(Shape(
+      Axis[Batch] -> 32,
+      Axis[Frame] -> 64,
+      Axis[Width] -> 256,
+      Axis[Height] -> 256,
+      Axis[Channel] -> 3,
+    ))
+    val d = X.rearrange(
+      (
+        Axis[Batch |*| Frame],
+        Axis[Width |*| Height],
+        Axis[Channel]
+      )
+    )
+    println(d.shape)
   }
   {
     println("Contraction with overlapping axes")
@@ -346,32 +370,41 @@ import shapeful.*
       val sumExp = expTensor.sum
       expTensor.vmap(Axis[L]) { _ / sumExp }
 
-    val X = Tensor.ones(
-      Shape(Axis["Batch"] -> 32, Axis["Sequence"] -> 128, Axis["Value"] -> 64)
+    trait Value derives Label
+    trait Key derives Label
+    trait Query derives Label
+    trait Context derives Label
+
+    case class Attention(
+      wk: Tensor2[Value, Key],
+      wq: Tensor2[Value, Query],
+      wv: Tensor2[Value, Prime[Value]],
+    ):
+      private trait AttnWeights derives Label
+
+      def apply(x: Tensor2[Context, Value]): Tensor2[Context, Value] = 
+        val k = x.contract(Axis[Value])(wk)
+        val q = x.contract(Axis[Value])(wq)
+        val v = x.contract(Axis[Value])(wv)
+        val dk = Tensor0(Math.sqrt(k.shape(Axis[Key])).toFloat)
+        val attnWeightsPrime = q.contract(Axis[Query ~ Key])(k)
+          .vmap(Axis[Context])(x => softmax(x).relabelTo(Axis[AttnWeights]))
+        val resPrime = attnWeightsPrime.contract(Axis[AttnWeights ~ Context])(v)
+        resPrime.relabel(Axis[Prime[Value]] -> Axis[Value])
+
+    trait Batch derives Label
+
+    val x = Tensor.ones(Shape(Axis[Batch] -> 32, Axis[Context] -> 128, Axis[Value] -> 64))
+    val attention = Attention(
+      Tensor.ones(Shape(Axis[Value] -> 64, Axis[Key] -> 64)),
+      Tensor.ones(Shape(Axis[Value] -> 64, Axis[Query] -> 64)),
+      Tensor.ones(Shape(Axis[Value] -> 64, Axis[Prime[Value]] -> 64)),
     )
-    val WK = Tensor.ones(
-      Shape(Axis["Value"] -> 64, Axis["Key"] -> 64)
-    )
-    val WQ = Tensor.ones(
-      Shape(Axis["Value"] -> 64, Axis["Query"] -> 64)
-    )
-    val WV = Tensor.ones(
-      Shape(Axis["Value"] -> 64, Axis["NewValue"] -> 64)
-    )
-    val Xnew = X.vmap(Axis["Batch"]) { Xi => 
-      val K = Xi.contract(Axis["Value"])(WK)
-      val Q = Xi.contract(Axis["Value"])(WQ)
-      val V = Xi.contract(Axis["Value"])(WV)
-      val dk = Tensor0(Math.sqrt(K.shape(Axis["Key"])).toFloat)
-      val AttnWeights = (Q.contract(Axis["Query"] -> Axis["Key"])(K) :/ dk)
-        .as[(Axis["Sequence"], Axis["Weights"])]
-        .vmap(Axis["Sequence"])(softmax)
-      val res = AttnWeights.contract(Axis["Weights"] -> Axis["Sequence"])(V)
-      res.relabel(Axis["NewValue"] -> Axis["Value"])
-    }
-    println(Xnew.shape)
+    val newX = x.vmap(Axis[Batch])(attention(_))
+    println(newX.shape)
   }
   {
+    println("Attention")
     // multi-head attention mechanism example
     def softmax[L: Label](tensor: Tensor1[L]): Tensor1[L] =
       val expTensor = tensor.exp
@@ -396,15 +429,79 @@ import shapeful.*
       val V = Xi.contract(Axis["Value"])(WV)
       val res = zipvmap(Axis["Heads"])(Q, K, V) { (Qi, Ki, Vi) =>
         val dk = Tensor0(Math.sqrt(Ki.shape(Axis["Key"])).toFloat)
-        val AttnWeights = (Qi.contract(Axis["Query"] -> Axis["Key"])(Ki) :/ dk)
-          .as[(Axis["Sequence"], Axis["Weights"])]
-          .vmap(Axis["Sequence"])(softmax)
-        AttnWeights.contract(Axis["Weights"] -> Axis["Sequence"])(Vi)
+        val AttnWeights = (Qi.contract(Axis["Query" ~ "Key"])(Ki) :/ dk)
+          .relabelAll((Axis["NewSequence"], Axis["Weights"]))
+          .vmap(Axis["NewSequence"])(softmax)
+        AttnWeights
+          .contract(Axis["Weights" | "Sequence"])(Vi)
+          .relabel(Axis["NewSequence"] -> Axis["Sequence"])
       }
       res.rearrange((
         Axis["Sequence"],
-        Axis["Heads" * "NewValue"],
-      )).relabel(Axis["Heads" * "NewValue"] -> Axis["Value"])
+        Axis["Heads" |*| "NewValue"],
+      )).relabel(Axis["Heads" |*| "NewValue"] -> Axis["Value"])
     }
     println(Xnew.shape)
+  }
+  {
+    trait A derives Label
+    trait B derives Label
+    trait C derives Label
+    trait D derives Label
+    type AxisAB1 = Axis[A] | Axis[B]
+    type AxisAB2 = Axis[A | B]
+    type exists = Axis[A & B]
+
+    val ab = Tensor.ones(Shape(Axis[A] -> 2, Axis[B] -> 2))
+    val ba = Tensor.ones(Shape(Axis[B] -> 2, Axis[A] -> 2))
+    val cd = Tensor.ones(Shape(Axis[C] -> 2, Axis[D] -> 2))
+    
+    val res2 = ab.slice(Axis[A | C] -> 1)
+
+    val axis1 = Axis[A |*| B]
+    val axis2 = Axis[B |*| A]
+
+    type axisType = Axis[A | B]
+    val axis3: axisType = Axis[A | B]
+    val axis4: axisType = Axis[B | A] // <-- This should not work as A | B != B | A for rearrange
+
+    val contractAxis = Axis[B | C]
+    val res = ab.contract(contractAxis)(cd)
+    val cab1 = ab.contract(Axis[A])(ba)
+    val cab2 = ab.contract(Axis[A | B])(ba)
+    val cab3 = ab.contract(Axis[B | A])(ba)
+    // type axisT = Axis[A] | Axis[B]
+    // val axis: axisT = Axis[A]
+    // val cab4 = ab.contract(axis)(ba)
+
+    val xxx = Label.union[A, B](using
+      summon[Label[A]],
+      summon[Label[B]],
+    )
+    val yyy = Labels.concat(using
+      xxx, Labels.namesOfEmpty
+    )
+    given Labels[(A | B) *: EmptyTuple] = yyy
+    val aorb = Tensor.ones(Shape(Axis[A | B] -> 2)(using xxx))
+    val lala = summon[Label[A]]
+    // val r3 = aorb.slice(Axis[A] -> 1)
+    val r3 = aorb.slice(Axis[A | B] -> 1)
+    println(r3.shape)
+  }
+  {
+    val t1 = Tensor.ones(Shape(
+      Axis["A"] -> 2,
+      Axis["B"] -> 3,
+      Axis["C"] -> 4,
+    ))
+    val t2 = t1.appendAxis(Axis["D"])
+    // val t3 = t1.appendAxis(Axis["A"]) // should not compile
+    def f[T <: Tuple : Labels](t: Tensor[T]) =
+      t.appendAxis(Axis["D"])
+    def f2[T <: Tuple : Labels](t: Tensor[T]) =
+      t.appendAxis(Axis["A"])
+    val t3 = f(t1)
+    println(t3.shape)
+    val t4 = f2(t1)
+    println(t4.shape)
   }

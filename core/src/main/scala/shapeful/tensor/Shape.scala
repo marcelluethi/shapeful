@@ -12,7 +12,7 @@ final case class Shape[T <: Tuple : Labels] @publicInBinary private (
 
   lazy val labels: List[String] = summon[Labels[T]].names
 
-  require(dimensions.size == labels.size, s"Dimensions and labels must have the same size but got ${dimensions.size} dims and ${labels.size} labels, overall shape: $this")
+  require(dimensions.size == labels.size, s"Dimensions and labels must have the same size but got ${dimensions.size} dims and ${labels.size} labels, overall shape: $this, labels: ${labels.mkString(", ")}")
   require(dimensions.forall(_ > 0), "All dimensions must be positive")
    // TODO maybe same Axis must means symetric along these axes? => same length
   // require(labels.distinct.size == labels.size, "Labels must be unique")

@@ -1,11 +1,29 @@
 package shapeful.tensor
 
 import shapeful.tensor.TupleHelpers.{RemoverAll, Replacer}
+import scala.compiletime.*
+import scala.quoted.*
+import shapeful.tensor.TupleHelpers.PrimeConcat
 
 trait Label[T]:
     def name: String
 
-object Label:
+private trait LabelLowPriority:
+  given union[A, B](using a: Label[A], b: Label[B]): Label[A | B] with
+      def name: String = a.name + "|" + b.name
+
+object Label extends LabelLowPriority:
+    inline def derived[T]: Label[T] = ${ derivedMacro[T] }
+    
+    private def derivedMacro[T: Type](using Quotes): Expr[Label[T]] =
+      import quotes.reflect.*
+      val tpe = TypeRepr.of[T]
+      val simpleName = tpe.typeSymbol.name
+      '{
+        new Label[T]:
+          def name: String = ${ Expr(simpleName) }
+      }
+    
     given [T](using valueOf: ValueOf[T]): Label[T] with
         def name: String = valueOf.value.toString
 
@@ -14,16 +32,7 @@ trait Labels[T]:
 
 private class LabelsImpl[T](val names: List[String]) extends Labels[T]
 
-private trait LabelsLowPriority:
-  given derivedAllRemover[T <: Tuple, ToRemove <: Tuple, O <: Tuple](using
-    removerAll: RemoverAll[T, ToRemove] { type Out = O },
-    labels: Labels[T],
-    toRemoveLabels: Labels[ToRemove],
-  ): Labels[O] = 
-    val namesToRemove = toRemoveLabels.names.toSet
-    LabelsImpl[O](
-      labels.names.filterNot(namesToRemove.contains)
-    )
+private trait LabelsLowPriority
 
 object Labels extends LabelsLowPriority:
 
@@ -37,7 +46,7 @@ object Labels extends LabelsLowPriority:
     given [A, B, C, D, E](using  a: Labels[A], b: Labels[B], c: Labels[C], d: Labels[D], e: Labels[E]): Labels[(A, B, C, D, E)] = new LabelsImpl[(A, B, C, D, E)](a.names ++ b.names ++ c.names ++ d.names ++ e.names)
     given [A, B, C, D, E, F](using  a: Labels[A], b: Labels[B], c: Labels[C], d: Labels[D], e: Labels[E], f: Labels[F]): Labels[(A, B, C, D, E, F)] = new LabelsImpl[(A, B, C, D, E, F)](a.names ++ b.names ++ c.names ++ d.names ++ e.names ++ f.names)  
     
-    given [head, tail <: Tuple](
+    given concat[head, tail <: Tuple](
       using 
       v: Label[head],
       t: Labels[tail],
@@ -65,3 +74,16 @@ object Labels extends LabelsLowPriority:
         n1: Labels[T1],
         n2: Labels[T2],
       ): Labels[Tuple.Concat[T1, T2]] = new LabelsImpl(n1.names ++ n2.names)
+    
+    object ForPrimeConcat:
+      given derivePrimeConcat[T1 <: Tuple, T2 <: Tuple](
+        using
+        primeConcat: PrimeConcat[T1, T2],
+        n1: Labels[T1],
+        n2: Labels[T2],
+      ): Labels[primeConcat.Out] =
+        val n1Names = n1.names.toSet
+        val newN2Names = n2.names.map { name =>
+          if n1Names.contains(name) then s"${name}'" else name
+        }
+        new LabelsImpl(n1.names ++ newN2Names)

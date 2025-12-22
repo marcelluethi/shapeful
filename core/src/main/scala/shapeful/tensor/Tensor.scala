@@ -133,8 +133,8 @@ object Tensor2:
     require(values.forall(_.length == cols), "All rows must have the same length")
     Tensor2(Shape(axis1 -> rows, axis2 -> cols), values.flatten, dtype)
 
-  def eye[L : Label](axis: Axis[L])(dim: Int, dtype: DType = DType.Float32): Tensor2[L, L] = 
-    Tensor(Jax.jnp.eye(dim, dtype = dtype.jaxType))
+  def eye[L : Label](shape : Shape1[L], dtype: DType = DType.Float32): Tensor2[L, L] = 
+    Tensor(Jax.jnp.eye(shape(Axis[L]), dtype = dtype.jaxType))
 
   def diag[L : Label](diag: Tensor1[L]): Tensor2[L, L] =
     Tensor(Jax.jnp.diag(diag.jaxValue))

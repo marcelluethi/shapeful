@@ -64,6 +64,24 @@ object Random:
     val standardNormal = Tensor.fromPy[T](jaxValues)
     standardNormal :* std :+ mean
 
+  // Multivariate normal 
+  def multivariateNormal[L](
+      key: Key,
+      mean: Tensor[Tuple1[L]],
+      covariance: Tensor[Tuple2[L, L]],
+      shape: Shape[Tuple1[L]],
+      dtype: DType = DType.Float32
+  ): Tensor[Tuple1[L]] =
+    val jaxValues = Jax.jrandom.multivariate_normal(
+      key.jaxKey,
+      mean.jaxValue,
+      covariance.jaxValue,
+      shape.dimensions.toPythonProxy,
+      dtype = JaxDType.jaxDtype(dtype)
+    )
+    Tensor.fromPy(jaxValues).asInstanceOf[Tensor[Tuple1[L]]]
+    
+
   /** Uniform distribution in [0, 1) */
   def uniform[T <: Tuple : Labels](
       key: Key,

@@ -38,8 +38,9 @@ lazy val examples = (project in file("examples"))
     name := "shapeful-examples",
     // Examples use the same Scala version and dependencies as main project
     libraryDependencies ++= Seq(
+      "org.scala-lang" %% "toolkit" % "0.1.7",
       "dev.scalapy" %% "scalapy-core" % "0.5.3",
-      "io.github.quafadas" %% "scautable" % "0.0.28"
+      "io.github.quafadas" %% "scautable" % "0.0.28",
     ),
     fork := true,
     envVars := Map("PYTHONPATH" -> (baseDirectory.value.getParentFile / "src" / "python").getAbsolutePath),

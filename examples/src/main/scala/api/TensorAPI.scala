@@ -401,7 +401,8 @@ def tensorAPI(): Unit =
     /** AS / RELABEL - rename axes labels */
     opBlock("as AB to XY") {
       py.exec("res = ab  # no equivalent in JAX, as axes are not named") 
-      AB.as[(Axis["X"], Axis["Y"])]
+      AB.relabel(Axis["A"] -> Axis["X"]).relabel(Axis["B"] -> Axis["Y"])
+      // TODO add relabel of tuple of axes? => AB.relabel((Axis["A"] -> Axis["X"], Axis["B"] -> Axis["Y"]))
     }
     opBlock("relabel AB to XB") {
       py.exec("res = ab  # no equivalent in JAX, as axes are not named") 

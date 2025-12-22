@@ -11,27 +11,27 @@ import scala.collection.View.Empty
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.SeqConverters
 
-trait Broadcast[T1 <: Tuple, T2 <: Tuple, Out <: Tuple]:
-  def broadcast(t1: Tensor[T1], t2: Tensor[T2]): (Tensor[Out], Tensor[Out])
+trait Broadcast[T1 <: Tuple, T2 <: Tuple, Out <: Tuple, V]:
+  def broadcast(t1: Tensor[T1, V], t2: Tensor[T2, V]): (Tensor[Out, V], Tensor[Out, V])
 
 object Broadcast:
   
   import shapeful.tensor.TensorOps.Structural.lift
 
-  given identity[T <: Tuple]: Broadcast[T, T, T] with
-    def broadcast(t1: Tensor[T], t2: Tensor[T]): (Tensor[T], Tensor[T]) = (t1, t2)
+  given identity[T <: Tuple, V : Value]: Broadcast[T, T, T, V] with
+    def broadcast(t1: Tensor[T, V], t2: Tensor[T, V]): (Tensor[T, V], Tensor[T, V]) = (t1, t2)
   
-  given broadcastToLeft[T1 <: Tuple : Labels, T2 <: Tuple : Labels](using
+  given broadcastToLeft[T1 <: Tuple : Labels, T2 <: Tuple : Labels, V : Value](using
     ev: Subset[T1, T2]
-  ): Broadcast[T1, T2, T1] with
-    def broadcast(t1: Tensor[T1], t2: Tensor[T2]): (Tensor[T1], Tensor[T1]) =
+  ): Broadcast[T1, T2, T1, V] with
+    def broadcast(t1: Tensor[T1, V], t2: Tensor[T2, V]): (Tensor[T1, V], Tensor[T1, V]) =
       val liftedT2 = t2.lift[T1](t1.shape)
       (t1, liftedT2)
 
-  given broadcastToRight[T1 <: Tuple : Labels, T2 <: Tuple : Labels](using
+  given broadcastToRight[T1 <: Tuple : Labels, T2 <: Tuple : Labels, V : Value](using
     ev: Subset[T2, T1],
-  ): Broadcast[T1, T2, T2] with
-    def broadcast(t1: Tensor[T1], t2: Tensor[T2]): (Tensor[T2], Tensor[T2]) =
+  ): Broadcast[T1, T2, T2, V] with
+    def broadcast(t1: Tensor[T1, V], t2: Tensor[T2, V]): (Tensor[T2, V], Tensor[T2, V]) =
       val liftedT1 = t1.lift[T2](t2.shape)
       (liftedT1, t2)
 
@@ -43,63 +43,63 @@ object TensorOps:
   // -----------------------------------------------------------
   object Elementwise:
 
-    def maximum[T <: Tuple : Labels](t1: Tensor[T], t2: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.maximum(t1.jaxValue, t2.jaxValue))
-    def minimum[T <: Tuple : Labels](t1: Tensor[T], t2: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.minimum(t1.jaxValue, t2.jaxValue))
+    def maximum[T <: Tuple : Labels, V : Value](t1: Tensor[T, V], t2: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.maximum(t1.jaxValue, t2.jaxValue))
+    def minimum[T <: Tuple : Labels, V : Value](t1: Tensor[T, V], t2: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.minimum(t1.jaxValue, t2.jaxValue))
 
-    extension [T <: Tuple : Labels](t: Tensor[T])
+    extension [T <: Tuple : Labels, V : Value](t: Tensor[T, V])
       
-      def +(other: Tensor[T]): Tensor[T] = t.add(other)
-      def :+[O <: Tuple](other: Tensor[O])(using broadcaster: Broadcast[T, O, T]): Tensor[T] = broadcaster.broadcast(t, other) match { case (l, r) => l.add(r) }
-      def +:[O <: Tuple : Labels](other: Tensor[O])(using broadcaster: Broadcast[O, T, O]): Tensor[O] = broadcaster.broadcast(other, t) match { case (r, l) => l.add(r) }
-      private def add(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.add(t.jaxValue, other.jaxValue))
+      def +(other: Tensor[T, V]): Tensor[T, V] = t.add(other)
+      def :+[O <: Tuple](other: Tensor[O, V])(using broadcaster: Broadcast[T, O, T, V]): Tensor[T, V] = broadcaster.broadcast(t, other) match { case (l, r) => l.add(r) }
+      def +:[O <: Tuple : Labels](other: Tensor[O, V])(using broadcaster: Broadcast[O, T, O, V]): Tensor[O, V] = broadcaster.broadcast(other, t) match { case (r, l) => l.add(r) }
+      private def add(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.add(t.jaxValue, other.jaxValue))
       
-      def unary_- : Tensor[T] = Tensor(Jax.jnp.negative(t.jaxValue))
-      def -(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.subtract(t.jaxValue, other.jaxValue))
-      def :-[O <: Tuple](other: Tensor[O])(using broadcaster: Broadcast[T, O, T]): Tensor[T] = broadcaster.broadcast(t, other) match { case (l, r) => l.subtract(r) }
-      def -:[O <: Tuple : Labels](other: Tensor[O])(using broadcaster: Broadcast[O, T, O]): Tensor[O] = broadcaster.broadcast(other, t) match { case (r, l) => l.subtract(r) }
-      private def subtract(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.subtract(t.jaxValue, other.jaxValue))
+      def unary_- : Tensor[T, V] = Tensor(Jax.jnp.negative(t.jaxValue))
+      def -(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.subtract(t.jaxValue, other.jaxValue))
+      def :-[O <: Tuple](other: Tensor[O, V])(using broadcaster: Broadcast[T, O, T, V]): Tensor[T, V] = broadcaster.broadcast(t, other) match { case (l, r) => l.subtract(r) }
+      def -:[O <: Tuple : Labels](other: Tensor[O, V])(using broadcaster: Broadcast[O, T, O, V]): Tensor[O, V] = broadcaster.broadcast(other, t) match { case (r, l) => l.subtract(r) }
+      private def subtract(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.subtract(t.jaxValue, other.jaxValue))
 
-      def *(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.multiply(t.jaxValue, other.jaxValue))
-      def scale(other: Tensor0) = Tensor(Jax.jnp.multiply(t.jaxValue, other.jaxValue))
-      def :*[O <: Tuple](other: Tensor[O])(using broadcaster: Broadcast[T, O, T]): Tensor[T] = broadcaster.broadcast(t, other) match { case (l, r) => l.multiply(r) }
-      def *:[O <: Tuple : Labels](other: Tensor[O])(using broadcaster: Broadcast[O, T, O]): Tensor[O] = broadcaster.broadcast(other, t) match { case (r, l) => l.multiply(r) }
-      private def multiply(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.multiply(t.jaxValue, other.jaxValue))
+      def *(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.multiply(t.jaxValue, other.jaxValue))
+      def scale(other: Tensor0[V]) = Tensor(Jax.jnp.multiply(t.jaxValue, other.jaxValue))
+      def :*[O <: Tuple](other: Tensor[O, V])(using broadcaster: Broadcast[T, O, T, V]): Tensor[T, V] = broadcaster.broadcast(t, other) match { case (l, r) => l.multiply(r) }
+      def *:[O <: Tuple : Labels](other: Tensor[O, V])(using broadcaster: Broadcast[O, T, O, V]): Tensor[O, V] = broadcaster.broadcast(other, t) match { case (r, l) => l.multiply(r) }
+      private def multiply(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.multiply(t.jaxValue, other.jaxValue))
       
-      def /(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.divide(t.jaxValue, other.jaxValue))
-      def :/[O <: Tuple](other: Tensor[O])(using broadcaster: Broadcast[T, O, T]): Tensor[T] = broadcaster.broadcast(t, other) match { case (l, r) => l.divide(r) }
-      def /:[O <: Tuple : Labels](other: Tensor[O])(using broadcaster: Broadcast[O, T, O]): Tensor[O] = broadcaster.broadcast(other, t) match { case (r, l) => l.divide(r) }
-      private def divide(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.divide(t.jaxValue, other.jaxValue))
+      def /(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.divide(t.jaxValue, other.jaxValue))
+      def :/[O <: Tuple](other: Tensor[O, V])(using broadcaster: Broadcast[T, O, T, V]): Tensor[T, V] = broadcaster.broadcast(t, other) match { case (l, r) => l.divide(r) }
+      def /:[O <: Tuple : Labels](other: Tensor[O, V])(using broadcaster: Broadcast[O, T, O, V]): Tensor[O, V] = broadcaster.broadcast(other, t) match { case (r, l) => l.divide(r) }
+      private def divide(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.divide(t.jaxValue, other.jaxValue))
 
       // --- Unary Math ---
-      def abs: Tensor[T] = Tensor(Jax.jnp.abs(t.jaxValue))
-      def sign: Tensor[T] = Tensor(Jax.jnp.sign(t.jaxValue))
-      def pow(n: Tensor0): Tensor[T] = Tensor(Jax.jnp.power(t.jaxValue, n.jaxValue))
-      def sqrt: Tensor[T] = Tensor(Jax.jnp.sqrt(t.jaxValue))
-      def exp: Tensor[T] = Tensor(Jax.jnp.exp(t.jaxValue))
-      def log: Tensor[T] = Tensor(Jax.jnp.log(t.jaxValue))
-      def sin: Tensor[T] = Tensor(Jax.jnp.sin(t.jaxValue))
-      def cos: Tensor[T] = Tensor(Jax.jnp.cos(t.jaxValue))
-      def tanh: Tensor[T] = Tensor(Jax.jnp.tanh(t.jaxValue))
+      def abs: Tensor[T, V] = Tensor(Jax.jnp.abs(t.jaxValue))
+      def sign: Tensor[T, V] = Tensor(Jax.jnp.sign(t.jaxValue))
+      def pow(n: Tensor0[V]): Tensor[T, V] = Tensor(Jax.jnp.power(t.jaxValue, n.jaxValue))
+      def sqrt: Tensor[T, V] = Tensor(Jax.jnp.sqrt(t.jaxValue))
+      def exp: Tensor[T, V] = Tensor(Jax.jnp.exp(t.jaxValue))
+      def log: Tensor[T, V] = Tensor(Jax.jnp.log(t.jaxValue))
+      def sin: Tensor[T, V] = Tensor(Jax.jnp.sin(t.jaxValue))
+      def cos: Tensor[T, V] = Tensor(Jax.jnp.cos(t.jaxValue))
+      def tanh: Tensor[T, V] = Tensor(Jax.jnp.tanh(t.jaxValue))
 
       // --- Clipping ---
-      def clip(min: Float, max: Float): Tensor[T] = Tensor(Jax.jnp.clip(t.jaxValue, min, max))
-      def clip(min: Tensor0, max: Tensor0): Tensor[T] = Tensor(Jax.jnp.clip(t.jaxValue, min.jaxValue, max.jaxValue))
+      def clip(min: Float, max: Float): Tensor[T, V] = Tensor(Jax.jnp.clip(t.jaxValue, min, max))
+      def clip(min: Tensor0[V], max: Tensor0[V]): Tensor[T, V] = Tensor(Jax.jnp.clip(t.jaxValue, min.jaxValue, max.jaxValue))
 
       // --- Comparison ---
-      def <(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.less(t.jaxValue, other.jaxValue))
-      def <=(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.less_equal(t.jaxValue, other.jaxValue))
-      def >(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.greater(t.jaxValue, other.jaxValue))
-      def >=(other: Tensor[T]): Tensor[T] = Tensor(Jax.jnp.greater_equal(t.jaxValue, other.jaxValue))
+      def <(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.less(t.jaxValue, other.jaxValue))
+      def <=(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.less_equal(t.jaxValue, other.jaxValue))
+      def >(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.greater(t.jaxValue, other.jaxValue))
+      def >=(other: Tensor[T, V]): Tensor[T, V] = Tensor(Jax.jnp.greater_equal(t.jaxValue, other.jaxValue))
       
-      def elementEquals(other: Tensor[T]): Tensor[T] =
+      def elementEquals(other: Tensor[T, V]): Tensor[T, V] =
         require(t.shape.dimensions == other.shape.dimensions, s"Shape mismatch: ${t.shape.dimensions} vs ${other.shape.dimensions}")
         Tensor(jaxValue = Jax.jnp.equal(t.jaxValue, other.jaxValue))
 
-      def all: Boolean = Tensor0(Jax.jnp.all(t.jaxValue)).toBool
-      def any: Boolean = Tensor0(Jax.jnp.any(t.jaxValue)).toBool
+      def all: Boolean = Tensor0[V](Jax.jnp.all(t.jaxValue)).toBool
+      def any: Boolean = Tensor0[V](Jax.jnp.any(t.jaxValue)).toBool
 
-      def approxEquals(other: Tensor[T], tolerance: Float = 1e-6f): Boolean = approxElementEquals(other, tolerance).all
-      def approxElementEquals(other: Tensor[T], tolerance: Float = 1e-6f): Tensor[T] =
+      def approxEquals(other: Tensor[T, V], tolerance: Float = 1e-6f): Boolean = approxElementEquals(other, tolerance).all
+      def approxElementEquals(other: Tensor[T, V], tolerance: Float = 1e-6f): Tensor[T, V] =
         Tensor(Jax.jnp.allclose(
           t.jaxValue,
           other.jaxValue,
@@ -115,41 +115,41 @@ object TensorOps:
   // -----------------------------------------------------------
   object Reduction:
 
-    extension [T <: Tuple : Labels](t: Tensor[T])
+    extension [T <: Tuple : Labels, V : Value](t: Tensor[T, V])
 
-      def sum: Tensor0 = Tensor0(Jax.jnp.sum(t.jaxValue))
-      def sum[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.sum(axes = Tuple1(axis))
-      def sum[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.sum(t.jaxValue, axesIndices.values.toPythonProxy))
+      def sum: Tensor0[V] = Tensor0[V](Jax.jnp.sum(t.jaxValue))
+      def sum[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = t.sum(axes = Tuple1(axis))
+      def sum[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out, V] = Tensor(Jax.jnp.sum(t.jaxValue, axesIndices.values.toPythonProxy))
       
-      def mean: Tensor0 = Tensor0(Jax.jnp.mean(t.jaxValue))
-      def mean[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.mean(axes = Tuple1(axis))
-      def mean[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.mean(t.jaxValue, axesIndices.values.toPythonProxy))
+      def mean: Tensor0[V] = Tensor0[V](Jax.jnp.mean(t.jaxValue))
+      def mean[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = t.mean(axes = Tuple1(axis))
+      def mean[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out, V] = Tensor(Jax.jnp.mean(t.jaxValue, axesIndices.values.toPythonProxy))
       
-      def std: Tensor0 = Tensor0(Jax.jnp.std(t.jaxValue))
-      def std[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.std(axes = Tuple1(axis))
-      def std[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.std(t.jaxValue, axesIndices.values.toPythonProxy))
+      def std: Tensor0[V] = Tensor0[V](Jax.jnp.std(t.jaxValue))
+      def std[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = t.std(axes = Tuple1(axis))
+      def std[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out, V] = Tensor(Jax.jnp.std(t.jaxValue, axesIndices.values.toPythonProxy))
       
-      def max: Tensor0 = Tensor0(Jax.jnp.max(t.jaxValue))
-      def max[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.max(axes = Tuple1(axis))
-      def max[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.max(t.jaxValue, axesIndices.values.toPythonProxy))
+      def max: Tensor0[V] = Tensor0[V](Jax.jnp.max(t.jaxValue))
+      def max[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = t.max(axes = Tuple1(axis))
+      def max[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out, V] = Tensor(Jax.jnp.max(t.jaxValue, axesIndices.values.toPythonProxy))
       
-      def min: Tensor0 = Tensor0(Jax.jnp.min(t.jaxValue))
-      def min[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = t.min(axes = Tuple1(axis))
-      def min[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out] = Tensor(Jax.jnp.min(t.jaxValue, axesIndices.values.toPythonProxy))
+      def min: Tensor0[V] = Tensor0[V](Jax.jnp.min(t.jaxValue))
+      def min[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = t.min(axes = Tuple1(axis))
+      def min[Inputs <: Tuple](axes: Inputs)(using remover: RemoverAll[T, UnwrapAxes[Inputs]], namesOf: Labels[UnwrapAxes[Inputs]], axesIndices: AxisIndices[T, UnwrapAxes[Inputs]]): Tensor[remover.Out, V] = Tensor(Jax.jnp.min(t.jaxValue, axesIndices.values.toPythonProxy))
       
-      def argmax: Tensor0 = Tensor0(Jax.jnp.argmax(t.jaxValue))
-      def argmax[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = Tensor(Jax.jnp.argmax(t.jaxValue, axis = axisIndex.value))
+      def argmax: Tensor0[V] = Tensor0[V](Jax.jnp.argmax(t.jaxValue))
+      def argmax[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = Tensor(Jax.jnp.argmax(t.jaxValue, axis = axisIndex.value))
       
-      def argmin: Tensor0 = Tensor0(Jax.jnp.argmin(t.jaxValue))
-      def argmin[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out] = Tensor(Jax.jnp.argmin(t.jaxValue, axis = axisIndex.value))
+      def argmin: Tensor0[V] = Tensor0[V](Jax.jnp.argmin(t.jaxValue))
+      def argmin[L : Label](axis: Axis[L])(using axisIndex: AxisIndex[T, L], remover: Remover[T, L]): Tensor[remover.Out, V] = Tensor(Jax.jnp.argmin(t.jaxValue, axis = axisIndex.value))
       
   end Reduction
 
   object Contraction:
 
-    extension [T <: Tuple : Labels](tensor: Tensor[T])
+    extension [T <: Tuple : Labels, V : Value](tensor: Tensor[T, V])
       
-      def outerProduct[OtherShape <: Tuple : Labels](other: Tensor[OtherShape]): Tensor[Tuple.Concat[T, OtherShape]] =
+      def outerProduct[OtherShape <: Tuple : Labels](other: Tensor[OtherShape, V]): Tensor[Tuple.Concat[T, OtherShape], V] =
         import Labels.ForConcat.given
         Tensor(
           // Jax outer product flattens, reshape required
@@ -165,13 +165,13 @@ object TensorOps:
           OtherShape <: Tuple : Labels,
       ]
       (axes: (Axis[ContractAxis], Axis[OtherContractAxis]))
-      (other: Tensor[OtherShape])(using
+      (other: Tensor[OtherShape, V])(using
         replacer: Replacer[T, ContractAxis, OtherContractAxis],
         remover: Remover[replacer.Out, OtherContractAxis],
         otherRemover: Remover[OtherShape, OtherContractAxis],
         axisIndex: AxisIndex[replacer.Out, OtherContractAxis],
         otherAxisIndex: AxisIndex[OtherShape, OtherContractAxis],
-      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out]] = 
+      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out], V] = 
         val (thisAxes, otherAxis) = axes
         val tensorRenamed = tensor.relabel(thisAxes -> otherAxis)
         tensorRenamed.contract[OtherContractAxis, OtherShape](otherAxis)(other)
@@ -181,12 +181,12 @@ object TensorOps:
         OtherShape <: Tuple : Labels,
       ]
       (axis: Axis[ContractAxis])
-      (other: Tensor[OtherShape])(using
+      (other: Tensor[OtherShape, V])(using
         remover: Remover[T, ContractAxis],
         otherRemover: Remover[OtherShape, ContractAxis],
         axisIndex: AxisIndex[T, ContractAxis],
         otherAxisIndex: AxisIndex[OtherShape, ContractAxis],
-      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out]] =
+      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out], V] =
         import Labels.ForConcat.given
 
         val axesTuple1 = Jax.Dynamic.global.tuple(Seq(axisIndex.value).toPythonProxy)
@@ -199,16 +199,16 @@ object TensorOps:
 
   object LinearAlgebra:
     
-    extension [T <: Tuple : Labels](t: Tensor[T])
-      def norm: Tensor0 = Tensor0(Jax.jnp.linalg.norm(t.jaxValue))
-      def inv: Tensor[T] = Tensor(Jax.jnp.linalg.inv(t.jaxValue))
+    extension [T <: Tuple : Labels, V : Value](t: Tensor[T, V])
+      def norm: Tensor0[V] = Tensor0[V](Jax.jnp.linalg.norm(t.jaxValue))
+      def inv: Tensor[T, V] = Tensor(Jax.jnp.linalg.inv(t.jaxValue))
       
       def det[L1 : Label, L2 : Label](axis1: Axis[L1], axis2: Axis[L2])(using 
         idx1: AxisIndex[T, L1], 
         idx2: AxisIndex[T, L2],
         remover: RemoverAll[T, (L1, L2)],
         namesOf: Labels[remover.Out] 
-      ): Tensor[remover.Out] = 
+      ): Tensor[remover.Out, V] = 
         // JAX det only works on the last two axes (-2, -1). We must move the user's selected axes to the end.
         val moved = Jax.jnp.moveaxis(
           t.jaxValue, 
@@ -222,21 +222,21 @@ object TensorOps:
         idx2: AxisIndex[T, L2],
         remover: RemoverAll[T, (L1, L2)],
         namesOf: Labels[remover.Out] 
-      ): Tensor[remover.Out] = Tensor(Jax.jnp.trace(t.jaxValue, offset = offset, axis1 = idx1.value, axis2 = idx2.value))
+      ): Tensor[remover.Out, V] = Tensor(Jax.jnp.trace(t.jaxValue, offset = offset, axis1 = idx1.value, axis2 = idx2.value))
 
       def diagonal[L1 : Label, L2 : Label](axis1: Axis[L1], axis2: Axis[L2], offset: Int=0)(using 
         idx1: AxisIndex[T, L1], 
         idx2: AxisIndex[T, L2],
         remover: RemoverAll[T, (L1, L2)],
         namesOf: Labels[remover.Out] 
-      ): Tensor[remover.Out *: L1 *: EmptyTuple] = Tensor(Jax.jnp.diagonal(t.jaxValue, offset = offset, axis1 = idx1.value, axis2 = idx2.value))
+      ): Tensor[remover.Out *: L1 *: EmptyTuple, V] = Tensor(Jax.jnp.diagonal(t.jaxValue, offset = offset, axis1 = idx1.value, axis2 = idx2.value))
 
-    extension [L1 : Label, L2 : Label](t: Tensor2[L1, L2])
-      def det: Tensor0 = Tensor0(Jax.jnp.linalg.det(t.jaxValue))
-      def trace: Tensor0 = t.trace(0)
-      def trace(offset: Int): Tensor0 = Tensor0(Jax.jnp.trace(t.jaxValue, offset = offset))
-      def diagonal: Tensor1[L1] = t.diagonal(0)
-      def diagonal(offset: Int): Tensor1[L1] = Tensor(Jax.jnp.diagonal(t.jaxValue, offset = offset))
+    extension [L1 : Label, L2 : Label, V : Value](t: Tensor2[L1, L2, V])
+      def det: Tensor0[V] = Tensor0[V](Jax.jnp.linalg.det(t.jaxValue))
+      def trace: Tensor0[V] = t.trace(0)
+      def trace(offset: Int): Tensor0[V] = Tensor0[V](Jax.jnp.trace(t.jaxValue, offset = offset))
+      def diagonal: Tensor1[L1, V] = t.diagonal(0)
+      def diagonal(offset: Int): Tensor1[L1, V] = Tensor(Jax.jnp.diagonal(t.jaxValue, offset = offset))
 
   end LinearAlgebra
 
@@ -311,32 +311,32 @@ object TensorOps:
     import Util.*
 
     object TensorWhere:
-      def where[T <: Tuple : Labels](
-        condition: Tensor[T],
-        x: Tensor[T],
-        y: Tensor[T]
-      ): Tensor[T] =
+      def where[T <: Tuple : Labels, V : Value](
+        condition: Tensor[T, V],
+        x: Tensor[T, V],
+        y: Tensor[T, V]
+      ): Tensor[T, V] =
         Tensor(Jax.jnp.where(condition.jaxValue, x.jaxValue, y.jaxValue))
     
     export TensorWhere.where
 
-    def stack[L : Label, T <: Tuple : Labels](
-      tensors: Seq[Tensor[T]], 
+    def stack[L : Label, T <: Tuple : Labels, V : Value](
+      tensors: Seq[Tensor[T, V]], 
       newAxis: Axis[L],
-    ): Tensor[L *: T] = 
+    ): Tensor[L *: T, V] = 
       require(tensors.nonEmpty, "Cannot stack an empty sequence of tensors")
       val jaxValuesSeq = tensors.map(_.jaxValue).toPythonProxy
       val stackedJaxValue = Jax.jnp.stack(jaxValuesSeq, axis = 0)
       Tensor(stackedJaxValue)
 
-    def stack[NewL, L, T <: Tuple : Labels](
-      tensors: Seq[Tensor[T]], 
+    def stack[NewL, L, T <: Tuple : Labels, V : Value](
+      tensors: Seq[Tensor[T, V]], 
       newAxis: Axis[NewL],
       afterAxis: Axis[L],
     )(using 
       newLabel: Label[NewL],
       axisIndex: AxisIndex[T, L],
-    ): Tensor[InsertAfter[T, L, NewL]] =
+    ): Tensor[InsertAfter[T, L, NewL], V] =
       require(tensors.nonEmpty, "Cannot stack an empty sequence of tensors")
       val axisIdx = axisIndex.value + 1 // we are inserting after the given axis, so shift by 1
       val jaxValuesSeq = tensors.map(_.jaxValue).toPythonProxy
@@ -347,19 +347,19 @@ object TensorOps:
         val names = newNames.toSeq
       Tensor(stackedJaxValue)
 
-    def concatenate[L : Label, T <: Tuple : Labels](
-      tensors: Seq[Tensor[T]], 
+    def concatenate[L : Label, T <: Tuple : Labels, V : Value](
+      tensors: Seq[Tensor[T, V]], 
       concatAxis: Axis[L],
     )(
       using axisIndex: AxisIndex[T, L],
-    ): Tensor[T] =
+    ): Tensor[T, V] =
       require(tensors.nonEmpty, "Cannot concatenate an empty sequence of tensors")
       val axisIdx = axisIndex.value
       val jaxValuesSeq = tensors.map(_.jaxValue).toPythonProxy
       val concatenatedJaxValue = Jax.jnp.concatenate(jaxValuesSeq, axis = axisIdx)
       Tensor(concatenatedJaxValue)
 
-    extension [T <: Tuple : Labels](tensor: Tensor[T])
+    extension [T <: Tuple : Labels, V : Value](tensor: Tensor[T, V])
 
       private def calcPyIndices[Inputs <: Tuple](
           inputs: Inputs,
@@ -392,7 +392,7 @@ object TensorOps:
       def split[newL, splitL](newAxis: Axis[newL], splitAxis: Axis[splitL], interval: Int)(using 
         newLabel: Label[newL],
         axisIndex: AxisIndex[T, splitL],
-      ): Tensor[InsertBefore[T, splitL, newL]] = 
+      ): Tensor[InsertBefore[T, splitL, newL], V] = 
         val splitIdx = axisIndex.value
         val names = summon[Labels[T]].names
         val newNames = names.take(splitIdx) ++ Seq(newLabel.name) ++ names.drop(splitIdx)
@@ -412,9 +412,9 @@ object TensorOps:
 
       def chunk[splitL : Label](splitAxis: Axis[splitL], interval: Int)(using 
         axisIndex: AxisIndex[T, splitL],
-      ): Seq[Tensor[T]] = 
+      ): Seq[Tensor[T, V]] = 
         val res = Jax.jnp.split(tensor.jaxValue, interval, axis = axisIndex.value).as[Seq[Jax.PyDynamic]]
-        res.map(x => Tensor[T](x))
+        res.map(x => Tensor[T, V](x))
 
       def tile = ???
       def repeat = ???
@@ -426,7 +426,7 @@ object TensorOps:
         remover: RemoverAll[T, LabelsToRemove],
         axesIndices: AxisIndices[T, ExtractLabels[Inputs]],
         namesOf: Labels[LabelsToRemove],
-      ): Tensor[remover.Out] =
+      ): Tensor[remover.Out, V] =
         val pyIndices = tensor.calcPyIndices(inputs, axesIndices)
         Tensor(tensor.jaxValue.bracketAccess(pyIndices))
 
@@ -437,7 +437,7 @@ object TensorOps:
         remover: RemoverAll[T, LabelsToRemove],
         axesIndices: AxisIndices[T, ExtractLabels[Tuple1[(Axis[L], I)]]],
         namesOf: Labels[LabelsToRemove],
-      ): Tensor[remover.Out] = slice(Tuple1(axisWithSliceIndex))
+      ): Tensor[remover.Out, V] = slice(Tuple1(axisWithSliceIndex))
 
       def set[Inputs <: Tuple, LabelsToRemove <: Tuple, O <: Tuple](
         inputs: Inputs
@@ -446,7 +446,7 @@ object TensorOps:
         remover: RemoverAll[T, LabelsToRemove]{ type Out = O },
         axesIndices: AxisIndices[T, ExtractLabels[Inputs]],
         namesOf: Labels[LabelsToRemove]
-      )(value: Tensor[remover.Out]): Tensor[T] =
+      )(value: Tensor[remover.Out, V]): Tensor[T, V] =
         val pyIndices = tensor.calcPyIndices(inputs, axesIndices)
         val result = tensor.jaxValue.at.bracketAccess(pyIndices).set(value.jaxValue)
         Tensor(result)
@@ -458,9 +458,9 @@ object TensorOps:
         remover: RemoverAll[T, LabelsToRemove],
         axesIndices: AxisIndices[T, ExtractLabels[Tuple1[(Axis[L], I)]]],
         namesOf: Labels[LabelsToRemove]
-      )(value: Tensor[remover.Out]): Tensor[T] = set(Tuple1(axisWithSliceIndex))(value)
+      )(value: Tensor[remover.Out, V]): Tensor[T, V] = set(Tuple1(axisWithSliceIndex))(value)
 
-      def rearrange[Axes <: Tuple](newOrder: Axes)(using Labels[UnwrapAxes[Axes]]): Tensor[UnwrapAxes[Axes]] = 
+      def rearrange[Axes <: Tuple](newOrder: Axes)(using Labels[UnwrapAxes[Axes]]): Tensor[UnwrapAxes[Axes], V] = 
         rearrange[Axes, EmptyTuple](newOrder, EmptyTuple)
 
       def rearrange[Axes <: Tuple, Dims <: Tuple](
@@ -469,7 +469,7 @@ object TensorOps:
       )(using 
         newLabels: Labels[UnwrapAxes[Axes]],
         extractor: DimExtractor[Dims],
-      ): Tensor[UnwrapAxes[Axes]] =
+      ): Tensor[UnwrapAxes[Axes], V] =
         def createEinopsPattern(fromPattern: String, toPattern: String): String =
           def cleanPattern(pattern: String): String =
             // to replace all a*b*c in pattern with (a b c), example:
@@ -495,7 +495,7 @@ object TensorOps:
 
       def lift[O <: Tuple : Labels](newShape: Shape[O])(
         using ev: Subset[O, T] // Ensures T's axes are all present in O
-      ): Tensor[O] =
+      ): Tensor[O, V] =
         val t = tensor
         
         val currentNames = summon[Labels[T]].names
@@ -523,9 +523,9 @@ object TensorOps:
         axis: (Axis[OldLabel], Axis[NewLabel]),
       )(
         using replacer: Replacer[T, OldLabel, NewLabel],
-      ): Tensor[replacer.Out] = Tensor(tensor.jaxValue)
+      ): Tensor[replacer.Out, V] = Tensor(tensor.jaxValue)
 
-      def retag[newT <: Tuple](using newLabels: Labels[newT]): Tensor[newT] = 
+      def retag[newT <: Tuple](using newLabels: Labels[newT]): Tensor[newT, V] = 
         Tensor(tensor.jaxValue)(using newLabels)
 
       // TODO rename this as as[] is defined in Any and is taken in Scala
@@ -533,7 +533,7 @@ object TensorOps:
         newLabels: Labels[UnwrapAxes[newT]],
         @implicitNotFound("Cannot convert tensor of shape ${T} to shape ${newT} due to size mismatch.")
         evSameSize: Tuple.Size[newT] =:= Tuple.Size[T],
-      ): Tensor[UnwrapAxes[newT]] = Tensor[UnwrapAxes[newT]](tensor.jaxValue)
+      ): Tensor[UnwrapAxes[newT], V] = Tensor[UnwrapAxes[newT], V](tensor.jaxValue)
   
       def swap[L1 : Label, L2 : Label](
         axis1: Axis[L1],
@@ -541,7 +541,7 @@ object TensorOps:
       )(using
         axisIndex1: AxisIndex[T, L1],
         axisIndex2: AxisIndex[T, L2],
-      ): Tensor[Swap[T, L1, L2]] =
+      ): Tensor[Swap[T, L1, L2], V] =
         given Labels[Swap[T, L1, L2]] with
           def names = 
             val originalNames = summon[Labels[T]].names
@@ -554,17 +554,17 @@ object TensorOps:
             }
         Tensor(Jax.jnp.swapaxes(tensor.jaxValue, axisIndex1.value, axisIndex2.value))
 
-      def ravel: Tensor1[JoinNames[T]] = 
+      def ravel: Tensor1[JoinNames[T], V] = 
         given Labels[Tuple1[JoinNames[T]]] with
           def names = List(summon[Labels[T]].names.mkString("*"))
         Tensor(Jax.jnp.ravel(tensor.jaxValue))
 
-      def appendAxis[L : Label](axis: Axis[L]): Tensor[Tuple.Concat[T, Tuple1[L]]] =
+      def appendAxis[L : Label](axis: Axis[L]): Tensor[Tuple.Concat[T, Tuple1[L]], V] =
         import Labels.ForConcat.given
         val newShape = tensor.shape.dimensions :+ 1
         Tensor(Jax.jnp.reshape(tensor.jaxValue, newShape.toPythonProxy))
 
-      def prependAxis[L : Label](axis: Axis[L]): Tensor[Tuple.Concat[Tuple1[L], T]] =
+      def prependAxis[L : Label](axis: Axis[L]): Tensor[Tuple.Concat[Tuple1[L], T], V] =
         import Labels.ForConcat.given
         val newShape = 1 +: tensor.shape.dimensions
         Tensor(Jax.jnp.reshape(tensor.jaxValue, newShape.toPythonProxy))
@@ -572,7 +572,7 @@ object TensorOps:
       def squeeze[L : Label](axis: Axis[L])(using 
         remover: Remover[T, L],
         axisIndex: AxisIndex[T, L],
-      ): Tensor[remover.Out] =
+      ): Tensor[remover.Out, V] =
         require(
           tensor.shape.dimensions(axisIndex.value) == 1, 
           s"Cannot squeeze axis ${axis} of size ${tensor.shape.dimensions(axisIndex.value)}"
@@ -592,10 +592,10 @@ object TensorOps:
       type TensorsOf[Shapes <: Tuple] <: Tuple = Shapes match
         case EmptyTuple => EmptyTuple
         case head *: tail => head match
-          case Tuple => Tensor[head] *: TensorsOf[tail]
+          case Tuple => Tensor[head, Nothing] *: TensorsOf[tail]
 
       type ExtractShape[T] = T match
-        case Tensor[s] => s
+        case Tensor[s, v] => s
 
       type ShapesOf[Tensors <: Tuple] = Tuple.Map[Tensors, ExtractShape]
 
@@ -612,7 +612,7 @@ object TensorOps:
           def dimSize(t: EmptyTuple, axis: Axis[L]) = 0
           def sliceAll(t: EmptyTuple, axis: Axis[L], idx: Int) = EmptyTuple
 
-        given cons[HeadShape <: Tuple : Labels, TailShapes <: Tuple, L : Label, TailSliced <: Tuple](
+        given cons[HeadShape <: Tuple : Labels, TailShapes <: Tuple, L : Label, TailSliced <: Tuple, V : Value](
           using
           remover: Remover[HeadShape, L],
           axisIndex: AxisIndex[HeadShape, L],
@@ -622,24 +622,24 @@ object TensorOps:
             type SlicedShapes = remover.Out *: TailSliced
 
             def dimSize(tensors: TensorsOf[HeadShape *: TailShapes], axis: Axis[L]): Int =
-              val head = tensors.asInstanceOf[Tensor[HeadShape] *: Tuple].head
+              val head = tensors.asInstanceOf[Tensor[HeadShape, V] *: Tuple].head
               head.shape.dimensions(axisIndex.value)
 
             def sliceAll(tensors: TensorsOf[HeadShape *: TailShapes], axis: Axis[L], idx: Int): TensorsOf[SlicedShapes] =
-              val tuple = tensors.asInstanceOf[Tensor[HeadShape] *: TensorsOf[TailShapes]]
+              val tuple = tensors.asInstanceOf[Tensor[HeadShape, V] *: TensorsOf[TailShapes]]
               val slicedHead = tuple.head.slice(axis -> idx)
               val slicedTail = tailZipper.sliceAll(tuple.tail, axis, idx)
               (slicedHead *: slicedTail).asInstanceOf[TensorsOf[SlicedShapes]]
 
-      case class ZipResult[L : Label, Shapes <: Tuple](
+      case class ZipResult[L : Label, Shapes <: Tuple, V : Value](
         axis: Axis[L],
         tensors: TensorsOf[Shapes]
       ):
         def vmap[OutShape <: Tuple : Labels](using
           zipper: Zipper[Shapes, L]
         )(
-          f: TensorsOf[zipper.SlicedShapes] => Tensor[OutShape]
-        ): Tensor[L *: OutShape] =
+          f: TensorsOf[zipper.SlicedShapes] => Tensor[OutShape, V]
+        ): Tensor[L *: OutShape, V] =
 
           val size = zipper.dimSize(tensors, axis)
 
@@ -650,17 +650,18 @@ object TensorOps:
 
           Structural.stack(results, axis)
 
-      def zip[L : Label, Inputs <: Tuple](
+      def zip[L : Label, Inputs <: Tuple, V : Value](
         axis: Axis[L]
       )(
         tensors: Inputs
-      ): ZipResult[L, ShapesOf[Inputs]] = 
+      ): ZipResult[L, ShapesOf[Inputs], V] = 
         ZipResult(axis, tensors.asInstanceOf[TensorsOf[ShapesOf[Inputs]]])
 
       def zipvmap[
           L : Label, 
-          Inputs <: Tuple, 
-          OutShape <: Tuple : Labels, 
+          Inputs <: Tuple,
+          OutShape <: Tuple : Labels,
+          V : Value,
       ](
           axis: Axis[L]
       )(
@@ -668,13 +669,13 @@ object TensorOps:
       )(using 
           zipper: Zipper[ShapesOf[Inputs], L]
       )(
-          f: TensorsOf[zipper.SlicedShapes] => Tensor[OutShape]
-      ): Tensor[L *: OutShape] = 
-          zip(axis)(tensors).vmap(f)
+          f: TensorsOf[zipper.SlicedShapes] => Tensor[OutShape, V]
+        ): Tensor[L *: OutShape, V] = 
+          zip(axis)(tensors)(using summon[Label[L]], summon[Value[V]]).vmap(f)
     
     export ZipVmap.zipvmap
 
-    extension [T <: Tuple : Labels](t: Tensor[T])
+    extension [T <: Tuple : Labels, V : Value](t: Tensor[T, V])
 
       def vmap[VmapAxis : Label, OuterShape <: Tuple : Labels](
         axis: Axis[VmapAxis]
@@ -682,10 +683,10 @@ object TensorOps:
         remover: Remover[T, VmapAxis],
         vmapAxisIndex: AxisIndex[T, VmapAxis],
       )(
-          f: Tensor[remover.Out] => Tensor[OuterShape]
-      ): Tensor[Tuple.Concat[Tuple1[VmapAxis], OuterShape]] =
+          f: Tensor[remover.Out, V] => Tensor[OuterShape, V]
+      ): Tensor[Tuple.Concat[Tuple1[VmapAxis], OuterShape], V] =
         val fpy = (jxpr: Jax.PyDynamic) =>
-            val innerTensor = Tensor[remover.Out](jxpr)
+            val innerTensor = Tensor[remover.Out, V](jxpr)
             val result = f(innerTensor)
             result.jaxValue
 
@@ -698,10 +699,10 @@ object TensorOps:
         axisIndex: AxisIndex[T, L],
         replacer: Replacer[T, L, OutAxis],
       )(
-        f: Tensor[Tuple1[L]] => Tensor[Tuple1[OutAxis]]
-      ): Tensor[replacer.Out] = 
+        f: Tensor[Tuple1[L], V] => Tensor[Tuple1[OutAxis], V]
+      ): Tensor[replacer.Out, V] = 
         val fpy = (jxpr: Jax.PyDynamic) =>
-          val inputTensor = Tensor[Tuple1[L]](jxpr)
+          val inputTensor = Tensor[Tuple1[L], V](jxpr)
           val result = f(inputTensor)
           result.jaxValue
 
@@ -714,13 +715,13 @@ object TensorOps:
       def vreduce[L : Label](
         axis: Axis[L]
       )(
-        f: Tensor[Tuple1[L]] => Tensor0
+        f: Tensor[Tuple1[L], V] => Tensor0[V]
       )(using
         axisIndex: AxisIndex[T, L],
         remover: Remover[T, L],
-      ): Tensor[remover.Out] = 
+      ): Tensor[remover.Out, V] = 
         val fpy = (jxpr: Jax.PyDynamic) =>
-          val inputTensor = Tensor[Tuple1[L]](jxpr)
+          val inputTensor = Tensor[Tuple1[L], V](jxpr)
           val result = f(inputTensor)
           result.jaxValue
 
@@ -743,40 +744,40 @@ object TensorOps:
   // Common specialized operation names
   // -----------------------------------------------------------
   object ScalarOps:
-    extension (t: Tensor0)
+    extension [V : Value](t: Tensor0[V])
       def toInt: Int = t.jaxValue.item().as[Int]
       def toFloat: Float = t.jaxValue.item().as[Float]
       def toBool: Boolean = t.jaxValue.item().as[Boolean]
 
       @targetName("tensor0Pow")
-      def pow(exponent: Tensor0): Tensor0 = Tensor0(Jax.jnp.pow(t.jaxValue, exponent.jaxValue))
+      def pow(exponent: Tensor0[V]): Tensor0[V] = Tensor0[V](Jax.jnp.pow(t.jaxValue, exponent.jaxValue))
 
   object VectorOps:
-    extension [L : Label](t: Tensor1[L])
-      def dot(other: Tensor1[L]): Tensor0 = t.innerDot(other)
-      def innerDot(other: Tensor1[L]): Tensor0 = t.contract(Axis[L])(other)
-      def outerDot[OtherLabel : Label](other: Tensor1[OtherLabel]): Tensor2[L, OtherLabel] = 
+    extension [L : Label, V : Value](t: Tensor1[L, V])
+      def dot(other: Tensor1[L, V]): Tensor0[V] = t.innerDot(other)
+      def innerDot(other: Tensor1[L, V]): Tensor0[V] = t.contract(Axis[L])(other)
+      def outerDot[OtherLabel : Label](other: Tensor1[OtherLabel, V]): Tensor2[L, OtherLabel, V] = 
         t.outerProduct(other)
 
   object MatrixOps:
-    extension [L1 : Label, L2 : Label](t: Tensor2[L1, L2])
-      def transpose: Tensor2[L2, L1] = t.rearrange((Axis[L2], Axis[L1]))
+    extension [L1 : Label, L2 : Label, V : Value](t: Tensor2[L1, L2, V])
+      def transpose: Tensor2[L2, L1, V] = t.rearrange((Axis[L2], Axis[L1]))
 
       @targetName("tensor2MatmulTensor2")
-      def matmul[L3 : Label](other: Tensor2[L2, L3])(
+      def matmul[L3 : Label](other: Tensor2[L2, L3, V])(
         using 
         remover: Remover[(L1, L2), L2],
         otherRemover: Remover[(L2, L3), L2],
-      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out]] =
+      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out], V] =
         import Labels.ForConcat.given
         t.contract(Axis[L2])(other)
 
       @targetName("tensor2MatmulTensor1")
-      def matmul(other: Tensor1[L2])(
+      def matmul(other: Tensor1[L2, V])(
         using 
         remover: Remover[(L1, L2), L2],
         otherRemover: Remover[Tuple1[L2], L2],
-      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out]] =
+      ): Tensor[Tuple.Concat[remover.Out, otherRemover.Out], V] =
         import Labels.ForConcat.given
         t.contract(Axis[L2])(other)
 

@@ -26,7 +26,5 @@ package object shapeful:
   // Export Just-in-Time compilation
   export shapeful.jax.Jit.{jit, jit2}
 
-  // Export implicit conversions
-  object Conversions:
-    export shapeful.tensor.Tensor0.{given_Conversion_Int_Tensor0, given_Conversion_Float_Tensor0}
+  // Note: Implicit conversions were removed in the Value refactoring
 

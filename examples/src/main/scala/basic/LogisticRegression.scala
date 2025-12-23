@@ -25,23 +25,20 @@ object LogisticRegression:
     def apply(input: Tensor1[Feature, Float32]): Tensor0[Float32] = logits(input) >= Tensor0.of[Float32](0f)
   def main(args: Array[String]): Unit =
 
-    import io.github.quafadas.table.*
-    val df = CSV
-      .resource("penguins.csv", TypeInferrer.FromAllRows)
-      .filter(row => !(row.species == 2))
-      .toSeq
+    val df = PenguinCSV.read("./data/penguins.csv")
+      .filter(row => row.species != 2)
 
     val dfShuffled = scala.util.Random.shuffle(df)
 
     val featureData = dfShuffled.map { row =>
         Array(
-          row.flipper_length_mm.toFloat,
-          row.bill_length_mm.toFloat,
-          row.bill_depth_mm.toFloat,
-          row.body_mass_g.toFloat
+          row.flipperLengthMm.toFloat,
+          row.billLengthMm.toFloat,
+          row.billDepthMm.toFloat,
+          row.bodyMassG.toFloat
         )
       }.toArray
-    val labelData = dfShuffled.column["species"].toArray.map(_.toFloat)
+    val labelData = dfShuffled.map(_.species.toFloat).toArray
 
     val dataUnnormalized = Tensor2.of[Float32](Axis[Sample], Axis[Feature], featureData)
     val dataLabels = Tensor1.of[Int32](Axis[Sample], labelData)
@@ -111,3 +108,43 @@ object LogisticRegression:
     val predictionClasses = trainingData.vmap(Axis[Sample])(x => finalModel(x))
 
     println("\nTraining complete. Optimized parameters:" + finalParams)
+
+object PenguinCSV:
+  import scala.io.Source
+  import scala.util.Using
+
+  case class PenguinRow(
+    species: Int,
+    billLengthMm: Double,
+    billDepthMm: Double,
+    flipperLengthMm: Double,
+    bodyMassG: Double
+  )
+
+  def read(resourceName: String): Seq[PenguinRow] =
+    Using.resource(Source.fromFile(resourceName)) { source =>
+      val lines = source.getLines().toSeq
+      val headers = lines.head.split(",").map(_.trim)
+      val speciesIdx = headers.indexOf("species")
+      val billLengthIdx = headers.indexOf("bill_length_mm")
+      val billDepthIdx = headers.indexOf("bill_depth_mm")
+      val flipperLengthIdx = headers.indexOf("flipper_length_mm")
+      val bodyMassIdx = headers.indexOf("body_mass_g")
+      
+      lines.tail.flatMap { line =>
+        val cols = line.split(",").map(_.trim)
+        if (cols.length > bodyMassIdx) {
+          try {
+            Some(PenguinRow(
+              species = cols(speciesIdx).toInt,
+              billLengthMm = cols(billLengthIdx).toDouble,
+              billDepthMm = cols(billDepthIdx).toDouble,
+              flipperLengthMm = cols(flipperLengthIdx).toDouble,
+              bodyMassG = cols(bodyMassIdx).toDouble
+            ))
+          } catch {
+            case _: NumberFormatException => None
+          }
+        } else None
+      }
+    }

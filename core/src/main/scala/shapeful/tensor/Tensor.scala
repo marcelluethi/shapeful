@@ -6,7 +6,7 @@ import shapeful.jax.Jax
 import shapeful.jax.JaxDType
 import shapeful.jax.Jax.PyDynamic
 import shapeful.tensor.{Label, Labels}
-import shapeful.random.Random
+//import shapeful.random.Random
 import me.shadaj.scalapy.py.SeqConverters
 
 enum Device(val jaxDevice: PyDynamic):
@@ -20,7 +20,7 @@ object Device:
     Device.CPU
   )
 
-class Tensor[T <: Tuple : Labels] private[tensor](
+class Tensor[T <: Tuple : Labels, V : Value] private[tensor](
   val jaxValue: Jax.PyDynamic,
 ):
 
@@ -32,13 +32,13 @@ class Tensor[T <: Tuple : Labels] private[tensor](
     d => Jax.device_get(jaxValue).equals(d.jaxDevice)
   ).getOrElse(Device.Other(Jax.device_get(jaxValue).name.as[String]))
 
-  def asType(newDType: DType): Tensor[T] = 
-    Tensor(jaxValue = Jax.jnp.astype(jaxValue, JaxDType.jaxDtype(newDType)))
+  def asType[V2 : Value](newDType: DType): Tensor[T, V2] = 
+    Tensor[T, V2](jaxValue = Jax.jnp.astype(jaxValue, JaxDType.jaxDtype(newDType)))
 
-  def toDevice(newDevice: Device): Tensor[T] = 
-    Tensor(jaxValue = Jax.device_put(jaxValue, newDevice.jaxDevice))
+  def toDevice(newDevice: Device): Tensor[T, V] = 
+    Tensor[T, V](jaxValue = Jax.device_put(jaxValue, newDevice.jaxDevice))
 
-  def equals(other: Tensor[T]): Boolean =
+  def equals(other: Tensor[T, V]): Boolean =
     Jax.jnp.array_equal(this.jaxValue, other.jaxValue).item().as[Boolean]
 
   override def hashCode(): Int = jaxArray.tobytes().hashCode()
@@ -54,118 +54,124 @@ object Tensor:
 
   type IndicesOf[T <: Tuple] = Tuple.Map[T, [ _ ] =>> Int]
 
-  private[tensor] def apply[T <: Tuple : Labels](jaxValue: Jax.PyDynamic): Tensor[T] = new Tensor[T](jaxValue)
+  private[tensor] def apply[T <: Tuple : Labels, V : Value](jaxValue: Jax.PyDynamic): Tensor[T, V] = new Tensor[T, V](jaxValue)
 
-  def fromPy[T <: Tuple : Labels](jaxValue: Jax.PyDynamic): Tensor[T] = Tensor(jaxValue)
+  def fromPy[T <: Tuple : Labels, V : Value](jaxValue: Jax.PyDynamic): Tensor[T, V] = Tensor[T, V](jaxValue)
 
-  def apply[T <: Tuple : Labels](shape: Shape[T])(using initTensor: Shape[T] => Tensor[T]): Tensor[T] = 
-    initTensor(shape)
+  // Builder pattern for type-safe tensor creation
+  class TensorBuilder[V : Value]:
+    private val dtype = summon[Value[V]].dtype
 
-  def apply[T <: Tuple : Labels](shape: Shape[T], values: Array[Float], dtype: DType = DType.Float32, device: Device = Device.default): Tensor[T] =
-    require(values.length == shape.size, s"Values length ${values.length} does not match shape size ${shape.size}")
-    val jaxValues = Jax.jnp
-      .array(
-        values.toPythonProxy,
-        dtype = dtype.jaxType,
-        device = device.jaxDevice,
-      )
-      .reshape(shape.dimensions.toPythonProxy)
-    Tensor(jaxValues)
+    def apply[T <: Tuple : Labels](shape: Shape[T], values: Array[Float], device: Device = Device.default): Tensor[T, V] =
+      require(values.length == shape.size, s"Values length ${values.length} does not match shape size ${shape.size}")
+      val jaxValues = Jax.jnp
+        .array(
+          values.toPythonProxy,
+          dtype = dtype.jaxType,
+          device = device.jaxDevice,
+        )
+        .reshape(shape.dimensions.toPythonProxy)
+      Tensor[T, V](jaxValues)
 
-  def zeros[T <: Tuple : Labels](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
-    Tensor(Jax.jnp.zeros(shape.dimensions.toPythonProxy, dtype = dtype.jaxType))
+    def zeros[T <: Tuple : Labels](shape: Shape[T]): Tensor[T, V] =
+      Tensor[T, V](Jax.jnp.zeros(shape.dimensions.toPythonProxy, dtype = dtype.jaxType))
 
-  def ones[T <: Tuple : Labels](shape: Shape[T], dtype: DType = DType.Float32): Tensor[T] =
-    Tensor(Jax.jnp.ones(shape.dimensions.toPythonProxy, dtype = dtype.jaxType))
+    def ones[T <: Tuple : Labels](shape: Shape[T]): Tensor[T, V] =
+      Tensor[T, V](Jax.jnp.ones(shape.dimensions.toPythonProxy, dtype = dtype.jaxType))
 
-  def randn[T <: Tuple : Labels](shape: Shape[T], key: Random.Key, dtype: DType = DType.Float32): Tensor[T] =
-    Random.normal(key, shape, dtype = dtype)
+  def of[V : Value]: TensorBuilder[V] = new TensorBuilder[V]
 
-type Tensor0 = Tensor[EmptyTuple]
-type Tensor1[L] = Tensor[Tuple1[L]]
-type Tensor2[L1, L2] = Tensor[(L1, L2)]
-type Tensor3[L1, L2, L3] = Tensor[(L1, L2, L3)]
-type Tensor4[L1, L2, L3, L4] = Tensor[(L1, L2, L3, L4)]
+type Tensor0[V] = Tensor[EmptyTuple, V]
+type Tensor1[L, V] = Tensor[Tuple1[L], V]
+type Tensor2[L1, L2, V] = Tensor[(L1, L2), V]
+type Tensor3[L1, L2, L3, V] = Tensor[(L1, L2, L3), V]
+type Tensor4[L1, L2, L3, L4, V] = Tensor[(L1, L2, L3, L4), V]
 
 object Tensor0:
 
-  // implicit conversions for easy creation
-  given Conversion[Float, Tensor0] = (x: Float) => Tensor0(x)
-  given Conversion[Int, Tensor0] = (x: Int) => Tensor0(x)
+  class Tensor0Builder[V : Value]:
+    private val dtype = summon[Value[V]].dtype
 
-  def apply(jaxValue: Jax.PyDynamic): Tensor0 = Tensor(jaxValue)
+    def apply(value: Float): Tensor0[V] =
+      Tensor0[V](Jax.jnp.array(value, dtype=dtype.jaxType))
 
-  def apply(value: Float | Int | Boolean): Tensor0 =
-    value match
-      case v: Float   => Tensor0(Jax.jnp.array(v, dtype=DType.Float32.jaxType))
-      case v: Int     => Tensor0(Jax.jnp.array(v, dtype=DType.Int32.jaxType))
-      case v: Boolean => Tensor0(Jax.jnp.array(v, dtype=DType.Bool.jaxType))
+    def apply(value: Int): Tensor0[V] =
+      Tensor0[V](Jax.jnp.array(value, dtype=dtype.jaxType))
+
+    def apply(value: Boolean): Tensor0[V] =
+      Tensor0[V](Jax.jnp.array(value, dtype=dtype.jaxType))
+
+  def of[V : Value]: Tensor0Builder[V] = new Tensor0Builder[V]
+
+  private[tensor] def apply[V : Value](jaxValue: Jax.PyDynamic): Tensor0[V] = Tensor[EmptyTuple, V](jaxValue)
 
 object Tensor1:
 
-  def apply[L : Label](axis: Axis[L], values: Array[Float], dtype: DType = DType.Float32): Tensor1[L] =
-    Tensor(Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxType))
+  class Tensor1Builder[V : Value]:
+    private val dtype = summon[Value[V]].dtype
 
-  def fromInts[L : Label](axis: Axis[L], values: Array[Int], dtype: DType = DType.Int32): Tensor1[L] =
-    Tensor(Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxType))
+    def apply[L : Label](axis: Axis[L], values: Array[Float]): Tensor1[L, V] =
+      Tensor[Tuple1[L], V](Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxType))
+
+    def fromInts[L : Label](axis: Axis[L], values: Array[Int]): Tensor1[L, V] =
+      Tensor[Tuple1[L], V](Jax.jnp.array(values.toPythonProxy, dtype = dtype.jaxType))
+
+  def of[V : Value]: Tensor1Builder[V] = new Tensor1Builder[V]
 
 object Tensor2:
 
-  def apply[L1 : Label, L2 : Label](
-      shape: Shape2[L1, L2],
-      values: Array[Float],
-      dtype: DType,
-  ): Tensor2[L1, L2] = Tensor(shape, values, dtype)
+  class Tensor2Builder[V : Value]:
+    private val dtype = summon[Value[V]].dtype
 
-  def apply[L1 : Label, L2 : Label](
-      shape: Shape2[L1, L2],
-      values: Array[Float],
-  ): Tensor[(L1, L2)] = Tensor2(shape, values, DType.Float32)
+    def apply[L1 : Label, L2 : Label](
+        shape: Shape2[L1, L2],
+        values: Array[Float],
+    ): Tensor2[L1, L2, V] = 
+      Tensor.of[V].apply(shape, values)
 
-  def apply[L1 : Label, L2 : Label](
-      axis1: Axis[L1],
-      axis2: Axis[L2],
-      values: Array[Array[Float]],
-      dtype: DType = DType.Float32,
-  ): Tensor[(L1, L2)] =
-    val rows = values.length
-    val cols = values.headOption.map(_.length).getOrElse(0)
-    require(values.forall(_.length == cols), "All rows must have the same length")
-    Tensor2(Shape(axis1 -> rows, axis2 -> cols), values.flatten, dtype)
+    def apply[L1 : Label, L2 : Label](
+        axis1: Axis[L1],
+        axis2: Axis[L2],
+        values: Array[Array[Float]],
+    ): Tensor2[L1, L2, V] =
+      val rows = values.length
+      val cols = values.headOption.map(_.length).getOrElse(0)
+      require(values.forall(_.length == cols), "All rows must have the same length")
+      Tensor2.of[V].apply(Shape(axis1 -> rows, axis2 -> cols), values.flatten)
 
-  def eye[L : Label](axis: Axis[L])(dim: Int, dtype: DType = DType.Float32): Tensor2[L, L] = 
-    Tensor(Jax.jnp.eye(dim, dtype = dtype.jaxType))
+    def eye[L : Label](axis: Axis[L])(dim: Int): Tensor2[L, L, V] = 
+      Tensor[Tuple2[L, L], V](Jax.jnp.eye(dim, dtype = dtype.jaxType))
 
-  def diag[L : Label](diag: Tensor1[L]): Tensor2[L, L] =
-    Tensor(Jax.jnp.diag(diag.jaxValue))
+    def diag[L : Label](diag: Tensor1[L, V]): Tensor2[L, L, V] =
+      Tensor[Tuple2[L, L], V](Jax.jnp.diag(diag.jaxValue))
+
+  def of[V : Value]: Tensor2Builder[V] = new Tensor2Builder[V]
 
 object Tensor3:
 
-  def apply[L1 : Label, L2 : Label, L3 : Label](
-      shape: Shape3[L1, L2, L3],
-      values: Array[Float],
-      dtype: DType,
-  ): Tensor3[L1, L2, L3] = Tensor(shape, values, dtype)
+  class Tensor3Builder[V : Value]:
+    private val dtype = summon[Value[V]].dtype
 
-  def apply[L1 : Label, L2 : Label, L3 : Label](
-      shape: Shape3[L1, L2, L3],
-      values: Array[Float],
-  ): Tensor3[L1, L2, L3] = Tensor3(shape, values, DType.Float32)
+    def apply[L1 : Label, L2 : Label, L3 : Label](
+        shape: Shape3[L1, L2, L3],
+        values: Array[Float],
+    ): Tensor3[L1, L2, L3, V] = 
+      Tensor.of[V].apply(shape, values)
 
-  def apply[L1 : Label, L2 : Label, L3 : Label](
-      axis1: Axis[L1],
-      axis2: Axis[L2],
-      axis3: Axis[L3],
-      values: Array[Array[Array[Float]]],
-      dtype: DType = DType.Float32,
-  ): Tensor3[L1, L2, L3] =
-    val dim1 = values.length
-    val dim2 = values.headOption.map(_.length).getOrElse(0)
-    val dim3 = values.headOption.flatMap(_.headOption).map(_.length).getOrElse(0)
-    require(values.forall(_.length == dim2), "All second dimensions must match")
-    require(values.forall(_.forall(_.length == dim3)), "All third dimensions must match")
-    Tensor3(
-      Shape(axis1 -> dim1, axis2 -> dim2, axis3 -> dim3),
-      values.flatten.flatten,
-      dtype,
-    )
+    def apply[L1 : Label, L2 : Label, L3 : Label](
+        axis1: Axis[L1],
+        axis2: Axis[L2],
+        axis3: Axis[L3],
+        values: Array[Array[Array[Float]]],
+    ): Tensor3[L1, L2, L3, V] =
+      val dim1 = values.length
+      val dim2 = values.headOption.map(_.length).getOrElse(0)
+      val dim3 = values.headOption.flatMap(_.headOption).map(_.length).getOrElse(0)
+      require(values.forall(_.length == dim2), "All second dimensions must match")
+      require(values.forall(_.forall(_.length == dim3)), "All third dimensions must match")
+      Tensor3.of[V].apply(
+        Shape(axis1 -> dim1, axis2 -> dim2, axis3 -> dim3),
+        values.flatten.flatten,
+      )
+
+  def of[V : Value]: Tensor3Builder[V] = new Tensor3Builder[V]

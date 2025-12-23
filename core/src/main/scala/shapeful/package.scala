@@ -17,13 +17,13 @@ package object shapeful:
       case Prime[l] *: tail => l *: RemovePrimes[tail]
       case h *: tail => h *: RemovePrimes[tail]
 
-    extension[T <: Tuple : Labels](tensor: Tensor[T])
-      def dropPrimes: Tensor[RemovePrimes[T]] =
+    extension[T <: Tuple : Labels, V : Value](tensor: Tensor[T, V])
+      def dropPrimes: Tensor[RemovePrimes[T], V] =
         given newLabels: Labels[RemovePrimes[T]] with
           val names: List[String] = 
             val oldLabels = summon[Labels[T]]
             oldLabels.names.toList.map(_.replace("'", ""))
-        Tensor.fromPy(tensor.jaxValue)
+        Tensor.fromPy[RemovePrimes[T], V](tensor.jaxValue)
 
   @targetName("On") 
   infix trait ~[A, B]
@@ -42,23 +42,61 @@ package object shapeful:
   export shapeful.tensor.{Shape, Shape0, Shape1, Shape2, Shape3}
   export shapeful.tensor.{DType, Device}
   export shapeful.tensor.{Label, Labels, Axis, AxisIndex, AxisIndices, Dim}
+  export shapeful.tensor.Value
+  
+  // Opaque types for DTypes - clean imports and display without .type suffix
+  opaque type Float32 = DType.Float32.type
+  object Float32:
+    given Value[Float32] = summon[Value[DType.Float32.type]]
+  
+  opaque type Float64 = DType.Float64.type
+  object Float64:
+    given Value[Float64] = summon[Value[DType.Float64.type]]
+  
+  opaque type Int32 = DType.Int32.type
+  object Int32:
+    given Value[Int32] = summon[Value[DType.Int32.type]]
+  
+  opaque type Int64 = DType.Int64.type
+  object Int64:
+    given Value[Int64] = summon[Value[DType.Int64.type]]
+  
+  opaque type Int16 = DType.Int16.type
+  object Int16:
+    given Value[Int16] = summon[Value[DType.Int16.type]]
+  
+  opaque type Int8 = DType.Int8.type
+  object Int8:
+    given Value[Int8] = summon[Value[DType.Int8.type]]
+  
+  opaque type UInt32 = DType.UInt32.type
+  object UInt32:
+    given Value[UInt32] = summon[Value[DType.UInt32.type]]
+  
+  opaque type UInt16 = DType.UInt16.type
+  object UInt16:
+    given Value[UInt16] = summon[Value[DType.UInt16.type]]
+  
+  opaque type UInt8 = DType.UInt8.type
+  object UInt8:
+    given Value[UInt8] = summon[Value[DType.UInt8.type]]
+  
+  opaque type Bool = DType.Bool.type
+  object Bool:
+    given Value[Bool] = summon[Value[DType.Bool.type]]
   
   // Export type helpers
   export shapeful.tensor.Axis.UnwrapAxes
   export shapeful.tensor.TupleHelpers.*
-  export shapeful.tensor.Broadcast
+  //export shapeful.tensor.Broadcast
   export Prime.*
   
   // Export operations
-  export shapeful.tensor.TensorOps.*
+  //export shapeful.tensor.TensorOps.*
   
   // Export automatic differentiation
   export shapeful.autodiff.{Autodiff, TensorTree, ToPyTree}
 
   // Export Just-in-Time compilation
-  export shapeful.jax.Jit.{jit, jit2}
-
-  // Export implicit conversions
-  object Conversions:
-    export shapeful.tensor.Tensor0.{given_Conversion_Int_Tensor0, given_Conversion_Float_Tensor0}
+//  export shapeful.jax.Jit.{jit, jit2}
 

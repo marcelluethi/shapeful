@@ -8,6 +8,8 @@ import shapeful.jax.Jax.PyDynamic
 import shapeful.tensor.{Label, Labels}
 //import shapeful.random.Random
 import me.shadaj.scalapy.py.SeqConverters
+import shapeful.Float32
+import shapeful.Int32
 
 enum Device(val jaxDevice: PyDynamic):
   case CPU extends Device(Jax.devices("cpu").head.as[PyDynamic])
@@ -100,6 +102,10 @@ object Tensor0:
 
     def apply(value: Boolean): Tensor0[V] =
       Tensor0[V](Jax.jnp.array(value, dtype=dtype.jaxType))
+
+
+  given Conversion[Float, Tensor0[Float32]] = (x: Float) => Tensor0.of[Float32](x)
+  given Conversion[Int, Tensor0[Int32]] = (x: Int) => Tensor0.of[Int32](x)      
 
   def of[V : Value]: Tensor0Builder[V] = new Tensor0Builder[V]
 

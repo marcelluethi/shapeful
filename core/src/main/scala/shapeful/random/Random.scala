@@ -4,6 +4,7 @@ import shapeful.tensor.*
 import shapeful.tensor.TensorOps.*
 import shapeful.jax.{Jax, JaxDType}
 import me.shadaj.scalapy.py.SeqConverters
+import shapeful.Float32
 
 /** JAX-based random number generation with proper key management.
   *
@@ -52,9 +53,9 @@ object Random:
   def normal[T <: Tuple : Labels, V : Value](
       key: Key,
       shape: Shape[T],
-      mean: Tensor0[V] = Tensor0.of[DType.Float32.type].apply(0f),
-      std: Tensor0[V] = Tensor0.of[DType.Float32.type].apply(1f)
-  )(using ev: V =:= DType.Float32.type): Tensor[T, V] =
+      mean: Tensor0[V] = Tensor0.of[Float32].apply(0f),
+      std: Tensor0[V] = Tensor0.of[Float32].apply(1f)
+  ): Tensor[T, V] =
     val dtype = summon[Value[V]].dtype
     val jaxValues = Jax.jrandom.normal(
       key.jaxKey,

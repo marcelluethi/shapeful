@@ -18,12 +18,11 @@ object LogisticRegression:
 
   case class BinaryLogisticRegression(
     params: BinaryLogisticRegression.Params,
-  ) extends Function[Tensor1[Feature], Tensor0]:
+  ) extends Function[Tensor1[Feature, Float32], Tensor0[Float32]]:
     private val linear = LinearMap(params.linearMap)
-    def logits(input: Tensor1[Feature]): Tensor0 = linear(input)
-    def probits(input: Tensor1[Feature]): Tensor0 = sigmoid(logits(input))
-    def apply(input: Tensor1[Feature]): Tensor0 = logits(input) >= Tensor0(0f)
-
+    def logits(input: Tensor1[Feature, Float32]): Tensor0[Float32] = linear(input)
+    def probits(input: Tensor1[Feature, Float32]): Tensor0[Float32] = sigmoid(logits(input))
+    def apply(input: Tensor1[Feature, Float32]): Tensor0[Float32] = logits(input) >= Tensor0.of[Float32](0f)
   def main(args: Array[String]): Unit =
 
     import io.github.quafadas.table.*
@@ -44,23 +43,23 @@ object LogisticRegression:
       }.toArray
     val labelData = dfShuffled.column["species"].toArray.map(_.toFloat)
 
-    val dataUnnormalized = Tensor2(Axis[Sample], Axis[Feature], featureData)
-    val dataLabels = Tensor1(Axis[Sample], labelData)
+    val dataUnnormalized = Tensor2.of[Float32](Axis[Sample], Axis[Feature], featureData)
+    val dataLabels = Tensor1.of[Int32](Axis[Sample], labelData)
 
     // TODO implement split
     val (trainingDataUnnormalized, valDataUnnormalized) = (dataUnnormalized, dataUnnormalized)
     val (trainLabels, valLabels) = (dataLabels, dataLabels)
 
-    def calcMeanAndStd(t: Tensor2[Sample, Feature]): (Tensor1[Feature], Tensor1[Feature]) =
+    def calcMeanAndStd(t: Tensor2[Sample, Feature, Float32]): (Tensor1[Feature, Float32], Tensor1[Feature, Float32]) =
       val mean = t.vmap(Axis[Feature])(_.mean)
       val std = zipvmap(Axis[Feature])(t, mean):
         case (x, m) => 
           val epsilon = 1e-6f
-          (x :- m).pow(2).mean.sqrt + epsilon
+          (x :- m).pow(2f).mean.sqrt + epsilon
           // x.vmap(Axis[Sample])(xi => (xi - m).pow(2)).mean.sqrt + epsilon
       (mean, std)
 
-    def standardizeData(mean: Tensor1[Feature], std: Tensor1[Feature])(data: Tensor2[Sample, Feature]): Tensor2[Sample, Feature] =
+    def standardizeData(mean: Tensor1[Feature, Float32], std: Tensor1[Feature, Float32])(data: Tensor2[Sample, Feature, Float32]): Tensor2[Sample, Feature, Float32] =
       data.vapply(Axis[Feature])(feature => (feature - mean) / std)
       // (data :- mean) :/ std
 
@@ -72,7 +71,7 @@ object LogisticRegression:
     val (initKey, restKey) = trainKey.split2()
     val (lossKey, sampleKey) = restKey.split2()
 
-    def loss(data: Tensor2[Sample, Feature])(params: BinaryLogisticRegression.Params): Tensor0 =
+    def loss(data: Tensor2[Sample, Feature, Float32])(params: BinaryLogisticRegression.Params): Tensor0[Float32] =
       val model = BinaryLogisticRegression(params)
       val losses = zipvmap(Axis[Sample])(data, trainLabels):
         case (sample, label) =>
@@ -99,8 +98,8 @@ object LogisticRegression:
           val valPreds = valData.vmap(Axis[Sample])(model)
           println(List(
             "epoch: " + index,
-            "trainAcc: " + (1 - (trainPreds - trainLabels).abs.mean),
-            "valAcc: " + (1 - (valPreds - valLabels).abs.mean)
+            "trainAcc: " + (1f - (trainPreds - trainLabels.asType[Float32]).abs.mean),
+            "valAcc: " + (1f - (valPreds - valLabels.asType[Float32]).abs.mean)
           ).mkString(", "))
       .map((params, _) => params)
       .drop(2500)

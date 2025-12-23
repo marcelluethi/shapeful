@@ -6,7 +6,7 @@ import shapeful.random.Random.Key
 
 object LinearLayer:
 
-    case class Params[In, Out](weight: Tensor2[In, Out, DType.Float32.type], bias: Tensor1[Out, DType.Float32.type])
+    case class Params[In, Out](weight: Tensor2[In, Out, Float32], bias: Tensor1[Out, Float32])
 
     object Params:
         given [I : Label, O : Label]: TensorTree[Params[I, O]] = TensorTree.derived
@@ -16,15 +16,15 @@ object LinearLayer:
             inputDim: Dim[In],
             outputDim: Dim[Out],
         ): Params[In, Out] = 
-            val mean = Tensor0.of[DType.Float32.type].apply(0f)
-            val std = Tensor0.of[DType.Float32.type].apply(1f)
+            val mean = Tensor0.of[Float32].apply(0f)
+            val std = Tensor0.of[Float32].apply(1f)
             Params(
                 weight = Random.normal(paramKey, Shape(inputDim, outputDim), mean, std),
-                bias = Tensor.of[DType.Float32.type].zeros(Shape(outputDim)),
+                bias = Tensor.of[Float32].zeros(Shape(outputDim)),
             )
 
-case class LinearLayer[In : Label,Out : Label](params: LinearLayer.Params[In, Out]) extends Function[Tensor1[In, DType.Float32.type], Tensor1[Out, DType.Float32.type]]:
-    override def apply(x: Tensor1[In, DType.Float32.type]): Tensor1[Out, DType.Float32.type] =
+case class LinearLayer[In : Label,Out : Label](params: LinearLayer.Params[In, Out]) extends Function[Tensor1[In, Float32], Tensor1[Out, Float32]]:
+    override def apply(x: Tensor1[In, Float32]): Tensor1[Out, Float32] =
         import params.{weight, bias}
         x.contract(Axis[In])(weight) + bias
 

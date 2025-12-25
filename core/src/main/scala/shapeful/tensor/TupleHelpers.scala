@@ -24,7 +24,7 @@ object TupleHelpers:
     given singleSearch[H, Tail <: Tuple, K, TailOut <: Tuple](using
       next: Subset[Tail, K *: EmptyTuple] { type Out = TailOut }
     ): Subset[H *: Tail, K *: EmptyTuple] with
-      type Out = H *: TailOut
+      type Out = Simplify[H *: TailOut]
 
   type Remover[T <: Tuple, ToRemoveElement] = RemoverAll[T, ToRemoveElement *: EmptyTuple]
 
@@ -62,22 +62,27 @@ object TupleHelpers:
     // We capture 'TailOut' as a type parameter to ensure it is fully resolved
     given singleSearch[H, Tail <: Tuple, K, TailOut <: Tuple](using
       next: RemoverAll.Aux[Tail, K *: EmptyTuple, TailOut]
-    ): RemoverAll.Aux[H *: Tail, K *: EmptyTuple, H *: TailOut] = 
-      new RemoverAll[H *: Tail, K *: EmptyTuple] { type Out = H *: TailOut }
+    ): RemoverAll.Aux[H *: Tail, K *: EmptyTuple, Simplify[H *: TailOut]] = 
+      new RemoverAll[H *: Tail, K *: EmptyTuple] { type Out = Simplify[H *: TailOut] }
     
+  // Simplify tuple types to avoid ugly type signatures like "X *: EmptyTuple.type"
+  type Simplify[T <: Tuple] <: Tuple = T match
+    case h *: EmptyTuple => Tuple1[h]
+    case _ => T
+
   trait Replacer[T <: Tuple, Target, Replacement]:
     type Out <: Tuple
 
   object Replacer extends ReplacerLowPriority:
 
     given found[Target, Tail <: Tuple, Replacement]: Replacer[Target *: Tail, Target, Replacement] with
-      type Out = Replacement *: Tail
+      type Out = Simplify[Replacement *: Tail]
 
   trait ReplacerLowPriority:
     given recurse[Head, Tail <: Tuple, Target, Replacement, TailOut <: Tuple](using
       next: Replacer[Tail, Target, Replacement] { type Out = TailOut }
     ): Replacer[Head *: Tail, Target, Replacement] with
-      type Out = Head *: TailOut
+      type Out = Simplify[Head *: TailOut]
 
 
   import shapeful.Prime
@@ -96,8 +101,8 @@ object TupleHelpers:
     /** If nothing found, we can't proof Member (e.g. for generics), just assume they are different. */
     given assumeAbsent[Fixed <: Tuple, H, T <: Tuple, TailOut <: Tuple](using
       tail: PrimeRest.Aux[Fixed, T, TailOut],
-    ): PrimeRest.Aux[Fixed, H *: T, H *: TailOut] = 
-      new PrimeRest[Fixed, H *: T] { type Out = H *: TailOut }
+    ): PrimeRest.Aux[Fixed, H *: T, Simplify[H *: TailOut]] = 
+      new PrimeRest[Fixed, H *: T] { type Out = Simplify[H *: TailOut] }
     
 
   object PrimeRest extends PrimeRestLowPriority:
@@ -110,14 +115,14 @@ object TupleHelpers:
     given present[Fixed <: Tuple, H, T <: Tuple, TailOut <: Tuple](using
       ev: Member[H, Fixed] =:= true,
       tail: PrimeRest.Aux[Fixed, T, TailOut],
-    ): PrimeRest.Aux[Fixed, H *: T, Prime[H] *: TailOut] = 
-      new PrimeRest[Fixed, H *: T] { type Out = Prime[H] *: TailOut }
+    ): PrimeRest.Aux[Fixed, H *: T, Simplify[Prime[H] *: TailOut]] = 
+      new PrimeRest[Fixed, H *: T] { type Out = Simplify[Prime[H] *: TailOut] }
 
     given absent[Fixed <: Tuple, H, T <: Tuple, TailOut <: Tuple](using
       ev: Member[H, Fixed] =:= false,
       tail: PrimeRest.Aux[Fixed, T, TailOut],
-    ): PrimeRest.Aux[Fixed, H *: T, H *: TailOut] = 
-      new PrimeRest[Fixed, H *: T] { type Out = H *: TailOut }
+    ): PrimeRest.Aux[Fixed, H *: T, Simplify[H *: TailOut]] = 
+      new PrimeRest[Fixed, H *: T] { type Out = Simplify[H *: TailOut] }
     
   trait PrimeConcat[R1 <: Tuple, R2 <: Tuple]:
     type Out <: Tuple

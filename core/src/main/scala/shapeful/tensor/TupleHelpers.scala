@@ -31,6 +31,7 @@ object TupleHelpers:
   object Remover:
     type Aux[T <: Tuple, ToRemoveElement, O <: Tuple] = RemoverAll.Aux[T, ToRemoveElement *: EmptyTuple, O]
 
+  @scala.annotation.implicitNotFound("Cannot remove axis/axes ${ToRemove} from shape ${T}. The axis does not exist in this shape.")
   trait RemoverAll[T <: Tuple, ToRemove <: Tuple]:
     type Out <: Tuple
 

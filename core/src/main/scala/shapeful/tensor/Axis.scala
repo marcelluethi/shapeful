@@ -21,6 +21,7 @@ object Axis:
 sealed trait Axis[A]
 class AxisImpl[A] extends Axis[A]
 
+@scala.annotation.implicitNotFound("Axis ${Axis} not found in shape ${Shape}. Ensure all tensors contain the axis you're mapping over.")
 trait AxisIndex[Shape <: Tuple, +Axis]:
   def value: Int
 

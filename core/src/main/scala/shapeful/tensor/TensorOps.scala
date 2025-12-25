@@ -644,6 +644,7 @@ object TensorOps:
 
       type ShapesOf[Tensors <: Tuple] = Tuple.Map[Tensors, ExtractShape]
 
+      @scala.annotation.implicitNotFound("Cannot zip/vmap tensors along axis ${L}. All input tensors must contain axis ${L} in their shapes. Shapes provided: ${Shapes}")
       trait Zipper[Shapes <: Tuple, L, SlicedShapes <: Tuple, V]:
           def dimSize(tensors: TensorsOf[Shapes, V], axis: Axis[L]): Int
           def sliceAll(tensors: TensorsOf[Shapes, V], axis: Axis[L], idx: Int): TensorsOf[SlicedShapes, V]

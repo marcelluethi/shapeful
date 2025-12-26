@@ -4,21 +4,19 @@ import shapeful.*
 import nn.*
 import nn.ActivationFunctions.{relu, sigmoid}
 import shapeful.random.Random
-import shapeful.tensor.Value
-import shapeful.tensor.Value.{Float32, Int32}
 
 import scala.concurrent.ExecutionContext.Implicits.global
 import scala.util.Try
 import java.io.{FileInputStream, DataInputStream, BufferedInputStream}
 
 def binaryCrossEntropy[L: Label](
-    logits: Tensor1[L, Float32],
-    label: Tensor0[Int32]
-): Tensor0[Float32] =
+    logits: FloatTensor1[L],
+    label: Tensor0[Int]
+): Tensor0[Float] =
   val maxLogit = logits.max
   val stableExp = (logits :- maxLogit).exp
   val logSumExp = stableExp.sum.log + maxLogit
-  val targetLogit = logits.slice(Axis[L] -> label.toInt)
+  val targetLogit = logits.slice(Axis[L] -> label.item)
   -(targetLogit - logSumExp)
 
 object MLPClassifierMNist:
@@ -32,8 +30,8 @@ object MLPClassifierMNist:
 
   object MLP:
     case class Params(
-        layer1: LinearLayer.Params[Height * Width, Hidden, Float32],
-        layer2: LinearLayer.Params[Hidden, Output, Float32]
+        layer1: LinearLayer.Params[Height * Width, Hidden, Float],
+        layer2: LinearLayer.Params[Hidden, Output, Float]
     ) derives TensorTree,
           ToPyTree
 
@@ -51,18 +49,18 @@ object MLPClassifierMNist:
           layer2 = LinearLayer.Params(key2)(layer2Dim, outputDim)
         )
 
-  case class MLP(params: MLP.Params) extends Function[Tensor2[Height, Width, Float32], Tensor0[Float32]]:
+  case class MLP(params: MLP.Params) extends Function[FloatTensor2[Height, Width], IntTensor0]:
 
-    private val layer1 = LinearLayer[Height * Width, Hidden, Float32](params.layer1)
-    private val layer2 = LinearLayer[Hidden, Output, Float32](params.layer2)
+    private val layer1 = LinearLayer[Height * Width, Hidden, Float](params.layer1)
+    private val layer2 = LinearLayer[Hidden, Output, Float](params.layer2)
 
     def logits(
-        image: Tensor2[Height, Width, Float32]
-    ): Tensor1[Output, Float32] =
+        image: Tensor2[Height, Width, Float]
+    ): Tensor1[Output, Float] =
       val hidden = relu(layer1(image.ravel))
       layer2(hidden)
 
-    override def apply(image: Tensor2[Height, Width, Float32]): Tensor0[Float32] = logits(image).argmax(Axis[Output])
+    override def apply(image: FloatTensor2[Height, Width]): IntTensor0 = logits(image).argmax(Axis[Output])
 
   object MNISTLoader:
 
@@ -72,7 +70,7 @@ object MLPClassifierMNist:
     private def loadImagePixels(
         filename: String,
         maxImages: Option[Int] = None
-    ): Try[Tensor3[Sample, Height, Width, Float32]] =
+    ): Try[Tensor3[Sample, Height, Width, Float]] =
       Try {
         val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
         try
@@ -94,12 +92,12 @@ object MLPClassifierMNist:
           // Convert bytes to floats with vectorized operation
           val allPixels = pixelBytes.map(b => (b & 0xff) / 255.0f)
           val shape = Shape(Axis[Sample] -> numImages, Axis[Height] -> rows, Axis[Width] -> cols)
-          val tensor = Tensor3[Sample, Height, Width, Float32](shape, allPixels, DType.Float32)
+          val tensor = FloatTensor.fromArray(shape, allPixels)
           tensor.toDevice(Device.CPU)
         finally dis.close()
       }
 
-    private def loadLabelsArray(filename: String, maxLabels: Option[Int] = None): Try[Tensor1[Sample, Int32]] = Try {
+    private def loadLabelsArray(filename: String, maxLabels: Option[Int] = None): Try[Tensor1[Sample, Int]] = Try {
       val dis = new DataInputStream(new BufferedInputStream(new FileInputStream(filename)))
       try
         val magic = readInt(dis)
@@ -114,7 +112,7 @@ object MLPClassifierMNist:
         for i <- 0.until(numLabels) do labels(i) = dis.readUnsignedByte()
 
         // Create Tensor1 from labels - specify the label type correctly
-        val tensor = Tensor1.fromInts[Sample, Int32](Axis[Sample], labels, DType.Int32)
+        val tensor = IntTensor1.fromArray(Axis[Sample], labels)
         tensor.toDevice(Device.CPU)
       finally dis.close()
     }
@@ -123,7 +121,7 @@ object MLPClassifierMNist:
         imagesFile: String,
         labelsFile: String,
         maxSamples: Option[Int] = None
-    ): Try[Tuple2[Tensor[(Sample, Height, Width), Float32], Tensor1[Sample, Int32]]] =
+    ): Try[Tuple2[Tensor[(Sample, Height, Width), Float], Tensor1[Sample, Int]]] =
       for
         imagePixels <- loadImagePixels(imagesFile, maxSamples)
         labels <- loadLabelsArray(labelsFile, maxSamples)
@@ -138,7 +136,7 @@ object MLPClassifierMNist:
     def createTrainingDataset(
         dataDir: String = "data",
         maxSamples: Option[Int] = None
-    ): Try[Tuple2[Tensor[(TrainSample, Height, Width), Float32], Tensor1[TrainSample, Int32]]] =
+    ): Try[Tuple2[Tensor[(TrainSample, Height, Width), Float], Tensor1[TrainSample, Int]]] =
       val imagesFile = s"$dataDir/train-images-idx3-ubyte"
       val labelsFile = s"$dataDir/train-labels-idx1-ubyte"
       val dataset = createDataset(imagesFile, labelsFile, maxSamples)
@@ -149,7 +147,7 @@ object MLPClassifierMNist:
     def createTestDataset(
         dataDir: String = "data",
         maxSamples: Option[Int] = None
-    ): Try[Tuple2[Tensor[(TestSample, Height, Width), Float32], Tensor1[TestSample, Int32]]] =
+    ): Try[Tuple2[Tensor[(TestSample, Height, Width), Float], Tensor1[TestSample, Int]]] =
       val imagesFile = s"$dataDir/t10k-images-idx3-ubyte"
       val labelsFile = s"$dataDir/t10k-labels-idx1-ubyte"
       val dataset = createDataset(imagesFile, labelsFile, maxSamples)
@@ -169,14 +167,13 @@ object MLPClassifierMNist:
     val (trainX, trainY) = MNISTLoader.createTrainingDataset(maxSamples = Some(numSamples)).get
     val (testX, testY) = MNISTLoader.createTestDataset(maxSamples = Some(1024)).get
 
-    def batchLoss(batchImages: Tensor[(TrainSample, Height, Width), Float32], batchLabels: Tensor1[TrainSample, Int32])(
+    def batchLoss(batchImages: FloatTensor[(TrainSample, Height, Width)], batchLabels: IntTensor1[TrainSample])(
         params: MLP.Params
-    ): Tensor0[Float32] =
+    ): Tensor0[Float] =
       val model = MLP(params)
       val losses = zipvmap(Axis[TrainSample])(batchImages, batchLabels): (image, label) =>
         val logits = model.logits(image)
-        val label0 = label.asValue[Int32]
-        binaryCrossEntropy(logits, label0)
+        binaryCrossEntropy(logits, label)
       losses.mean
 
     val initParams = MLP.Params(
@@ -186,18 +183,15 @@ object MLPClassifierMNist:
     )(initKey)
 
     def accuracy[Sample: Label](
-        predictions: Tensor1[Sample, Float32],
-        targets: Tensor1[Sample, Int32]
-    ): Tensor0[Float32] =
-      val matches = zipvmap(Axis[Sample])(predictions, targets): (pred, target) =>
-        val predInt = pred.asValue[Float32].toInt
-        val targetInt = target.asValue[Int32].toInt
-        Tensor0[Float32](if predInt == targetInt then 1f else 0f)
+        predictions: IntTensor1[Sample],
+        targets: IntTensor1[Sample]
+    ): Tensor0[Float] =
+      val matches = zipvmap(Axis[Sample])(predictions, targets)(_ === _)
       matches.mean
 
     def miniBatchGradientDescent(
-        imageBatches: Seq[Tensor[(TrainSample, Height, Width), Float32]],
-        labelBatches: Seq[Tensor1[TrainSample, Int32]]
+        imageBatches: Seq[Tensor[(TrainSample, Height, Width), Float]],
+        labelBatches: Seq[Tensor1[TrainSample, Int]]
     )(
         params: MLP.Params
     ): MLP.Params =
@@ -231,9 +225,9 @@ object MLPClassifierMNist:
           timed("Evaluation"):
             val model = MLP(params)
             val testPreds = testX.vmap(Axis[TestSample])(model)
-            val testAccuracy = accuracy(testPreds, testY).toFloat
+            val testAccuracy = accuracy(testPreds, testY).item
             val trainPreds = trainX.vmap(Axis[TrainSample])(model)
-            val trainAccuracy = accuracy(trainPreds, trainY).toFloat
+            val trainAccuracy = accuracy(trainPreds, trainY).item
             println(
               List(
                 s"Epoch $epoch",

@@ -1,6 +1,6 @@
 package shapeful.autodiff
 
-import shapeful.tensor.{Tensor, Shape, Labels, Value}
+import shapeful.tensor.{Tensor, Shape, Labels, TensorValue}
 import shapeful.jax.Jax
 
 import me.shadaj.scalapy.py
@@ -8,6 +8,7 @@ import me.shadaj.scalapy.py.SeqConverters
 import scala.deriving.*
 import scala.compiletime.*
 import shapeful.tensor.Labels
+import shapeful.tensor.ScalarValue
 
 trait ToPyTree[P]:
   def toPyTree(p: P): Jax.PyAny
@@ -18,10 +19,10 @@ object ToPyTree:
   def apply[P](using pt: ToPyTree[P]): ToPyTree[P] = pt
 
   // Keep the tensor instance
-  given [T <: Tuple: Labels, V: Value]: ToPyTree[Tensor[T, V]] with
+  given [T <: Tuple: Labels, V: ScalarValue]: ToPyTree[Tensor[T, V]] with
     def toPyTree(t: Tensor[T, V]): Jax.PyAny = t.jaxValue
     def fromPyTree(p: Jax.PyAny): Tensor[T, V] =
-      Tensor.fromPy(p.as[Jax.PyDynamic])(using summon[Labels[T]], summon[Value[V]])
+      Tensor(TensorValue[V]).fromPy(p.as[Jax.PyDynamic])
 
   // Tuple instances - these should have lower priority than specific case classes
   given tupleInstance[A, B](using ta: ToPyTree[A], tb: ToPyTree[B]): ToPyTree[(A, B)] with
@@ -59,11 +60,8 @@ object ToPyTree:
   inline def reconstructField[T](pyElem: py.Dynamic): T =
     inline erasedValue[T] match
       case _: Tensor[t, v] =>
-        Tensor
-          .fromPy(pyElem.as[Jax.PyDynamic])(using
-            compiletime.summonInline[Labels[t]],
-            compiletime.summonInline[Value[v]]
-          )
+        Tensor(TensorValue[v](using summonInline[ScalarValue[v]]))
+          .fromPy(pyElem.as[Jax.PyDynamic])
           .asInstanceOf[T]
       case _: String =>
         pyElem.as[String].asInstanceOf[T]

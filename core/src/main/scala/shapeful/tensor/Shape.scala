@@ -81,20 +81,17 @@ type Shape3[L1, L2, L3] = Shape[L1 *: L2 *: L3 *: EmptyTuple]
 val Shape0 = Shape.empty
 
 object Shape1:
-  def apply[L](dim: (Axis[L], Int))(using v: ValueOf[L]): Shape[Tuple1[L]] = Shape(dim)
+  def apply[L: Label](dim: Dim[L]): Shape[Tuple1[L]] = Shape(dim)
 
 object Shape2:
   def apply[L1: Label, L2: Label](
-      dim1: (Axis[L1], Int),
-      dim2: (Axis[L2], Int)
+      dim1: Dim[L1],
+      dim2: Dim[L2]
   ): Shape[(L1, L2)] = Shape.fromTuple(dim1, dim2)
-
-object Test:
-  val x = Shape2(Axis["A"] -> 3, Axis["B"] -> 4)
 
 object Shape3:
   def apply[L1: Label, L2: Label, L3: Label](
-      dim1: (Axis[L1], Int),
-      dim2: (Axis[L2], Int),
-      dim3: (Axis[L3], Int)
+      dim1: Dim[L1],
+      dim2: Dim[L2],
+      dim3: Dim[L3]
   ): Shape[(L1, L2, L3)] = Shape.fromTuple(dim1, dim2, dim3)

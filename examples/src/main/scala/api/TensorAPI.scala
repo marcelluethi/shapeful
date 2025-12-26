@@ -1,7 +1,6 @@
 package examples.api
 
 import shapeful.*
-import shapeful.tensor.Value.Float32
 import me.shadaj.scalapy.py
 import me.shadaj.scalapy.py.PythonException
 
@@ -20,8 +19,7 @@ def tensorAPI(): Unit =
   py.exec("import jax.numpy as jnp")
   py.exec("import einops")
   // py.eval("import jax.numpy as jnp")
-  val AB = Tensor
-    .of[Float32]
+  val AB = FloatTensor
     .ones(
       Shape(
         Axis["A"] -> 2,
@@ -29,8 +27,7 @@ def tensorAPI(): Unit =
       )
     )
   py.exec("ab = jnp.ones((2, 3))")
-  val AC = Tensor
-    .of[Float32]
+  val AC = FloatTensor
     .ones(
       Shape(
         Axis["A"] -> 2,
@@ -38,8 +35,7 @@ def tensorAPI(): Unit =
       )
     )
   py.exec("ac = jnp.ones((2, 4))")
-  val BCD = Tensor
-    .of[Float32]
+  val BCD = FloatTensor
     .ones(
       Shape(
         Axis["B"] -> 3,
@@ -48,8 +44,7 @@ def tensorAPI(): Unit =
       )
     )
   py.exec("bcd = jnp.ones((3, 4, 5))")
-  val BC = Tensor
-    .of[Float32]
+  val BC = FloatTensor
     .ones(
       Shape(
         Axis["B"] -> 3,
@@ -57,8 +52,7 @@ def tensorAPI(): Unit =
       )
     )
   py.exec("bc = jnp.ones((3, 4))")
-  val ABCD = Tensor
-    .of[Float32]
+  val ABCD = FloatTensor
     .ones(
       Shape(
         Axis["A"] -> 2,
@@ -84,13 +78,12 @@ def tensorAPI(): Unit =
     }
     opBlock("Scalar broadcast: ABCD + Scalar") {
       py.exec("res = abcd + 5")
-      ABCD :+ Tensor0(5)
+      ABCD :+ Tensor0(5f)
     }
     opBlock("Axes broadcasting backward: ABCD + CD") {
       py.exec("cd = jnp.ones((4,5))")
       py.exec("res = abcd + cd")
-      val CD = Tensor
-        .of[Float32]
+      val CD = FloatTensor
         .ones(
           Shape(
             Axis["C"] -> 4,
@@ -193,7 +186,7 @@ def tensorAPI(): Unit =
     }
     opBlock("clip") {
       py.exec("res = jnp.clip(ab, 0, 1)")
-      AB.clip(0, 1)
+      AB.clip(Tensor0(0f), Tensor0(1f))
     }
     opBlock("<") {
       py.exec("res = ab < ab")
@@ -363,7 +356,7 @@ def tensorAPI(): Unit =
       py.exec("res = ab.at[0, :].set(jnp.array([0,1,2]))")
       AB.set(
         Axis["A"] -> 0
-      )(Tensor1["B", Float32](Axis["B"], Array(0f, 1f, 2f)))
+      )(Tensor1(AB.tv).fromArray(Axis["B"], Array(0f, 1f, 2f)))
     }
     // set sub-matrix, AB.at[0:1, 0:1].set([[1,2],[3,4]])
     opBlock("set ab axis=0:1,0:1") {
@@ -374,7 +367,7 @@ def tensorAPI(): Unit =
           Axis["B"] -> (0 until 2)
         )
       )(
-        Tensor2["A", "B", Float32](
+        Tensor2(AB.tv).fromArray(
           Axis["A"],
           Axis["B"],
           Array(
@@ -486,8 +479,7 @@ def tensorAPI(): Unit =
       */
     opBlock("squeeze A from AB") {
       py.exec("tmp = jnp.ones((1,3))") // Setup
-      val tmp = Tensor
-        .of[Float32]
+      val tmp = FloatTensor
         .ones(
           Shape(
             Axis["A"] -> 1,
@@ -528,7 +520,8 @@ def tensorAPI(): Unit =
     opBlock("vmap/zipvmap AB AC") {
       py.exec("res = jax.vmap(lambda abi, aci: jnp.sum(abi) + jnp.sum(aci))(ab, ac)")
       zipvmap(Axis["A"])((AB, AC)) { case (abi, aci) =>
-        abi.sum + aci.sum
+        val res = abi.sum + aci.sum
+        res
       }
     }
     opBlock("vmap/zipvmap AB AC AB AC") {
@@ -554,9 +547,9 @@ def tensorAPI(): Unit =
       py.exec("condition = jnp.zeros(shape)")
       py.exec("res = jnp.where(condition, x, y)")
       val shape = Shape(Axis["A"] -> 2, Axis["B"] -> 3)
-      val x = Tensor.of[Float32].ones(shape)
-      val y = Tensor.of[Float32].zeros(shape)
-      val condition = Tensor.of[Float32].zeros(shape)
+      val x = FloatTensor.ones(shape)
+      val y = FloatTensor.zeros(shape)
+      val condition = FloatTensor.zeros(shape)
       where(condition, x, y)
     }
   }
@@ -581,8 +574,7 @@ def tensorAPI(): Unit =
       AB.trace
     }
     opBlock("det abc1c2 over axes C1 and C2") {
-      val ABC1C2 = Tensor
-        .of[Float32]
+      val ABC1C2 = FloatTensor
         .ones(
           Shape(Axis["A"] -> 2, Axis["B"] -> 3, Axis["C1"] -> 4, Axis["C2"] -> 4)
         )
@@ -591,8 +583,7 @@ def tensorAPI(): Unit =
       ABC1C2.det(Axis["C1"], Axis["C2"])
     }
     opBlock("det A1A2") {
-      val A1A2 = Tensor
-        .of[Float32]
+      val A1A2 = FloatTensor
         .ones(
           Shape(Axis["A1"] -> 2, Axis["A2"] -> 2)
         )
@@ -605,7 +596,7 @@ def tensorAPI(): Unit =
       AB.norm
     }
     opBlock("inv AB") {
-      val a1a2 = Tensor2["A1", "A2", Float32](
+      val a1a2 = FloatTensor2.fromArray(
         Axis["A1"],
         Axis["A2"],
         Array(
@@ -616,5 +607,20 @@ def tensorAPI(): Unit =
       py.exec("a1a2 = jnp.array([[2, 0],[0, 2]])")
       py.exec("res = jnp.linalg.inv(a1a2)")
       a1a2.inv
+    }
+  }
+  {
+    println("Change precision")
+    {
+      // Default is Int32 
+      val t1 = IntTensor0(5)
+      println(t1.dtype)
+    }
+    {
+        // Switch to Int16
+      given int16Value: ScalarValue[Int] with
+        def dtype: DType = DType.Int16
+      val t2 = IntTensor0(5)
+      println(t2.dtype)
     }
   }

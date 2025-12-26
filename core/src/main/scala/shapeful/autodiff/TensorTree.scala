@@ -7,31 +7,31 @@ import scala.compiletime.*
 // TODO hot fix with retag and context parameter... maybe this can be improved?
 
 trait TensorTree[P]:
-  def map(p: P, f: [T <: Tuple, V] => (Labels[T], Value[V]) ?=> Tensor[T, V] => Tensor[T, V]): P
+  def map(p: P, f: [T <: Tuple, V] => TensorValue[V] => Labels[T] ?=> Tensor[T, V] => Tensor[T, V]): P
   def zipMap(
       p1: P,
       p2: P,
-      f: [T <: Tuple, V] => (Labels[T], Value[V]) ?=> (Tensor[T, V], Tensor[T, V]) => Tensor[T, V]
+      f: [T <: Tuple, V] => TensorValue[V] => Labels[T] ?=> (Tensor[T, V], Tensor[T, V]) => Tensor[T, V]
   ): P
 
 object TensorTree extends TensorTreeLowPriority:
   def apply[P](using pt: TensorTree[P]): TensorTree[P] = pt
 
-  given [Q <: Tuple, V](using n: Labels[Q], v: Value[V]): TensorTree[Tensor[Q, V]] with
+  given [Q <: Tuple, V](using n: Labels[Q], v: TensorValue[V]): TensorTree[Tensor[Q, V]] with
     def map(
         t: Tensor[Q, V],
-        f: [T <: Tuple, V2] => (Labels[T], Value[V2]) ?=> Tensor[T, V2] => Tensor[T, V2]
+        f: [T <: Tuple, V2] => TensorValue[V2] => Labels[T] ?=> Tensor[T, V2] => Tensor[T, V2]
     ): Tensor[Q, V] =
       import TensorOps.retag
-      f[Q, V](using n, v)(t.retag[Q](using n))
+      f[Q, V](v)(using n)(t.retag[Q](using n))
 
     def zipMap(
         p1: Tensor[Q, V],
         p2: Tensor[Q, V],
-        f: [T <: Tuple, V2] => (Labels[T], Value[V2]) ?=> (Tensor[T, V2], Tensor[T, V2]) => Tensor[T, V2]
+        f: [T <: Tuple, V2] => TensorValue[V2] => Labels[T] ?=> (Tensor[T, V2], Tensor[T, V2]) => Tensor[T, V2]
     ): Tensor[Q, V] =
       import TensorOps.retag
-      f[Q, V](using n, v)(p1.retag[Q](using n), p2.retag[Q](using n))
+      f[Q, V](v)(using n)(p1.retag[Q](using n), p2.retag[Q](using n))
 
   inline given derived[P <: Product](using m: Mirror.ProductOf[P]): TensorTree[P] =
     val elemInstances = summonAll[Tuple.Map[m.MirroredElemTypes, TensorTree]]
@@ -42,7 +42,7 @@ object TensorTree extends TensorTreeLowPriority:
       instances: List[TensorTree[Any]],
       m: Mirror.ProductOf[P]
   ): TensorTree[P] = new TensorTree[P]:
-    def map(p: P, f: [T <: Tuple, V] => (Labels[T], Value[V]) ?=> Tensor[T, V] => Tensor[T, V]): P =
+    def map(p: P, f: [T <: Tuple, V] => TensorValue[V] => Labels[T] ?=> Tensor[T, V] => Tensor[T, V]): P =
       val inputs = p.productIterator.toList
       val mappedElems = inputs
         .zip(instances)
@@ -53,7 +53,7 @@ object TensorTree extends TensorTreeLowPriority:
     def zipMap(
         p1: P,
         p2: P,
-        f: [T <: Tuple, V] => (Labels[T], Value[V]) ?=> (Tensor[T, V], Tensor[T, V]) => Tensor[T, V]
+        f: [T <: Tuple, V] => TensorValue[V] => Labels[T] ?=> (Tensor[T, V], Tensor[T, V]) => Tensor[T, V]
     ): P =
       val inputs1 = p1.productIterator.toList
       val inputs2 = p2.productIterator.toList
@@ -66,9 +66,9 @@ object TensorTree extends TensorTreeLowPriority:
 
 trait TensorTreeLowPriority:
   given identity[A]: TensorTree[A] = new TensorTree[A]:
-    def map(p: A, f: [T <: Tuple, V] => (Labels[T], Value[V]) ?=> Tensor[T, V] => Tensor[T, V]): A = p
+    def map(p: A, f: [T <: Tuple, V] => TensorValue[V] => Labels[T] ?=> Tensor[T, V] => Tensor[T, V]): A = p
     def zipMap(
         p1: A,
         p2: A,
-        f: [T <: Tuple, V] => (Labels[T], Value[V]) ?=> (Tensor[T, V], Tensor[T, V]) => Tensor[T, V]
+        f: [T <: Tuple, V] => TensorValue[V] => Labels[T] ?=> (Tensor[T, V], Tensor[T, V]) => Tensor[T, V]
     ): A = p1

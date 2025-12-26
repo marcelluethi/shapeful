@@ -4,8 +4,6 @@ import shapeful.*
 import nn.*
 import nn.ActivationFunctions.{relu, sigmoid}
 import shapeful.random.Random
-import shapeful.tensor.Value.Float32
-import shapeful.tensor.Value.Int32
 
 object LogisticRegression:
 
@@ -14,21 +12,20 @@ object LogisticRegression:
 
   object BinaryLogisticRegression:
     case class Params(
-        linearMap: LinearMap.Params[Feature, Float32]
-    ) derives TensorTree,
-          ToPyTree
+        linearMap: LinearMap.Params[Feature]
+    ) derives TensorTree, ToPyTree
 
   case class BinaryLogisticRegression(
       params: BinaryLogisticRegression.Params
-  ) extends Function[Tensor1[Feature, Float32], Tensor0[Float32]]:
-    private val linear = LinearMap[Feature, Float32](params.linearMap)
+  ) extends (FloatTensor1[Feature] => IntTensor0):
+    private val linear = LinearMap[Feature, Float](params.linearMap)
 
-    def logits(input: Tensor1[Feature, Float32]): Tensor0[Float32] =
+    def logits(input: FloatTensor1[Feature]): FloatTensor0 =
       linear(input)
-    def probits(input: Tensor1[Feature, Float32]): Tensor0[Float32] =
+    def probits(input: FloatTensor1[Feature]): FloatTensor0 =
       sigmoid(logits(input))
-    def apply(input: Tensor1[Feature, Float32]): Tensor0[Float32] =
-      logits(input) >= Tensor0(0f)
+    def apply(input: FloatTensor1[Feature]): IntTensor0 =
+      (logits(input) >= Tensor0(0f)).asValue(TensorValue[Int])
 
   def main(args: Array[String]): Unit =
 
@@ -48,26 +45,26 @@ object LogisticRegression:
         row.body_mass_g.toFloat
       )
     }.toArray
-    val labelData = dfShuffled.column["species"].toArray.map(_.toFloat)
+    val labelData = dfShuffled.column["species"].toArray
 
-    val dataUnnormalized = Tensor2[Sample, Feature, Float32](Axis[Sample], Axis[Feature], featureData)
-    val dataLabels = Tensor1[Sample, Float32](Axis[Sample], labelData)
+    val dataUnnormalized = FloatTensor2.fromArray(Axis[Sample], Axis[Feature], featureData)
+    val dataLabels = IntTensor1.fromArray(Axis[Sample], labelData)
 
     // TODO implement split
     val (trainingDataUnnormalized, valDataUnnormalized) = (dataUnnormalized, dataUnnormalized)
     val (trainLabels, valLabels) = (dataLabels, dataLabels)
 
-    def calcMeanAndStd(t: Tensor2[Sample, Feature, Float32]): (Tensor1[Feature, Float32], Tensor1[Feature, Float32]) =
+    def calcMeanAndStd(t: FloatTensor2[Sample, Feature]): (FloatTensor1[Feature], FloatTensor1[Feature]) =
       val mean = t.vmap(Axis[Feature])(_.mean)
-      val epsilon = Tensor0[Float32](1e-6f)
+      val epsilon = Tensor0[Float](1e-6f)
       val std = t.vmap(Axis[Feature]): feature =>
         val mean = feature.mean
-        (feature :- mean).pow(Tensor0[Float32](2f)).mean.sqrt + epsilon
+        (feature :- mean).pow(Tensor0[Float](2f)).mean.sqrt + epsilon
       (mean, std)
 
-    def standardizeData(mean: Tensor1[Feature, Float32], std: Tensor1[Feature, Float32])(
-        data: Tensor2[Sample, Feature, Float32]
-    ): Tensor2[Sample, Feature, Float32] =
+    def standardizeData(mean: FloatTensor1[Feature], std: FloatTensor1[Feature])(
+        data: FloatTensor2[Sample, Feature]
+    ): FloatTensor2[Sample, Feature] =
       data.vapply(Axis[Feature])(feature => (feature - mean) / std)
       // (data :- mean) :/ std
 
@@ -79,16 +76,17 @@ object LogisticRegression:
     val (initKey, restKey) = trainKey.split2()
     val (lossKey, sampleKey) = restKey.split2()
 
-    def loss(data: Tensor2[Sample, Feature, Float32], labels: Tensor1[Sample, Float32])(
+    def loss(data: FloatTensor2[Sample, Feature], labels: IntTensor1[Sample])(
         params: BinaryLogisticRegression.Params
-    ): Tensor0[Float32] =
+    ): FloatTensor0 =
       val model = BinaryLogisticRegression(params)
       // Compute logits for all samples
       val allLogits = data.vmap(Axis[Sample])(model.logits)
       // Compute losses using vectorized operations
       val losses = zipvmap(Axis[Sample])(data, labels)((sample, label) =>
+        val labelFloat = label.asValue(TensorValue[Float])
         val logits = model.logits(sample)
-        relu(logits) - logits * label + ((-logits.abs).exp + Tensor0[Float32](1f)).log
+        relu(logits) - logits * labelFloat + ((-logits.abs).exp + FloatTensor0(1f)).log
       )
       losses.mean
 
@@ -111,8 +109,9 @@ object LogisticRegression:
           println(
             List(
               "epoch: " + index,
-              "trainAcc: " + (Tensor0[Float32](1f) - (trainPreds - trainLabels).abs.mean).toFloat,
-              "valAcc: " + (Tensor0[Float32](1f) - (valPreds - valLabels).abs.mean).toFloat
+              "loss: " + loss(trainingData, trainLabels)(params).item,
+              "trainAcc: " + (FloatTensor0(1f) - (trainPreds - trainLabels).abs.mean).item,
+              "valAcc: " + (FloatTensor0(1f) - (valPreds - valLabels).abs.mean).item
             ).mkString(", ")
           )
       .map((params, _) => params)

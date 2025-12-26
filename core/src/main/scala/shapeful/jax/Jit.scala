@@ -1,13 +1,13 @@
 package shapeful.jax
 
-import shapeful.tensor.{Tensor, Shape, Labels, Value}
+import shapeful.tensor.{Tensor, Shape, Labels, TensorValue}
 import shapeful.jax.{Jax, JaxDType}
 import shapeful.autodiff.ToPyTree
 import me.shadaj.scalapy.py
 
 object Jit:
 
-  def jit[PyTree: ToPyTree, OutT <: Tuple: Labels, V: Value](
+  def jit[PyTree: ToPyTree, OutT <: Tuple: Labels, V: TensorValue](
       f: PyTree => Tensor[OutT, V]
   ): PyTree => Tensor[OutT, V] =
 
@@ -24,7 +24,7 @@ object Jit:
     (pyTree: PyTree) =>
       val pyTreePy = ToPyTree[PyTree].toPyTree(pyTree)
       val resultJax = jitted(pyTreePy)
-      Tensor.fromPy[OutT, V](resultJax)
+      Tensor(summon[TensorValue[V]]).fromPy[OutT](resultJax)
 
   def jit2[PyTree: ToPyTree, OutT <: Tuple: Labels](
       f: PyTree => PyTree

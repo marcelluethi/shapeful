@@ -1,8 +1,5 @@
-# DimWit - Because `axis=2` is just a guess
+# Shapeful
 
-## Example
+The ideas explored in shapeful have matured and found a new home as part of the [DimWit](https://github.com/dimwit-dev/dimwit) project.
 
-## Vision
-
-## Mission
 
